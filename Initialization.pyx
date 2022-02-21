@@ -364,7 +364,8 @@ def InitBomex(namelist,Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                     ijk = ishift + jshift + k
                     PV.values[e_varshift + ijk] = 1.0-Gr.zl_half[k]/3000.0
 
-
+    # initialize r_vapor profile using rayleigh approach, based on equation 66 in Wei 2018
+    initialize_Rayleigh(Gr, PV, Pa)
     return
 
 def InitGabls(namelist,Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV,
@@ -1771,3 +1772,27 @@ def interp_pchip(z_out, z_in, v_in, pchip_type=True):
         return p(z_out)
     else:
         return np.interp(z_out, z_in, v_in)
+
+def initialize_Rayleigh(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ParallelMPI.ParallelMPI Pa):
+    cdef extern from "isotope.h":
+        double Rayleigh_distillation(double qt) nogil
+    cdef:
+        Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+        Py_ssize_t qv_std_shift = PV.get_varshift(Gr, 'qv_std')
+        Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+        Py_ssize_t qv_iso_shift = PV.get_varshift(Gr, 'qv_iso')
+        Py_ssize_t qt_varshift = PV.get_varshift(Gr, 'qt')
+        Py_ssize_t i, j, k, ishift, jshift, ijk
+        double qt,qi
+    for i in xrange(Gr.dims.nlg[0]):
+        ishift =  i * Gr.dims.nlg[1] * Gr.dims.nlg[2]
+        for j in xrange(Gr.dims.nlg[1]):
+            jshift = j * Gr.dims.nlg[2]
+            for k in xrange(Gr.dims.nlg[2]):
+                ijk = ishift + jshift + k
+                qt = PV.values[qt_varshift + ijk] # change from kg/kg to g/kg
+                qi = Rayleigh_distillation(qt)
+                PV.values[qt_std_shift + ijk] = qt
+                PV.values[qv_std_shift + ijk] = qt
+                PV.values[qt_iso_shift + ijk] = qi / R_std_O18 # make sure qt_iso and qt are in same magnitude
+                PV.values[qv_iso_shift + ijk] = qi / R_std_O18 # make sure qv_iso and qv are in same magnitude

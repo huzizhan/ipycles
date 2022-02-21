@@ -31,6 +31,7 @@ cdef class ForcingBomex:
         double [:] vg
         double [:] dtdt
         double [:] dqtdt
+        double [:] dqtidt
         double [:] subsidence
         double coriolis_param
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
