@@ -118,7 +118,7 @@ cdef class IsotopeTracers_NoMicrophysics:
         return
 
 cdef class IsotopeTracers_SB_Liquid:
-    def __init__(self, namelist, ParallelMPI.ParallelMPI Par, LatentHeat LH):
+    def __init__(self, namelist):
         return
     cpdef initialize(self, namelist, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
                     DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
