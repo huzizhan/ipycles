@@ -178,7 +178,13 @@ cdef extern from "microphysics.h":
     void microphysics_wetbulb_temperature(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double* p0, double* s,
                                           double* qt,  double* T, double* Twet )nogil
 
-
+cdef extern from "isotope.h":
+    void tracer_sb_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                             double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+                             double* density, double* p0, double* temperature,  double* qt, double ccn,
+                             double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
+                             double* nr_tendency, double* qr_tendency,
+                             double* qr_std_tendency, double* qr_std_tendency_micro) nogil
 
 cdef class Microphysics_SB_Liquid:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -269,7 +275,6 @@ cdef class Microphysics_SB_Liquid:
         # add wet bulb temperature
         DV.add_variables('temperature_wb', 'K', r'T_{wb}','wet bulb temperature','sym', Pa)
 
-
         # add statistical output for the class
         NS.add_profile('qr_sedimentation_flux', Gr, Pa)
         NS.add_profile('nr_sedimentation_flux', Gr, Pa)
@@ -288,29 +293,39 @@ cdef class Microphysics_SB_Liquid:
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
         cdef:
-
-
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
             Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
             Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
+            Py_ssize_t qr_std_shift = PV.get_varshift(Gr, 'qr_std')
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
             Py_ssize_t w_shift = PV.get_varshift(Gr, 'w')
             double dt = TS.dt
             Py_ssize_t wqr_shift = DV.get_varshift(Gr, 'w_qr')
+            Py_ssize_t wqr_std_shift = DV.get_varshift(Gr, 'w_qr_std')
             Py_ssize_t wnr_shift = DV.get_varshift(Gr, 'w_nr')
             Py_ssize_t wqt_shift
             double[:] qr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] wnr_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-
-        sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
+        # sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
+        #                         self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
+        #                         &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
+        #                         &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift] )
+        tracer_sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
                                 self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
                                 &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift] )
+                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
+                                &PV.values[qr_std_shift], &qr_std_tend_micro[0])
 
 
+        sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
+                                       &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_std_shift],
+                                       &wnr_tmp[0], &DV.values[wqr_std_shift])
         sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
                                        &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_shift],
                                        &DV.values[wnr_shift], &DV.values[wqr_shift])
@@ -322,8 +337,6 @@ cdef class Microphysics_SB_Liquid:
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
 
-
-
         # update the Boundary conditions and ghost cells of the sedimentation velocities
         # wnr_nv = DV.name_index['w_nr']
         # wqr_nv = DV.name_index['w_qr']
@@ -331,13 +344,11 @@ cdef class Microphysics_SB_Liquid:
         # DV.communicate_variable(Gr,Pa,wqr_nv )
 
         sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &PV.tendencies[qt_shift])
-
+        sb_qt_source_formation(&Gr.dims,  &qr_std_tend_micro[0], &PV.tendencies[qt_std_shift])
 
         cdef:
             Py_ssize_t tw_shift = DV.get_varshift(Gr, 'temperature_wb')
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
-
-
 
         microphysics_wetbulb_temperature(&Gr.dims, &self.CC.LT.LookupStructC, &Ref.p0_half[0], &PV.values[s_shift],
                                          &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
@@ -346,16 +357,13 @@ cdef class Microphysics_SB_Liquid:
                                     &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift],
                                     &qr_tend_micro[0], &PV.tendencies[s_shift])
 
-
         sb_entropy_source_heating(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
                                   &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
 
         sb_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift], &PV.tendencies[s_shift])
 
-
         return
-
-    #
+    
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t i, j, k, ijk
@@ -378,10 +386,6 @@ cdef class Microphysics_SB_Liquid:
             double[:] qr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] tmp
-
-
-
-
             double[:] dummy =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             Py_ssize_t wqr_shift = DV.get_varshift(Gr, 'w_qr')
             Py_ssize_t wnr_shift = DV.get_varshift(Gr, 'w_nr')
@@ -410,8 +414,6 @@ cdef class Microphysics_SB_Liquid:
         compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqr_shift], &PV.values[qr_shift], &dummy[0], 2, self.order)
         tmp = Pa.HorizontalMean(Gr, &dummy[0])
         NS.write_profile('qr_sedimentation_flux', tmp[gw:-gw], Pa)
-
-
 
         #note we can re-use nr_tendency and qr_tendency because they are overwritten in each function
         #must have a zero array to pass as entropy tendency and need to send a dummy variable for qt tendency
