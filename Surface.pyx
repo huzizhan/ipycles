@@ -366,7 +366,20 @@ cdef class SurfaceBomex(SurfaceBase):
                     self.v_flux[ij] = -self.ustar_**2/interp_2(windspeed[ij], windspeed[ij+1]) * (PV.values[v_shift + ijk] + Ref.v0)
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa, TS)
-
+        # isotope surface flux calculation and added to qt_iso_tendency
+        cdef: 
+            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            double dzi = 1.0/Gr.dims.dx[2]
+            double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
+            double R_vapor = 2.225e-3 # there the isotope R of vapor is calculated using C-G model, and given surface conditions.
+        with nogil:
+            for i in xrange(gw, imax):
+                for j in xrange(gw, jmax): 
+                    ijk = i * istride + j * jstride + gw
+                    ij = i * istride_2d + j
+                    PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
+                    PV.tendencies[qt_iso_shift + ijk] += (self.qt_flux[ij] * R_vapor) / R_std_O18 * tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
         return
 
 

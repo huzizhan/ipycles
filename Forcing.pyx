@@ -203,6 +203,25 @@ cdef class ForcingBomex:
         apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_shift], &PV.tendencies[qt_shift])
         apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[u_shift], &PV.tendencies[u_shift])
         apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[v_shift], &PV.tendencies[v_shift])
+        # Add Focing for tracers: std+iso
+        cdef:
+            double iso_ratio, qt_, qt_iso_
+            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+        with nogil:
+            for i in xrange(imin,imax):
+                ishift = i * istride
+                for j in xrange(jmin,jmax):
+                    jshift = j * jstride
+                    for k in xrange(kmin,kmax):
+                        ijk = ishift + jshift + k
+                        qt_ = PV.values[qt_std_shift] 
+                        qt_iso_ = PV.values[qt_iso_shift] 
+                        iso_ratio = qt_iso_ / qt_
+                        PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
+                        PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
+        apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_shift], &PV.tendencies[qt_iso_shift])
+        apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
         return
 
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,

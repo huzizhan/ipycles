@@ -360,12 +360,12 @@ def Bomex():
     namelist['damping']['Rayleigh']['z_d'] = 600
 
     namelist['output'] = {}
-    namelist['output']['output_root'] = './'
+    namelist['output']['output_root'] = '../Output/'
 
     namelist['restart'] = {}
     namelist['restart']['output'] = True
     namelist['restart']['init_from'] = False
-    namelist['restart']['input_path'] = './'
+    namelist['restart']['input_path'] = '../Output/'
     namelist['restart']['frequency'] = 600.0
 
     namelist['stats_io'] = {}
@@ -390,10 +390,13 @@ def Bomex():
     namelist['initialization'] = {}
     namelist['initialization']['random_seed_factor'] = 1
 
-    namelist['tracers'] = {}
-    namelist['tracers']['use_tracers'] = True
-    namelist['tracers']['scheme'] = 'PurityTracers'
+    # namelist['tracers'] = {}
+    # namelist['tracers']['use_tracers'] = True
+    # namelist['tracers']['scheme'] = 'PurityTracers'
 
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'No microphysics'
     return namelist
 
 
