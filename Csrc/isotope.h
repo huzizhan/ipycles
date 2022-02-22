@@ -160,3 +160,79 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
     }
     return;
 }
+void tracer_sb_sedimentation_velocity_rain(const struct DimStruct *dims, double (*rain_mu)(double,double,double),
+                                        double* restrict density, double* restrict nr, double* restrict qr,
+                                        double* restrict nr_velocity, double* restrict qr_velocity, double* restrict qr_std_velocity){
+    
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = 0;
+    const ssize_t jmin = 0;
+    const ssize_t kmin = 0;
+    const ssize_t imax = dims->nlg[0];
+    const ssize_t jmax = dims->nlg[1];
+    const ssize_t kmax = dims->nlg[2];
+
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin-1; k<kmax+1; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                double qr_tmp = fmax(qr[ijk],0.0);
+                double density_factor = sqrt(DENSITY_SB/density[k]);
+                double rain_mass = microphysics_mean_mass(nr[ijk], qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
+                double Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
+                double mu = rain_mu(density[k], qr_tmp, Dm);
+                double Dp = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
+
+                nr_velocity[ijk] = -fmin(fmax( density_factor * (A_RAIN_SED - B_RAIN_SED * pow(1.0 + C_RAIN_SED * Dp, -mu - 1.0)) , 0.0),10.0);
+                qr_velocity[ijk] = -fmin(fmax( density_factor * (A_RAIN_SED - B_RAIN_SED * pow(1.0 + C_RAIN_SED * Dp, -mu - 4.0)) , 0.0),10.0);
+                qr_std_velocity[ijk] = -fmin(fmax( density_factor * (A_RAIN_SED - B_RAIN_SED * pow(1.0 + C_RAIN_SED * Dp, -mu - 4.0)) , 0.0),10.0);
+
+            }
+        }
+    }
+
+
+     for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax-1 ; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                nr_velocity[ijk] = interp_2(nr_velocity[ijk], nr_velocity[ijk+1]) ;
+                qr_velocity[ijk] = interp_2(qr_velocity[ijk], qr_velocity[ijk+1]) ;
+                qr_std_velocity[ijk] = interp_2(qr_velocity[ijk], qr_velocity[ijk+1]) ;
+            }
+        }
+    }
+    return;
+}
+
+void tracer_sb_qt_source_formation(const struct DimStruct *dims, double* restrict qr_tendency, double* restrict qt_tendency, double* restrict qt_std_tendency){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                qt_tendency[ijk] += -qr_tendency[ijk];
+                qt_std_tendency[ijk] += -qr_tendency[ijk];
+            }
+        }
+    }
+    return;
+}
