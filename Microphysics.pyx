@@ -184,10 +184,12 @@ cdef extern from "isotope.h":
                              double* density, double* p0, double* temperature,  double* qt, double ccn,
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
                              double* nr_tendency, double* qr_tendency,
-                             double* qr_std_tendency, double* qr_std_tendency_micro) nogil
+                             double* qr_std_tendency, double* qr_std_tendency_micro,
+                             double* qr_iso, double* qt_iso, double* qv_iso, double* ql_iso,
+                             double* qr_iso_tendency_micro, double* qr_iso_tendency) nogil
     void tracer_sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
-                                        double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity, double* qr_std_velocity) nogil
-    void tracer_sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qt_tendency, double* qt_std_tendency )nogil
+                                        double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity, double* qr_std_velocity, double* qr_iso_velocity) nogil
+    void tracer_sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qr_iso_tendency, double* qt_tendency, double* qt_std_tendency, double* qt_iso_tendency)nogil
 cdef class Microphysics_SB_Liquid:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
         # Create the appropriate linkages to the bulk thermodynamics
@@ -301,18 +303,25 @@ cdef class Microphysics_SB_Liquid:
             Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
             Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
-            Py_ssize_t qr_std_shift = PV.get_varshift(Gr, 'qr_std')
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
             Py_ssize_t w_shift = PV.get_varshift(Gr, 'w')
             double dt = TS.dt
             Py_ssize_t wqr_shift = DV.get_varshift(Gr, 'w_qr')
-            Py_ssize_t wqr_std_shift = DV.get_varshift(Gr, 'w_qr_std')
             Py_ssize_t wnr_shift = DV.get_varshift(Gr, 'w_nr')
             Py_ssize_t wqt_shift
             double[:] qr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-
+            # std-tracers indexes defination
+            Py_ssize_t qr_std_shift = PV.get_varshift(Gr, 'qr_std')
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            Py_ssize_t wqr_std_shift = DV.get_varshift(Gr, 'w_qr_std')
+            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            # iso-tracers indexes defination
+            Py_ssize_t ql_iso_shift = PV.get_varshift(Gr,'ql_iso')
+            Py_ssize_t qv_iso_shift = PV.get_varshift(Gr,'qv_iso')
+            Py_ssize_t qr_iso_shift = PV.get_varshift(Gr, 'qr_iso')
+            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            Py_ssize_t wqr_iso_shift = DV.get_varshift(Gr, 'w_qr_iso')
+            double[:] qr_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         # sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
         #                         self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
         #                         &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
@@ -321,13 +330,13 @@ cdef class Microphysics_SB_Liquid:
         # sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
         #                                &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_shift],
         #                                &DV.values[wnr_shift], &DV.values[wqr_shift])
-        if self.cloud_sedimentation:
-            wqt_shift = DV.get_varshift(Gr, 'w_qt')
+        # if self.cloud_sedimentation:
+        #     wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
-            if self.stokes_sedimentation:
-                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
-            else:
-                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+        #     if self.stokes_sedimentation:
+        #         microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+        #     else:
+        #         sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
 
         # update the Boundary conditions and ghost cells of the sedimentation velocities
         # wnr_nv = DV.name_index['w_nr']
@@ -341,10 +350,12 @@ cdef class Microphysics_SB_Liquid:
                                 self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
                                 &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
                                 &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
-                                &PV.values[qr_std_shift], &qr_std_tend_micro[0])
+                                &PV.tendencies[qr_std_shift], &qr_std_tend_micro[0],
+                                &PV.values[qr_iso_shift], &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift],
+                                &PV.tendencies[qr_iso_shift], &qr_iso_tend_micro[0])
         tracer_sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
                                        &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_shift],
-                                       &DV.values[wnr_shift], &DV.values[wqr_shift], &DV.values[wqr_std_shift])
+                                       &DV.values[wnr_shift], &DV.values[wqr_shift], &DV.values[wqr_std_shift], &DV.values[wqr_iso_shift])
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
@@ -353,7 +364,7 @@ cdef class Microphysics_SB_Liquid:
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
         
-        tracer_sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &PV.tendencies[qt_shift], &PV.tendencies[qt_std_shift])
+        tracer_sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &qr_iso_tend_micro[0], &PV.tendencies[qt_shift], &PV.tendencies[qt_std_shift], &PV.tendencies[qt_iso_shift])
 
         cdef:
             Py_ssize_t tw_shift = DV.get_varshift(Gr, 'temperature_wb')
