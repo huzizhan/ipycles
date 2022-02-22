@@ -185,7 +185,9 @@ cdef extern from "isotope.h":
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
                              double* nr_tendency, double* qr_tendency,
                              double* qr_std_tendency, double* qr_std_tendency_micro) nogil
-
+    void tracer_sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
+                                        double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity, double* qr_std_velocity) nogil
+    void tracer_sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qt_tendency, double* qt_std_tendency )nogil
 cdef class Microphysics_SB_Liquid:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
         # Create the appropriate linkages to the bulk thermodynamics
@@ -310,25 +312,15 @@ cdef class Microphysics_SB_Liquid:
             double[:] qr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] wnr_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         # sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
         #                         self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
         #                         &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
         #                         &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift] )
-        tracer_sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
-                                self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
-                                &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
-                                &PV.values[qr_std_shift], &qr_std_tend_micro[0])
 
-
-        sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
-                                       &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_std_shift],
-                                       &wnr_tmp[0], &DV.values[wqr_std_shift])
-        sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
-                                       &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_shift],
-                                       &DV.values[wnr_shift], &DV.values[wqr_shift])
+        # sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
+        #                                &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_shift],
+        #                                &DV.values[wnr_shift], &DV.values[wqr_shift])
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
@@ -343,8 +335,25 @@ cdef class Microphysics_SB_Liquid:
         # DV.communicate_variable(Gr,Pa,wnr_nv)
         # DV.communicate_variable(Gr,Pa,wqr_nv )
 
-        sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &PV.tendencies[qt_shift])
-        sb_qt_source_formation(&Gr.dims,  &qr_std_tend_micro[0], &PV.tendencies[qt_std_shift])
+        # sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &PV.tendencies[qt_shift])
+
+        tracer_sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
+                                self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
+                                &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
+                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
+                                &PV.values[qr_std_shift], &qr_std_tend_micro[0])
+        tracer_sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
+                                       &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_shift],
+                                       &DV.values[wnr_shift], &DV.values[wqr_shift], &DV.values[wqr_std_shift])
+        if self.cloud_sedimentation:
+            wqt_shift = DV.get_varshift(Gr, 'w_qt')
+
+            if self.stokes_sedimentation:
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+            else:
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+        
+        tracer_sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &PV.tendencies[qt_shift], &PV.tendencies[qt_std_shift])
 
         cdef:
             Py_ssize_t tw_shift = DV.get_varshift(Gr, 'temperature_wb')
