@@ -889,6 +889,8 @@ def InitRico(namelist,Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                     if Gr.zl_half[k] <= 740.0:
                         PV.values[e_varshift + ijk] = 0.1
 
+    # initialize r_vapor profile using rayleigh approach, based on equation 66 in Wei 2018
+    initialize_Rayleigh(Gr, PV, Pa)
 
     return
 

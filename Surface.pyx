@@ -34,6 +34,7 @@ cdef extern from "thermodynamic_functions.h":
     double exner_c(const double p0) nogil
     double theta_rho_c(double p0, double T,double qt, double qv) nogil
     double cpm_c(double qt) nogil
+    double qv_star_c(double p0, double qt, double pv_star) nogil
 cdef extern from "surface.h":
     double compute_ustar(double windspeed, double buoyancy_flux, double z0, double z1) nogil
     double entropyflux_from_thetaflux_qtflux(double thetaflux, double qtflux, double p0_b, double T_b, double qt_b, double qv_b) nogil
@@ -42,6 +43,8 @@ cdef extern from "surface.h":
 cdef extern from "entropies.h":
     double sd_c(double pd, double T) nogil
     double sv_c(double pv, double T) nogil
+cdef extern from "isotope_functions.h":
+    double C_G_model(double RH,  double temperature, double alpha_k) nogil
 
 def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
 
@@ -702,8 +705,10 @@ cdef class SurfaceRico(SurfaceBase):
 
         cdef double pv_star = pv_c(Ref.Pg, Ref.qtg, Ref.qtg)
         cdef double  pd_star = Ref.Pg - pv_star
+        cdef double qv_star = qv_star_c(Ref.Pg, Ref.qtg, pv_star)
+        self.T_surface = Ref.Tg
+        self.RH = Ref.qtg / qv_star  
         self.s_star = (1.0-Ref.qtg) * sd_c(pd_star, Ref.Tg) + Ref.qtg * sv_c(pv_star,Ref.Tg)
-
 
         if Pa.sub_z_rank != 0:
             return
@@ -748,6 +753,21 @@ cdef class SurfaceRico(SurfaceBase):
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa, TS)
 
+        # tracers surface source
+        cdef:
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            double dzi = 1.0/Gr.dims.dx[2]
+            double R_evap
+            double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
+        with nogil:
+            for i in xrange(gw, imax-gw):
+                for j in xrange(gw,jmax-gw):
+                    ijk = i * istride + j * jstride + gw
+                    ij = i * istride_2d + j
+                    R_evap = C_G_model(self.RH, self.T_surface, 1.0)
+                    PV.tendencies[qt_std_shift + ijk] +=  self.qt_flux[ij] * tendency_factor
+                    PV.tendencies[qt_iso_shift + ijk] +=  self.qt_flux[ij] * R_evap * tendency_factor / R_std_O18
         return
 
 

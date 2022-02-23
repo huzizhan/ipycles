@@ -544,15 +544,20 @@ cdef class ForcingRico:
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
             Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
             double qt, qv, p0, t
+            double qt_, qt_iso_, iso_ratio
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
+            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
 
         apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[s_shift],&PV.tendencies[s_shift])
         apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_shift],&PV.tendencies[qt_shift])
+        apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
+        apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
         if self.momentum_subsidence == 1:
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[u_shift],&PV.tendencies[u_shift])
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[v_shift],&PV.tendencies[v_shift])
 
 
-                #Apply large scale source terms
+        #Apply large scale source terms
         with nogil:
             for i in xrange(imin,imax):
                 ishift = i * istride
@@ -564,8 +569,11 @@ cdef class ForcingRico:
                         qt = PV.values[qt_shift + ijk]
                         qv = qt - DV.values[ql_shift + ijk]
                         t  = DV.values[t_shift + ijk]
+                        iso_ratio = PV.values[qt_iso_shift + ijk] / PV.values[qt_std_shift + ijk]
                         PV.tendencies[s_shift + ijk] += s_tendency_c(p0, qt, qv, t, self.dqtdt[k], self.dtdt[k])
                         PV.tendencies[qt_shift + ijk] += self.dqtdt[k]
+                        PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
+                        PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
 
         coriolis_force(&Gr.dims,&PV.values[u_shift],&PV.values[v_shift],&PV.tendencies[u_shift],
                        &PV.tendencies[v_shift],&self.ug[0], &self.vg[0],self.coriolis_param, RS.u0, RS.v0  )
