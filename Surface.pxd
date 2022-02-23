@@ -125,6 +125,7 @@ cdef class SurfaceRico(SurfaceBase):
         double z0
         double gustiness
         double s_star
+        double RH
 
 
 
