@@ -184,6 +184,7 @@ cdef extern from "isotope.h":
                              double* density, double* p0, double* temperature,  double* qt, double ccn,
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
                              double* nr_tendency, double* qr_tendency,
+                             double* qr_std, double* nr_std_tend_micro, double* qr_std_tend_micro, double* nr_std_tendency, double* qr_std_tendency, 
                              double* qr_iso, double* qt_iso, double* qv_iso, double* ql_iso,
                              double* qr_iso_tendency_micro, double* qr_iso_tendency) nogil
     void tracer_sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
@@ -327,14 +328,15 @@ cdef class Microphysics_SB_Liquid:
         tracer_sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
                                 self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
                                 &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                &PV.values[qr_std_shift], dt, &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
+                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
+                                &PV.values[qr_std_shift], &nr_std_tend_micro[0], &qr_std_tend_micro[0],&PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
                                 &PV.values[qr_iso_shift], &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift],
                                 &PV.tendencies[qr_iso_shift], &qr_iso_tend_micro[0])
 
-        sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
-                                self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
-                                &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift] )
+        # sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
+        #                         self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
+        #                         &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
+        #                         &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift] )
 
         tracer_sb_sedimentation_velocity_rain(&Gr.dims,self.compute_rain_shape_parameter,
                                        &Ref.rho0_half[0],&PV.values[nr_shift], &PV.values[qr_shift],

@@ -64,6 +64,7 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                              double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
                              double* restrict ql, double* restrict nr, double* restrict qr, double dt,
                              double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
+                             double* restrict qr_std, double* restrict nr_std_tendency_micro, double* restrict qr_std_tendency_micro, double* restrict nr_std_tendency, double* restrict qr_std_tendency,
                              double* restrict qr_iso, double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso,
                              double* restrict qr_iso_tendency_micro, double* restrict qr_iso_tendency){
 
@@ -73,6 +74,8 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
     double nr_tendency_au, nr_tendency_scbk, nr_tendency_evp;
     double qr_tendency_au, qr_tendency_ac,  qr_tendency_evp;
     double sat_ratio;
+    double qr_std_tmp, qr_std_tend, qr_std_tendency_tmp;
+    double nr_std_tmp, nr_std_tend, nr_std_tendency_tmp;
     double qr_iso_tmp, qr_iso_tend, qr_iso_tendency_tmp, qt_iso_tendency_tmp, qv_iso_tendency_tmp, ql_iso_tendency_tmp;
     double qr_iso_auto_tendency, qr_iso_accre_tendency, qr_iso_evap_tendency;
 
@@ -101,6 +104,8 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                 double qr_tmp = fmax(qr[ijk],0.0);
                 double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
                 double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
+                double qr_std_tmp = fmax(qr_std[ijk], 0.0);
+                double nr_std_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
                 double ql_iso_tmp = fmax(ql_iso[ijk], 0.0);
                 double qr_iso_tmp = fmax(qr_iso[ijk], 0.0);
                 double qv_iso_tmp = qv_iso[ijk];
@@ -117,6 +122,8 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                     qr_tendency_au = 0.0;
                     qr_tendency_ac = 0.0;
                     qr_tendency_evp = 0.0;
+                    qr_std_tend = 0.0;
+                    nr_std_tend = 0.0;
                     //obtain some parameters
                     rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
                     Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
@@ -134,18 +141,21 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                     qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evp;
                     ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac;
 
-                    // //iso_tendencies initilize
+                    //std_tendencies
+                    qr_std_tend = qr_tendency_au + qr_tendency_ac + qr_tendency_evp;
+                    nr_std_tend = nr_tendency_au + nr_tendency_scbk + nr_tendency_evp;
+                    //iso_tendencies initilize
                     qr_iso_auto_tendency = 0.0;
                     qr_iso_accre_tendency = 0.0;
                     qr_iso_evap_tendency = 0.0;
 
-                    // // iso_tendencies calculations
+                    // iso_tendencies calculations
                     sb_iso_rain_autoconversion(ql_tmp, ql_iso_tmp, qr_tendency_au, &qr_iso_auto_tendency);
                     sb_iso_rain_accretion(ql_tmp, qr_tmp, ql_iso_tmp, qr_iso_tmp, qr_tendency_ac, &qr_iso_accre_tendency);
                     double g_therm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio);
                     sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm, &qr_iso_evap_tendency);
-                    
-                    // // iso_tendencies add
+
+                    // iso_tendencies add
                     qr_iso_tendency_tmp = qr_iso_auto_tendency + qr_iso_accre_tendency + qr_iso_evap_tendency;
                     ql_iso_tendency_tmp = -qr_iso_auto_tendency - qr_iso_accre_tendency;
 
@@ -167,7 +177,11 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                     nr_tmp = fmax(fmin(nr_tmp, qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
                     ql_tmp = fmax(ql_tmp,0.0);
                     qt_tmp = ql_tmp + qv_tmp;
-                    time_added += dt_ ;
+                    // std_tracer Intergrate forward in time
+                    qr_std_tmp += qr_std_tend * dt_;
+                    nr_std_tmp += nr_std_tend * dt_;
+                    qr_std_tmp = fmax(qr_std_tmp, 0.0);
+                    nr_std_tmp = fmax(fmin(nr_std_tmp, qr_std_tmp/RAIN_MIN_MASS),qr_std_tmp/RAIN_MAX_MASS);
                     
                     // isotope_tracer Intergrate forward in time
                     qr_iso_tmp += qr_iso_tendency_tmp * dt_;
@@ -176,13 +190,18 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
 
                     qr_iso_tmp = fmax(qr_iso_tmp, 0.0);
                     ql_iso_tmp = fmax(ql_iso_tmp, 0.0);
-
+                    
                     time_added += dt_ ;
                 }while(time_added < dt);
                 nr_tendency_micro[ijk] = (nr_tmp - nr[ijk] )/dt;
                 qr_tendency_micro[ijk] = (qr_tmp - qr[ijk])/dt;
                 nr_tendency[ijk] += nr_tendency_micro[ijk];
                 qr_tendency[ijk] += qr_tendency_micro[ijk];
+
+                qr_std_tendency_micro[ijk] = (qr_std_tmp - qr_std[ijk])/dt;
+                nr_std_tendency_micro[ijk] = (nr_std_tmp - nr[ijk])/dt;
+                qr_std_tendency[ijk] += qr_std_tendency_micro[ijk];
+                nr_std_tendency[ijk] += nr_std_tendency_micro[ijk];
 
                 qr_iso_tendency_micro[ijk] = (qr_iso_tmp - qr_iso[ijk])/dt;
                 qr_iso_tendency[ijk] += qr_iso_tendency_micro[ijk];
