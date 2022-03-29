@@ -70,7 +70,10 @@ export ZSH="/home/frank/.oh-my-zsh"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git zsh-syntax-highlighting zsh-autosuggestions)
+plugins=(git 
+	zsh-syntax-highlighting 
+	zsh-autosuggestions
+	)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -153,7 +156,7 @@ export FZF_DEFAULT_COMMAND='ag --hidden --ignore .git -g ""'
 export FZF_DEFAULT_OPTS='--preview "[[ $(file --mime {}) =~ binary ]] && echo {} is a binary file || (ccat --color=always {} || highlight -O ansi -l {} || cat {}) 2> /dev/null | head -500"
 						 --height 40% 
 						 --layout=reverse' 
-source ~/.config/zsh/fzf-tab/fzf-tab.plugin.zsh
+source ~/.oh-my-zsh/custom/plugins/fzf-tab/fzf-tab.plugin.zsh
 
 # tmux setting
 alias ta="tmux attach -t"
