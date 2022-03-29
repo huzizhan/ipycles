@@ -986,6 +986,8 @@ def InitIsdac(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                     theta_pert_ = 0.0
                 T,ql = sat_adjst(RS.p0_half[k],thetal[k] + theta_pert_,qt[k], Th)
                 PV.values[ijk + s_varshift] = Th.entropy(RS.p0_half[k], T, qt[k], ql, 0.0)
+    # Initialize tracer sections
+    initialize_Rayleigh(Gr, PV, Pa)
 
     return
 

@@ -269,3 +269,62 @@ void tracer_sb_qt_source_formation(const struct DimStruct *dims, double* restric
     }
     return;
 }
+
+// ===========<<< iso 1_m ice scheme for wrf >>> ============
+
+double ice_kinetic_frac_function(double qi_std, double qi_iso, double qi, double alpha_s_ice, double alpha_k_ice){
+    double tendency_std = qi - qi_std;
+    double tendency_iso = alpha_s_ice * alpha_k_ice * tendency_std;
+    double qi_iso_tmp   = qi_iso + tendency_iso;
+    return qi_iso_tmp;
+}
+
+void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+    double* restrict temperature, double* restrict p0,
+    double* restrict qt_std, double* restrict qv_std, double* restrict ql_std, double* restrict qi_std, 
+    double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso, double* restrict qi_iso, 
+    double* restrict qv_DV, double* restrict ql_DV, double* restrict qi_DV){ 
+    ssize_t i,j,k;
+    double alpha_s_ice, alpha_k_ice, alpha_eq_O18;
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = 0;
+    const ssize_t jmin = 0;
+    const ssize_t kmin = 0;
+    const ssize_t imax = dims->nlg[0];
+    const ssize_t jmax = dims->nlg[1];
+    const ssize_t kmax = dims->nlg[2];
+
+    for (i=imin; i<imax; i++){
+       const ssize_t ishift = i * istride;
+        for (j=jmin;j<jmax;j++){
+            const ssize_t jshift = j * jstride;
+                for (k=kmin;k<kmax;k++){
+                    const ssize_t ijk = ishift + jshift + k;
+                    double qv_std_tmp, ql_std_tmp, qi_std_tmp, qv_iso_tmp, ql_iso_tmp, qi_iso_tmp;
+
+                    alpha_eq_O18 = equilibrium_fractionation_factor_H2O18(temperature[ijk]);
+                    alpha_s_ice = 1.0;
+                    alpha_k_ice = alpha_k_ice_equation(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
+
+                    qv_std_tmp  = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
+                    qv_iso_tmp  = eq_frac_function(qt_iso[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
+
+                    qi_iso_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_iso[ijk], qi_DV[ijk], alpha_s_ice, alpha_k_ice);
+                    qi_std_tmp  = qi_DV[ijk];
+
+                    ql_std_tmp  = qt_std[ijk] - qv_std_tmp - qi_std_tmp;
+                    ql_iso_tmp  = qt_iso[ijk] - qv_iso_tmp - qi_iso_tmp;
+                    
+                    qv_std[ijk] = qv_std_tmp;
+                    ql_std[ijk] = ql_std_tmp;
+                    qi_std[ijk] = qi_std_tmp;
+
+                    qv_iso[ijk] = qv_iso_tmp;
+                    ql_iso[ijk] = ql_iso_tmp;
+                    qi_iso[ijk] = qi_iso_tmp;
+                } // End k loop
+            } // End j loop
+        } // End i loop
+    return;
+}

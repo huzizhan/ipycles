@@ -45,8 +45,8 @@ cdef class No_Microphysics_Dry:
 
 cdef class No_Microphysics_SA:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
-        LH.Lambda_fp = lambda_constant
-        LH.L_fp = latent_heat_variable
+        LH.Lambda_fp = lambda_Arctic
+        LH.L_fp = latent_heat_Arctic
         self.thermodynamics_type = 'SA'
         #also set local versions
         self.Lambda_fp = lambda_constant

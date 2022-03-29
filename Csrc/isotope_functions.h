@@ -153,3 +153,28 @@ double Dm, double* qr_tendency){
     }
     return;
 }
+
+// ===========<<< iso 1-m ice scheme >>> ============
+
+static inline double equilibrium_fractionation_factor_H2O18_ice(double t){
+// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
+	double alpha_ice = exp(1137/(t*t) - 0.4156/t -2.0667e-3);  
+    return alpha_ice;
+}
+
+double alpha_k_ice_equation(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                             double temperature, double p0, double qt, double alpha_s){
+    double lam         = lam_fp(temperature);
+    double L           = L_fp(temperature,lam);
+    double pv_sat_ice  = lookup(LT, temperature);
+    double rho_sat_ice = pv_sat_ice/Rv/temperature;
+    // calculate sat_ratio of vapor respect to ice, S_s is the same simple in Blossey's 2015
+    double qv_sat_ice  = qv_star_c(p0,qt,pv_sat_ice);
+    double S_s         = qt/qv_sat_ice;
+    double D_O18       = DVAPOR*0.9723;
+    double diff_ratio  = DVAPOR / D_O18;
+    double b_s         = (DVAPOR*rho_sat_ice)*(L/KT/temperature)*(L/Rv/temperature - 1.0);
+    double alpha_k_ice = (1 + b_s) * S_s * (1/(alpha_s*diff_ratio*(S_s - 1) + 1 + b_s*S_s));
+    return alpha_k_ice;
+}
+

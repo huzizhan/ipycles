@@ -6,12 +6,15 @@ cimport ParallelMPI
 cimport TimeStepping
 from NetCDFIO cimport NetCDFIO_Stats
 from Thermodynamics cimport LatentHeat, ClausiusClapeyron
+from libc.math cimport pow, exp
 
 
 cdef:
     double lambda_constant(double T) nogil
 
     double latent_heat_constant(double T, double T) nogil
+    double lambda_Arctic(double T) nogil
+    double latent_heat_Arctic(double T, double Lambda) nogil
 
 cdef class No_Microphysics_Dry:
     # Make the thermodynamics_type member available from Python-Space
@@ -73,3 +76,24 @@ cdef inline double latent_heat_variable(double T, double Lambda) nogil:
         double TC = T - 273.15
     return (2500.8 - 2.36 * TC + 0.0016 * TC *
             TC - 0.00006 * TC * TC * TC) * 1000.0
+cdef inline double latent_heat_Arctic(double T, double Lambda) nogil:
+    cdef:
+        double Lv = 2.501e6
+        double Ls = 2.8334e6
+
+    return (Lv * Lambda) + (Ls * (1.0 - Lambda))
+cdef inline double lambda_Arctic(double T) nogil:
+    cdef:
+        double Twarm = 273.0
+        double Tcold = 235.0
+        double pow_n = 0.1
+        double Lambda = 0.0
+
+    if T >= Tcold and T <= Twarm:
+        Lambda = pow((T - Tcold)/(Twarm - Tcold), pow_n)
+    elif T > Twarm:
+        Lambda = 1.0
+    else:
+        Lambda = 0.0
+
+    return Lambda

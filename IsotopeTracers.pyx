@@ -37,17 +37,25 @@ cdef extern from "isotope.h":
     void delta_isotopologue(Grid.DimStruct *dims, double *q_iso, double *q_std, double *delta, int index) nogil
     void compute_sedimentaion(Grid.DimStruct *dims, double *w_q, double *w_q_iso, double *w_q_std) nogil
     void tracer_constrain_NoMicro(Grid.DimStruct *dims, double *ql, double *ql_std, double *ql_iso, double *qv_std, double *qv_iso, double *qt_std, double *qt_iso) nogil
+    void iso_wbf_fractionation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double),
+        double *temperature, double *p0,
+        double *qt_std, double *qv_std, double *ql_std, double *qi_std, 
+        double *qt_iso, double *qv_iso, double *ql_iso, double *qi_iso, 
+        double *qv_DV, double *ql_DV, double *qi_DV) nogil
 cdef extern from "scalar_advection.h":
     void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double *rho0_half, double *velocity, double *scalar, double* flux, int d, int scheme) nogil
 cdef extern from "isotope_functions.h":
     double q_2_delta(double q_iso, double q_std) nogil
-def IsotopeTracersFactory(namelist):
+def IsotopeTracersFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
     try:
-        micro_scheme = namelist['microphysics']['scheme']
-        if micro_scheme == 'None_SA':
+        #  micro_scheme = namelist['microphysics']['scheme']
+        iso_scheme = namelist['isotopetracers']['scheme']
+        if iso_scheme == 'None_SA':
             return IsotopeTracers_NoMicrophysics(namelist)
-        elif micro_scheme == 'SB_Liquid':
+        elif iso_scheme == 'SB_Liquid':
             return IsotopeTracers_SB_Liquid(namelist)
+        elif iso_scheme == 'Arctic_1M':
+            return IsotopeTracers_Arctic_1M(namelist, LH, Par)
     except:
         return IsotopeTracersNone()
 
@@ -203,6 +211,99 @@ cdef class IsotopeTracers_SB_Liquid:
         iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
         return
 
+cdef class IsotopeTracers_Arctic_1M:
+    def __init__(self, dict namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
+        self.L_fp = LH.L_fp
+        self.Lambda_fp = LH.Lambda_fp
+        self.CC = ClausiusClapeyron()
+        self.CC.initialize(namelist, LH, Par)
+        return
+    cpdef initialize(self, namelist, Grid.Grid Gr,  PrognosticVariables.PrognosticVariables PV,
+                     DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        Pa.root_print('initialized with IsotopeTracers_Arctic_1M')
+        
+        PV.add_variable('qt_std', 'kg/kg','qt_std','Total water std specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_std', 'kg/kg','qv_std','Vapor water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_std', 'kg/kg','ql_std','Cloud liquid water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qi_std', 'kg/kg','qi_std','Cloud ice water std specific humidity','sym', 'scalar', Pa)
+        
+        PV.add_variable('qt_iso', 'kg/kg','qt_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso', 'kg/kg','qv_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso', 'kg/kg','ql_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qi_iso', 'kg/kg','qi_isotope','Cloud ice water isotopic specific humidity','sym', 'scalar', Pa)
+
+        initialize_NS_base(NS, Gr, Pa)
+        
+        NS.add_profile('qi_in_cloud', Gr, Pa, 'unit', '', 'qi_in_cloud')
+        NS.add_profile('delta_qi', Gr, Pa, 'unit', '', 'delta_qi')
+        return
+    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, 
+					ThermodynamicsSA.ThermodynamicsSA Th_sa, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
+        cdef:
+            Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
+            Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
+            Py_ssize_t qv_shift     = DV.get_varshift(Gr,'qv')
+            Py_ssize_t ql_shift     = DV.get_varshift(Gr,'ql')
+            Py_ssize_t qi_shift     = DV.get_varshift(Gr,'qi')
+            Py_ssize_t s_shift      = PV.get_varshift(Gr,'s')
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
+            Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
+            Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
+            Py_ssize_t qi_std_shift = PV.get_varshift(Gr,'qi_std')
+            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
+            Py_ssize_t qv_iso_shift = PV.get_varshift(Gr,'qv_iso')
+            Py_ssize_t ql_iso_shift = PV.get_varshift(Gr,'ql_iso')
+            Py_ssize_t qi_iso_shift = PV.get_varshift(Gr,'qi_iso')
+            double[:] qv_std_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_std_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qi_std_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_iso_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_iso_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qi_iso_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        iso_wbf_fractionation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
+                &DV.values[t_shift], &RS.p0_half[0],
+                &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[qi_std_shift], 
+                &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift], &PV.values[qi_iso_shift], 
+                &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
+        return
+    cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
+                   ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
+        cdef:
+            Py_ssize_t i,j,k, ijk, ishift, jshift
+            Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
+            Py_ssize_t jstride = Gr.dims.nlg[2]
+            Py_ssize_t imin = Gr.dims.gw
+            Py_ssize_t jmin = Gr.dims.gw
+            Py_ssize_t kmin = Gr.dims.gw
+            Py_ssize_t imax = Gr.dims.nlg[0] - Gr.dims.gw
+            Py_ssize_t jmax = Gr.dims.nlg[1] - Gr.dims.gw
+            Py_ssize_t kmax = Gr.dims.nlg[2] - Gr.dims.gw
+            double [:] tmp
+            Py_ssize_t qi_shift = DV.get_varshift(Gr, 'qi')
+            Py_ssize_t qi_std_shift = PV.get_varshift(Gr,'qi_std')
+            Py_ssize_t qi_iso_shift = PV.get_varshift(Gr,'qi_iso')
+            double[:] delta_qi = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] cloud_ice_mask = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            
+        with nogil:
+            with cython.boundscheck(False):
+                for i in range(imin,imax):
+                    ishift = i * istride
+                    for j in range(jmin,jmax):
+                        jshift = j * jstride
+                        for k in range(kmin,kmax):
+                            ijk = ishift + jshift + k
+                            if DV.values[qi_shift + ijk] > 0.0:
+                                cloud_ice_mask[ijk] = 1.0
+                                delta_qi[ijk] = q_2_delta(PV.values[qi_iso_shift + ijk], DV.values[qi_shift + ijk])
+
+        tmp = Pa.HorizontalMeanConditional(Gr, &DV.values[qi_shift], &cloud_ice_mask[0])
+        NS.write_profile('qi_in_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+        tmp = Pa.HorizontalMeanConditional(Gr, &delta_qi[0], &cloud_ice_mask[0])
+        NS.write_profile('delta_qi', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+        return
 cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
     cdef:
@@ -245,6 +346,7 @@ cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV
                         delta_qv[ijk] = q_2_delta(PV.values[qv_iso_shift + ijk], PV.values[qv_std_shift + ijk])
                         delta_qt[ijk] = q_2_delta(PV.values[qt_iso_shift + ijk], PV.values[qt_std_shift + ijk])
 
+
     tmp = Pa.HorizontalMean(Gr, &PV.values[qt_std_shift])
     NS.write_profile('qt_std', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
     
@@ -282,23 +384,24 @@ cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV
     NS.write_profile('delta_qv_Nocloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
     return
 cpdef initialize_NS_base(NetCDFIO_Stats NS, Grid.Grid Gr, ParallelMPI.ParallelMPI Pa):
-        NS.add_profile('qt_std', Gr, Pa, 'kg/kg', '', 'stander water tracer total')
-        NS.add_profile('qv_std', Gr, Pa, 'kg/kg', '', 'stander water tracer vapor')
-        NS.add_profile('ql_std', Gr, Pa, 'kg/kg', '', 'stander water tracer liquid')
-        NS.add_profile('qt_iso', Gr, Pa, 'kg/kg', '', 'Finial result of total water isotopic specific humidity')
-        NS.add_profile('qv_iso', Gr, Pa, 'kg/kg', '', 'Finial result of vapor isotopic specific humidity')
-        NS.add_profile('ql_iso', Gr, Pa, 'kg/kg', '', 'Finial result of liquid isotopic sepcific humidity')
-        
-        NS.add_profile('qr_iso_evap_tendency', Gr, Pa, 'kg/kg', '', '')
-        NS.add_profile('qr_std_evap_tendency', Gr, Pa, 'kg/kg', '', '')
-        NS.add_profile('qr_std_auto_tendency', Gr, Pa, 'kg/kg', '', '')
-        NS.add_profile('qr_std_accre_tendency', Gr, Pa, 'kg/kg', '', '')
-        NS.add_profile('qr_tend_micro_diff', Gr, Pa, 'kg/kg', '', '')
-        NS.add_profile('qt_tendencies_diff', Gr, Pa, 'kg/kg', '', '')
-        NS.add_profile('qr_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
+    NS.add_profile('qt_std', Gr, Pa, 'kg/kg', '', 'stander water tracer total')
+    NS.add_profile('qv_std', Gr, Pa, 'kg/kg', '', 'stander water tracer vapor')
+    NS.add_profile('ql_std', Gr, Pa, 'kg/kg', '', 'stander water tracer liquid')
+    NS.add_profile('qt_iso', Gr, Pa, 'kg/kg', '', 'Finial result of total water isotopic specific humidity')
+    NS.add_profile('qv_iso', Gr, Pa, 'kg/kg', '', 'Finial result of vapor isotopic specific humidity')
+    NS.add_profile('ql_iso', Gr, Pa, 'kg/kg', '', 'Finial result of liquid isotopic sepcific humidity')
+    
+    NS.add_profile('qr_iso_evap_tendency', Gr, Pa, 'kg/kg', '', '')
+    NS.add_profile('qr_std_evap_tendency', Gr, Pa, 'kg/kg', '', '')
+    NS.add_profile('qr_std_auto_tendency', Gr, Pa, 'kg/kg', '', '')
+    NS.add_profile('qr_std_accre_tendency', Gr, Pa, 'kg/kg', '', '')
+    NS.add_profile('qr_tend_micro_diff', Gr, Pa, 'kg/kg', '', '')
+    NS.add_profile('qt_tendencies_diff', Gr, Pa, 'kg/kg', '', '')
+    NS.add_profile('qr_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
 
-        NS.add_profile('delta_qt', Gr, Pa, 'permil', '', 'delta of qt, calculated by qt_iso/qt_std during fractioantion')
-        NS.add_profile('delta_qv', Gr, Pa, 'permil', '', 'delta of qv, calculated by qt_iso/qt_std during fractioantion')
-        NS.add_profile('delta_ql_cloud', Gr, Pa, 'permil', '', 'delta of ql in cloud, calculated by qt_iso/qt_std during fractioantion')
-        NS.add_profile('delta_qv_cloud', Gr, Pa, 'permil', '', 'delta of qv in cloud, calculated by qt_iso/qt_std during fractioantion')
-        NS.add_profile('delta_qv_Nocloud', Gr, Pa, 'permil', '', 'delta of qv in cloud, calculated by qt_iso/qt_std during fractioantion')
+    NS.add_profile('delta_qt', Gr, Pa, 'permil', '', 'delta of qt, calculated by qt_iso/qt_std during fractioantion')
+    NS.add_profile('delta_qv', Gr, Pa, 'permil', '', 'delta of qv, calculated by qt_iso/qt_std during fractioantion')
+    NS.add_profile('delta_ql_cloud', Gr, Pa, 'permil', '', 'delta of ql in cloud, calculated by qt_iso/qt_std during fractioantion')
+    NS.add_profile('delta_qv_cloud', Gr, Pa, 'permil', '', 'delta of qv in cloud, calculated by qt_iso/qt_std during fractioantion')
+    NS.add_profile('delta_qv_Nocloud', Gr, Pa, 'permil', '', 'delta of qv in cloud, calculated by qt_iso/qt_std during fractioantion')
+    return
