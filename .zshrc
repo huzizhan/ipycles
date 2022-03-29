@@ -2,7 +2,7 @@
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/Users/frank/.oh-my-zsh"
+export ZSH="/home/frank/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -101,22 +101,21 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 # export PATH="/Users/frank/miniconda3/bin:$PATH"  # commented out by conda initialize
 
-export EDITOR=/opt/homebrew/bin/nvim
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/Users/frank/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+__conda_setup="$('/home/frank/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
 	eval "$__conda_setup"
 else
-	if [ -f "/Users/frank/miniconda3/etc/profile.d/conda.sh" ]; then
-		. "/Users/frank/miniconda3/etc/profile.d/conda.sh"
+	if [ -f "/home/frank/miniconda3/etc/profile.d/conda.sh" ]; then
+		. "/home/frank/miniconda3/etc/profile.d/conda.sh"
 	else
-		export PATH="/Users/frank/miniconda3/bin:$PATH"
+		export PATH="/home/frank/miniconda3/bin:$PATH"
 	fi
 fi
 #unset __conda_setup
 # <<< conda initialize <<<
-export PATH=/Users/frank/miniconda3/bin:$PATH
+export PATH=/home/frank/miniconda3/bin:$PATH
 alias cde="conda env list"
 alias cda="conda activate"
 
@@ -143,12 +142,12 @@ alias vim="nvim"
 hzz_baxter="hzz@101.6.5.224"
 
 # setting of fzf
-alias vf='vim $(find . \( -name Library -o -name .Trash \) -prune -o -type f | fzf)'
-alias vg='vim $(find ~ \( -name Library -o -name .Trash \) -prune -o -type f | fzf)'
-alias vh='vim $(find ~ \( -name Library -o -name .Trash \) -prune -o -mtime 60 -type f | fzf)'
-alias cf='cd $(find . \( -name Library -o -name .Trash \) -prune -o -type d | fzf)'
-alias cg='cd $(find ~ \( -name Library -o -name .Trash \) -prune -o -type d | fzf)'
-alias ch='cd $(find ~ \( -name Library -o -name .Trash \) -prune -o -mtime 60 -type d | fzf)'
+alias vf='vim $(find . -type f | fzf)'
+alias vg='vim $(find ~ -type f | fzf)'
+alias vh='vim $(find ~ -mtime 60 -type f | fzf)'
+alias cf='cd $(find . -type d | fzf)'
+alias cg='cd $(find ~  -type d | fzf)'
+alias ch='cd $(find ~ -mtime 60 -type d | fzf)'
 alias gcf='git checkout $(git branch -r | fzf)'
 export FZF_DEFAULT_COMMAND='ag --hidden --ignore .git -g ""'
 export FZF_DEFAULT_OPTS='--preview "[[ $(file --mime {}) =~ binary ]] && echo {} is a binary file || (ccat --color=always {} || highlight -O ansi -l {} || cat {}) 2> /dev/null | head -500"
@@ -158,3 +157,4 @@ source ~/.config/zsh/fzf-tab/fzf-tab.plugin.zsh
 
 # tmux setting
 alias ta="tmux attach -t"
+alias tad="tmux attach -t default"
