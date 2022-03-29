@@ -103,6 +103,9 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 # export PATH="/Users/frank/miniconda3/bin:$PATH"  # commented out by conda initialize
+#
+# set default editor to be nvim
+export EDITOR="/home/linuxbrew/.linuxbrew/bin/nvim"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
