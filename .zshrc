@@ -134,6 +134,7 @@ alias gb="git branch"
 alias lg1="git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all"
 alias lg2="git log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold cyan)%aD%C(reset) %C(bold green)(%ar)%C(reset)%C(bold yellow)%d%C(reset)%n''          %C(white)%s%C(reset) %C(dim white)- %an%C(reset)' --all"
 alias lg="lazygit"
+github_fp="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"
 
 alias baxter="ssh hzz@101.6.5.224"
 alias acadia="ssh -p 22222 hzz@acadia.thcic.cn"
