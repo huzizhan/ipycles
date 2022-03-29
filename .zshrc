@@ -158,3 +158,4 @@ source ~/.config/zsh/fzf-tab/fzf-tab.plugin.zsh
 
 # tmux setting
 alias ta="tmux attach -t"
+alias tad="tmux attach -t default"

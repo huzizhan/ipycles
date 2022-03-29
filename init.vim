@@ -167,6 +167,7 @@ nmap <leader>gJ 9999<leader>gj
 nmap <leader>gK 9999<leader>gk
 
 noremap <LEADER>gd :SignifyHunkDiff<CR>
-noremap <LEADER>gds :Gdiffsplit<CR>
+noremap <LEADER>gu :SignifyHunkUndo<CR>
+noremap <LEADER>gs :Gdiffsplit<CR>
 "" GitGutter setting
 noremap <LEADER>gf :GitGutterFold<CR>
