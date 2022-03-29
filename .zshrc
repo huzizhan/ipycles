@@ -105,22 +105,22 @@ source $ZSH/oh-my-zsh.sh
 # !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/home/frank/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
-	eval "$__conda_setup"
+    eval "$__conda_setup"
 else
-	if [ -f "/home/frank/miniconda3/etc/profile.d/conda.sh" ]; then
-		. "/home/frank/miniconda3/etc/profile.d/conda.sh"
-	else
-		export PATH="/home/frank/miniconda3/bin:$PATH"
-	fi
+    if [ -f "/home/frank/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/frank/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/frank/miniconda3/bin:$PATH"
+    fi
 fi
-#unset __conda_setup
+unset __conda_setup
 # <<< conda initialize <<<
 export PATH=/home/frank/miniconda3/bin:$PATH
 alias cde="conda env list"
 alias cda="conda activate"
 
 # pure theme
-fpath+=$HOME/.zsh/pure
+fpath+=$HOME/.oh-my-zsh/custom/themes/pure
 autoload -U promptinit; promptinit
 prompt pure
 
@@ -158,3 +158,18 @@ source ~/.config/zsh/fzf-tab/fzf-tab.plugin.zsh
 # tmux setting
 alias ta="tmux attach -t"
 alias tad="tmux attach -t default"
+
+# brew setting
+test -d ~/.linuxbrew && eval "$(~/.linuxbrew/bin/brew shellenv)"
+test -d /home/linuxbrew/.linuxbrew && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+test -r ~/.bash_profile && echo "eval \"\$($(brew --prefix)/bin/brew shellenv)\"" >> ~/.bash_profile
+test -r ~/.profile && echo "eval \"\$($(brew --prefix)/bin/brew shellenv)\"" >> ~/.profile
+test -r ~/.zprofile && echo "eval \"\$($(brew --prefix)/bin/brew shellenv)\"" >> ~/.zprofile
+
+test -r ~/.bash_profile && echo 'export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"' >> ~/.bash_profile  # bash
+test -r ~/.bash_profile && echo 'export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"' >> ~/.bash_profile
+test -r ~/.profile && echo 'export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"' >> ~/.profile
+test -r ~/.profile && echo 'export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"' >> ~/.profile
+
+test -r ~/.zprofile && echo 'export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"' >> ~/.zprofile  # zsh
+test -r ~/.zprofile && echo 'export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"' >> ~/.zprofile
