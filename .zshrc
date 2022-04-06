@@ -104,6 +104,7 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 # export PATH="/Users/frank/miniconda3/bin:$PATH"  # commented out by conda initialize
 #
+export PAHT="/home/linuxbrew/.linuxbrew/bin:$PATH"
 # set default editor to be nvim
 export EDITOR="/home/linuxbrew/.linuxbrew/bin/nvim"
 
@@ -126,7 +127,7 @@ alias cde="conda env list"
 alias cda="conda activate"
 
 # pure theme
-fpath+=$HOME/.oh-my-zsh/custom/themes/pure
+fpath+=/home/frank/.oh-my-zsh/custom/themes/pure
 autoload -U promptinit; promptinit
 prompt pure
 
@@ -144,14 +145,14 @@ github_fb="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"
 alias baxter="ssh hzz@101.6.5.224"
 alias acadia="ssh -p 22222 hzz@acadia.thcic.cn"
 alias ra="ranger"
-alias vim="nvim"
+alias nv="nvim"
 # <<<Variables defination>>>
 hzz_baxter="hzz@101.6.5.224"
 
 # setting of fzf
-alias vf='vim $(find . -type f | fzf)'
-alias vg='vim $(find ~ -type f | fzf)'
-alias vh='vim $(find ~ -mtime 60 -type f | fzf)'
+alias vf='nv $(find . -type f | fzf)'
+alias vg='nv $(find ~ -type f | fzf)'
+alias vh='nv $(find ~ -mtime 60 -type f | fzf)'
 alias cf='cd $(find . -type d | fzf)'
 alias cg='cd $(find ~  -type d | fzf)'
 alias ch='cd $(find ~ -mtime 60 -type d | fzf)'
@@ -180,3 +181,9 @@ test -r ~/.profile && echo 'export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tun
 
 test -r ~/.zprofile && echo 'export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"' >> ~/.zprofile  # zsh
 test -r ~/.zprofile && echo 'export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"' >> ~/.zprofile
+
+
+# tex setting
+export PATH="/usr/local/texlive/2022/bin/x86_64-linux:$PATH"
+export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/man:$PATH"
+export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/info:$PATH"
