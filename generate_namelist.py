@@ -1712,7 +1712,7 @@ def write_file(namelist):
 
     namelist['meta']['uuid'] = str(uuid.uuid4())
 
-    fh = open(namelist['meta']['simname'] + '.in', 'w')
+    fh = open(namelist['meta']['simname'] + '.json', 'w')
     pprint.pprint(namelist)
     json.dump(namelist, fh, sort_keys=True, indent=4)
     fh.close()
