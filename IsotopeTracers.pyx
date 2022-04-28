@@ -226,11 +226,20 @@ cdef class IsotopeTracers_Arctic_1M:
         PV.add_variable('qv_std', 'kg/kg','qv_std','Vapor water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('ql_std', 'kg/kg','ql_std','Cloud liquid water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('qi_std', 'kg/kg','qi_std','Cloud ice water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qrain_std', 'kg/kg','qrain_std','rain std water tracer specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qsnow_std', 'kg/kg','qsnow_std','snow std water tracer specific humidity','sym', "scalar", Pa)
+        DV.add_variables('w_qrain_std', 'unit', r'w_qrain_std','declaration', 'sym', Pa)
+        DV.add_variables('w_qsnwo_std', 'unit', r'w_qsnwo_std','declaration', 'sym', Pa)
         
         PV.add_variable('qt_iso', 'kg/kg','qt_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
         PV.add_variable('qv_iso', 'kg/kg','qv_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
         PV.add_variable('ql_iso', 'kg/kg','ql_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
         PV.add_variable('qi_iso', 'kg/kg','qi_isotope','Cloud ice water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qrain_iso', 'kg/kg','qrain_iso','rain iso water tracer specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qsnow_iso', 'kg/kg','qsnow_iso','declaration','sym', "scalar", Pa)
+        DV.add_variables('w_qrain_iso', 'unit', r'w_qrain_iso','declaration', 'sym', Pa)
+        DV.add_variables('w_qsnwo_iso', 'unit', r'w_qsnwo_iso','declaration', 'sym', Pa)
+
 
         initialize_NS_base(NS, Gr, Pa)
         

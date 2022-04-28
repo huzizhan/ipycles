@@ -7,6 +7,7 @@
 #include "microphysics.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
+#include "microphysics_arctic_1m.h"
 // #define SB_EPS 1.0e-13
 
 void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, double* restrict t,
@@ -69,85 +70,84 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
     //Temporal substepping is used to help ensure boundedness of moments
-    double rain_mass, Dm, mu, Dp, nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp;
-    double nr_tendency_au, nr_tendency_scbk, nr_tendency_evp;
-    double qr_tendency_au, qr_tendency_ac,  qr_tendency_evp;
+    double rain_mass,            Dm, mu, Dp, nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp;
+    double nr_tendency_au,       nr_tendency_scbk, nr_tendency_evp;
+    double qr_tendency_au,       qr_tendency_ac,  qr_tendency_evp;
     double sat_ratio;
-    double qr_iso_tmp, qr_iso_tend, qr_iso_tendency_tmp, qt_iso_tendency_tmp, qv_iso_tendency_tmp, ql_iso_tendency_tmp;
+    double qr_iso_tmp,           qr_iso_tend, qr_iso_tendency_tmp, qt_iso_tendency_tmp, qv_iso_tendency_tmp, ql_iso_tendency_tmp;
     double qr_iso_auto_tendency, qr_iso_accre_tendency, qr_iso_evap_tendency;
 
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    const ssize_t imin    = dims->gw;
+    const ssize_t jmin    = dims->gw;
+    const ssize_t kmin    = dims->gw;
+    const ssize_t imax    = dims->nlg[0]-dims->gw;
+    const ssize_t jmax    = dims->nlg[1]-dims->gw;
+    const ssize_t kmax    = dims->nlg[2]-dims->gw;
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
         for(ssize_t j=jmin; j<jmax; j++){
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                qr[ijk] = fmax(qr[ijk],0.0);
-                nr[ijk] = fmax(fmin(nr[ijk], qr[ijk]/RAIN_MIN_MASS),qr[ijk]/RAIN_MAX_MASS);
-                double qv_tmp = qt[ijk] - fmax(ql[ijk],0.0);
-                double qt_tmp = qt[ijk];
-                double nl = ccn/density[k];
-                double ql_tmp = fmax(ql[ijk],0.0);
-                double qr_tmp = fmax(qr[ijk],0.0);
-                double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
-                double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
-                double ql_iso_tmp = fmax(ql_iso[ijk], 0.0);
-                double qr_iso_tmp = fmax(qr_iso[ijk], 0.0);
-                double qv_iso_tmp = qv_iso[ijk];
+                const ssize_t ijk  = ishift + jshift + k;
+                qr[ijk]            = fmax(qr[ijk],0.0);
+                nr[ijk]            = fmax(fmin(nr[ijk], qr[ijk]/RAIN_MIN_MASS),qr[ijk]/RAIN_MAX_MASS);
+                double qv_tmp      = qt[ijk] - fmax(ql[ijk],0.0);
+                double qt_tmp      = qt[ijk];
+                double nl          = ccn/density[k];
+                double ql_tmp      = fmax(ql[ijk],0.0);
+                double qr_tmp      = fmax(qr[ijk],0.0);
+                double nr_tmp      = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                double g_therm     = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
+                double ql_iso_tmp  = fmax(ql_iso[ijk], 0.0);
+                double qr_iso_tmp  = fmax(qr_iso[ijk], 0.0);
+                double qv_iso_tmp  = qv_iso[ijk];
 
                 //holding nl fixed since it doesn't change between timesteps
-                double time_added = 0.0, dt_, rate;
+                double time_added  = 0.0, dt_, rate;
                 ssize_t iter_count = 0;
                 do{
-                    iter_count += 1;
-                    sat_ratio = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt_tmp);
-                    nr_tendency_au = 0.0;
-                    nr_tendency_scbk = 0.0;
-                    nr_tendency_evp = 0.0;
-                    qr_tendency_au = 0.0;
-                    qr_tendency_ac = 0.0;
-                    qr_tendency_evp = 0.0;
+                    iter_count            += 1;
+                    sat_ratio              = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt_tmp);
+                    nr_tendency_au         = 0.0;
+                    nr_tendency_scbk       = 0.0;
+                    nr_tendency_evp        = 0.0;
+                    qr_tendency_au         = 0.0;
+                    qr_tendency_ac         = 0.0;
+                    qr_tendency_evp        = 0.0;
                     //obtain some parameters
-                    rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
-                    Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
-                    mu = rain_mu(density[k], qr_tmp, Dm);
-                    Dp = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
+                    rain_mass              = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
+                    Dm                     = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
+                    mu                     = rain_mu(density[k], qr_tmp, Dm);
+                    Dp                     = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
                     //compute the source terms
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac);
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm, &nr_tendency_scbk);
                     sb_evaporation_rain( g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm, &nr_tendency_evp, &qr_tendency_evp);
                     //find the maximum substep time
-                    dt_ = dt - time_added;
+                    dt_                    = dt - time_added;
                     //check the source term magnitudes
-                    nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evp;
-                    qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evp;
-                    ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac;
+                    nr_tendency_tmp        = nr_tendency_au + nr_tendency_scbk + nr_tendency_evp;
+                    qr_tendency_tmp        = qr_tendency_au + qr_tendency_ac + qr_tendency_evp;
+                    ql_tendency_tmp        = -qr_tendency_au - qr_tendency_ac;
 
                     // //iso_tendencies initilize
-                    qr_iso_auto_tendency = 0.0;
-                    qr_iso_accre_tendency = 0.0;
-                    qr_iso_evap_tendency = 0.0;
+                    qr_iso_auto_tendency   = 0.0;
+                    qr_iso_accre_tendency  = 0.0;
+                    qr_iso_evap_tendency   = 0.0;
 
                     // // iso_tendencies calculations
                     sb_iso_rain_autoconversion(ql_tmp, ql_iso_tmp, qr_tendency_au, &qr_iso_auto_tendency);
                     sb_iso_rain_accretion(ql_tmp, qr_tmp, ql_iso_tmp, qr_iso_tmp, qr_tendency_ac, &qr_iso_accre_tendency);
-                    double g_therm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio);
-                    sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm, &qr_iso_evap_tendency);
+                    sb_iso_evaporation_rain(LT, lam_fp, L_fp, temperature[ijk], p0[k], sat_ratio, nr_tmp, mu, rain_mass, Dp, Dm, qr_tmp, qr_iso_tmp, qv_tmp, qv_iso_tmp,  &qr_iso_evap_tendency);
                     
                     // // iso_tendencies add
-                    qr_iso_tendency_tmp = qr_iso_auto_tendency + qr_iso_accre_tendency + qr_iso_evap_tendency;
-                    ql_iso_tendency_tmp = -qr_iso_auto_tendency - qr_iso_accre_tendency;
+                    qr_iso_tendency_tmp    = qr_iso_auto_tendency + qr_iso_accre_tendency + qr_iso_evap_tendency;
+                    ql_iso_tendency_tmp    = -qr_iso_auto_tendency - qr_iso_accre_tendency;
 
                     //Factor of 1.05 is ad-hoc
                     rate = 1.05 * ql_tendency_tmp * dt_ /(- fmax(ql_tmp,SB_EPS));
@@ -159,14 +159,14 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                         dt_ = fmax(dt_/rate, 1.0e-3);
                     }
                     //Integrate forward in time
-                    ql_tmp += ql_tendency_tmp * dt_;
-                    nr_tmp += nr_tendency_tmp * dt_;
-                    qr_tmp += qr_tendency_tmp * dt_;
-                    qv_tmp += -qr_tendency_evp * dt_;
-                    qr_tmp = fmax(qr_tmp,0.0);
-                    nr_tmp = fmax(fmin(nr_tmp, qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
-                    ql_tmp = fmax(ql_tmp,0.0);
-                    qt_tmp = ql_tmp + qv_tmp;
+                    ql_tmp     += ql_tendency_tmp * dt_;
+                    nr_tmp     += nr_tendency_tmp * dt_;
+                    qr_tmp     += qr_tendency_tmp * dt_;
+                    qv_tmp     += -qr_tendency_evp * dt_;
+                    qr_tmp      = fmax(qr_tmp,0.0);
+                    nr_tmp      = fmax(fmin(nr_tmp, qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                    ql_tmp      = fmax(ql_tmp,0.0);
+                    qt_tmp      = ql_tmp + qv_tmp;
                     time_added += dt_ ;
                     
                     // isotope_tracer Intergrate forward in time
@@ -174,18 +174,18 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                     ql_iso_tmp += ql_iso_tendency_tmp * dt_;
                     qv_iso_tmp += -qr_iso_evap_tendency * dt_;
 
-                    qr_iso_tmp = fmax(qr_iso_tmp, 0.0);
-                    ql_iso_tmp = fmax(ql_iso_tmp, 0.0);
+                    qr_iso_tmp  = fmax(qr_iso_tmp, 0.0);
+                    ql_iso_tmp  = fmax(ql_iso_tmp, 0.0);
 
                     time_added += dt_ ;
                 }while(time_added < dt);
-                nr_tendency_micro[ijk] = (nr_tmp - nr[ijk] )/dt;
-                qr_tendency_micro[ijk] = (qr_tmp - qr[ijk])/dt;
-                nr_tendency[ijk] += nr_tendency_micro[ijk];
-                qr_tendency[ijk] += qr_tendency_micro[ijk];
+                nr_tendency_micro[ijk]      = (nr_tmp - nr[ijk] )/dt;
+                qr_tendency_micro[ijk]      = (qr_tmp - qr[ijk])/dt;
+                nr_tendency[ijk]           += nr_tendency_micro[ijk];
+                qr_tendency[ijk]           += qr_tendency_micro[ijk];
 
-                qr_iso_tendency_micro[ijk] = (qr_iso_tmp - qr_iso[ijk])/dt;
-                qr_iso_tendency[ijk] += qr_iso_tendency_micro[ijk];
+                qr_iso_tendency_micro[ijk]  = (qr_iso_tmp - qr_iso[ijk])/dt;
+                qr_iso_tendency[ijk]       += qr_iso_tendency_micro[ijk];
             }
         }
     }
@@ -270,7 +270,7 @@ void tracer_sb_qt_source_formation(const struct DimStruct *dims, double* restric
     return;
 }
 
-// ===========<<< iso 1_m ice scheme for wrf >>> ============
+// ===========<<< iso 1_m ice scheme for wbf >>> ============
 
 double ice_kinetic_frac_function(double qi_std, double qi_iso, double qi, double alpha_s_ice, double alpha_k_ice){
     double tendency_std = qi - qi_std;
@@ -304,8 +304,9 @@ void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT
                     double qv_std_tmp, ql_std_tmp, qi_std_tmp, qv_iso_tmp, ql_iso_tmp, qi_iso_tmp;
 
                     alpha_eq_O18 = equilibrium_fractionation_factor_H2O18_liquid(temperature[ijk]);
-                    alpha_s_ice = equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
-                    alpha_k_ice = alpha_k_ice_equation(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
+                    alpha_s_ice = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
+                    alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
+                    alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
 
                     qv_std_tmp  = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
                     qv_iso_tmp  = eq_frac_function(qt_iso[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
@@ -328,3 +329,226 @@ void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT
         } // End i loop
     return;
 }
+// ===========<<< 1M tracer scheme for Arctic_1M Microphysics scheme >>> ============
+
+void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
+                             double (*L_fp)(double, double), double* restrict density, double* restrict p0,
+                             double* restrict temperature,  double* restrict qt, double ccn, double n0_ice,
+                             double* restrict qv, double* restrict ql, double* restrict qi, double* restrict qrain, double* restrict nrain,
+                             double* restrict qsnow, double* restrict nsnow, double dt,
+                             double* restrict qrain_tendency_micro, double* restrict qrain_tendency,
+                             double* restrict qsnow_tendency_micro, double* restrict qsnow_tendency,
+                             double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate,
+                             double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso, double* restrict qi_iso, double* restrict qrain_iso, double* restrict qsnow_iso,
+                             double* restrict qrain_iso_tendency, double* restrict qrain_iso_tendency_micro, double* restrict qsnow_iso_tendency, double* restrict qsnow_iso_tendency_micro,
+                             double* restrict precip_iso_rate, double* restrict evap_iso_rate){
+
+    const double b1 = 650.1466922699631;
+    const double b2 = -1.222222222222222;
+    const double y1 = 5.62e7;
+    const double y2 = 0.63;
+
+    double iwc,                     ni;
+    double qrain_tendency_aut=0.0,  qrain_tendency_acc=0.0, qrain_tendency_evp=0.0;
+    double qsnow_tendency_aut=0.0,  qsnow_tendency_acc=0.0, qsnow_tendency_evp=0.0, qsnow_tendency_melt=0.0;
+    double ql_tendency_acc=0.0,     qi_tendency_acc=0.0;
+    double ql_tendency_tmp=0.0,     qi_tendency_tmp=0.0, qrain_tendency_tmp=0.0, qsnow_tendency_tmp=0.0;
+    double qt_tmp,                  qv_tmp, ql_tmp, qi_tmp, qrain_tmp, qsnow_tmp;
+    double precip_tmp,              evap_tmp;
+    double qt_iso_tmp,              qv_iso_tmp, ql_iso_tmp, qi_iso_tmp, qrain_iso_tmp, qsnow_iso_tmp;
+    double qrain_iso_tendency_tmp=0.0,  qrain_iso_tendency_auto=0.0, qrain_iso_tendency_acc=0.0, qrain_iso_tendency_evap=0.0;
+    double qsnow_iso_tendency_tmp=0.0,  qsnow_iso_tendency_auto=0.0, qsnow_iso_tendency_acc=0.0, qsnow_iso_tendency_evap=0.0, qsnow_iso_tendency_melt=0.0;
+    double ql_iso_tendency_tmp=0.0, ql_iso_tendency_acc=0.0, qi_iso_tendency_tmp=0.0, qi_iso_tendency_acc=0.0;
+    double precip_iso_tmp,          evap_iso_tmp;
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin    = dims->gw;
+    const ssize_t jmin    = dims->gw;
+    const ssize_t kmin    = dims->gw;
+    const ssize_t imax    = dims->nlg[0]-dims->gw;
+    const ssize_t jmax    = dims->nlg[1]-dims->gw;
+    const ssize_t kmax    = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                // First get number concentartion N_0 for micro species
+                qi_tmp            = fmax(qi[ijk], 0.0);
+                iwc               = fmax(qi_tmp * density[k], SMALL);
+                ni                = fmax(fmin(n0_ice, iwc*N_MAX_ICE),iwc*N_MIN_ICE);
+
+                qrain_tmp         = fmax(qrain[ijk],0.0); //clipping
+                qsnow_tmp         = fmax(qsnow[ijk],0.0); //clipping
+                qt_tmp            = qt[ijk];
+                ql_tmp            = fmax(ql[ijk],0.0);
+                qv_tmp            = fmax(qv[ijk],0.0);
+
+                precip_rate[ijk]  = 0.0;
+                evap_rate[ijk]    = 0.0;
+                melt_rate[ijk]    = 0.0;
+
+                // First get initial values of isotope_tracers
+                qi_iso_tmp           = fmax(qi_iso[ijk], 0.0);
+                qt_iso_tmp           = qi_iso[ijk];
+                qv_iso_tmp           = fmax(qv_iso[ijk], 0.0);
+                qrain_iso_tmp        = fmax(qrain_iso[ijk],0.0);
+                ql_iso_tmp           = fmax(ql_iso[ijk], 0.0);
+                qsnow_iso_tmp        = fmax(qsnow_iso[ijk],0.0);
+
+                precip_iso_rate[ijk] = 0.0;
+                evap_iso_rate[ijk]   = 0.0;
+                
+                // Now do sub-timestepping
+                double time_added = 0.0, dt_, rate;
+                ssize_t iter_count = 0;
+                do{
+                    iter_count += 1;
+                    dt_ = dt - time_added;
+
+                    if ((ql_tmp + qi_tmp) < SMALL && (qrain_tmp + qsnow_tmp) < SMALL)
+                        break;
+
+                    qsnow_tendency_aut  = 0.0;
+                    qsnow_tendency_acc  = 0.0;
+                    qsnow_tendency_evp  = 0.0;
+                    qsnow_tendency_melt = 0.0;
+
+                    qrain_tendency_aut  = 0.0;
+                    qrain_tendency_acc  = 0.0;
+                    qrain_tendency_evp  = 0.0;
+
+                    ql_tendency_acc     = 0.0;
+                    qi_tendency_acc     = 0.0;
+
+                    precip_tmp          = 0.0;
+                    evap_tmp            = 0.0;
+
+                    autoconversion_rain(density[k], ccn, ql_tmp, qrain_tmp, nrain[ijk], &qrain_tendency_aut);
+                    autoconversion_snow(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp,
+                                        qi_tmp, ni, &qsnow_tendency_aut);
+                    accretion_all(density[k], p0[k], temperature[ijk], ccn, ql_tmp, qi_tmp, ni,
+                                  qrain_tmp, nrain[ijk], qsnow_tmp, nsnow[ijk],
+                                  &ql_tendency_acc, &qi_tendency_acc, &qrain_tendency_acc, &qsnow_tendency_acc);
+                    evaporation_rain(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qrain_tmp, nrain[ijk],
+                                     &qrain_tendency_evp);
+                    evaporation_snow(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qsnow_tmp,
+                                     nsnow[ijk], &qsnow_tendency_evp);
+                    melt_snow(density[k], temperature[ijk], qsnow_tmp, nsnow[ijk], &qsnow_tendency_melt);
+
+                    qrain_tendency_tmp  = qrain_tendency_aut + qrain_tendency_acc + qrain_tendency_evp - qsnow_tendency_melt;
+                    qsnow_tendency_tmp  = qsnow_tendency_aut + qsnow_tendency_acc + qsnow_tendency_evp + qsnow_tendency_melt;
+                    ql_tendency_tmp     = ql_tendency_acc - qrain_tendency_aut;
+                    qi_tendency_tmp     = qi_tendency_acc - qsnow_tendency_aut;
+
+                    // ===========<<< IsotopeTracer calculation components >>> ============
+
+                    qrain_iso_tendency_auto = 0.0;
+                    qrain_iso_tendency_acc  = 0.0;
+                    qrain_iso_tendency_evap = 0.0;
+
+                    qsnow_iso_tendency_auto = 0.0;
+                    qsnow_iso_tendency_acc  = 0.0;
+                    qsnow_iso_tendency_evap = 0.0;
+                    qsnow_iso_tendency_melt = 0.0;
+
+                    ql_iso_tendency_acc     = 0.0;
+                    qi_iso_tendency_acc     = 0.0;
+                     
+                    arc1m_iso_auto_acc_rain(qrain_tendency_aut, qrain_tendency_acc, qrain_tmp, qrain_iso_tmp, &qrain_iso_tendency_auto, &qrain_iso_tendency_acc);
+                    arc1m_iso_auto_acc_snow(qsnow_tendency_aut, qsnow_tendency_acc, qsnow_tmp, qsnow_iso_tmp, &qsnow_iso_tendency_auto, &qsnow_iso_tendency_acc);
+                    arc1m_iso_evap_rain(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qv_tmp, qrain_tmp, nrain[ijk],
+                                     qv_iso_tmp, qrain_iso_tmp, &qrain_iso_tendency_evap);
+                    // arc1m_iso_evap_snow(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qsnow_tmp, nrain[ijk],
+                                     // qv_iso_tmp, qsnow_iso_tmp, &qsnow_iso_tendency_evap);
+                    arc1m_iso_evap_snow_nofrac(qsnow_tendency_evp, qsnow_tmp, qsnow_iso_tmp, &qsnow_iso_tendency_evap);
+                    arc1m_iso_melt_snow(qsnow_tendency_melt, qsnow_tmp, qsnow_iso_tmp, &qsnow_iso_tendency_melt);
+
+                    qrain_iso_tendency_tmp  = qrain_iso_tendency_auto + qrain_iso_tendency_acc + qrain_iso_tendency_evap - qsnow_iso_tendency_melt;
+                    qsnow_iso_tendency_tmp  = qsnow_iso_tendency_auto + qsnow_iso_tendency_acc + qsnow_iso_tendency_evap + qsnow_iso_tendency_melt;
+                    ql_iso_tendency_tmp     = ql_iso_tendency_acc - qrain_iso_tendency_auto;
+                    qi_iso_tendency_tmp     = qi_iso_tendency_acc - qsnow_iso_tendency_auto;
+
+
+                    rate = 1.05 * qrain_tendency_tmp * dt_ / (-fmax(qrain_tmp, SMALL));
+                    rate = fmax(1.05 * qsnow_tendency_tmp * dt_ /(-fmax(qsnow_tmp, SMALL)), rate);
+                    rate = fmax(1.05 * ql_tendency_tmp * dt_ /(-fmax(ql_tmp, SMALL)), rate);
+                    rate = fmax(1.05 * qi_tendency_tmp * dt_ /(-fmax(qi_tmp, SMALL)), rate);
+
+                    if(rate > 1.0 && iter_count < MAX_ITER){
+                        //Limit the timestep, but don't allow it to become vanishingly small
+                        //Don't adjust if we have reached the maximum iteration number
+                        dt_ = fmax(dt_/rate, 1.0e-3);
+                    }
+
+                    // precip_tmp is NEGATIVE if rain/snow forms (+precip_tmp is to remove qt via precip formation);
+                    // evap_tmp is NEGATIVE if rain/snow evaporate/sublimate (-evap_tmp is to add qt via evap/subl);
+                    precip_tmp        = -qrain_tendency_aut + ql_tendency_acc - qsnow_tendency_aut + qi_tendency_acc;
+                    evap_tmp          = qrain_tendency_evp + qsnow_tendency_evp;
+                    
+                    precip_rate[ijk] += precip_tmp * dt_;
+                    evap_rate[ijk]   += evap_tmp * dt_;
+                    melt_rate[ijk]   += qsnow_tendency_melt * dt_; // NEGATIVE if snow melts to rain
+
+                    // IsotopeTracer precip_rate and evap_rate source calculation
+                    precip_iso_tmp        = -qrain_iso_tendency_auto + ql_iso_tendency_acc - qsnow_iso_tendency_auto + qi_iso_tendency_acc;
+                    evap_iso_tmp          = qrain_iso_tendency_evap + qsnow_iso_tendency_evap;
+
+                    precip_iso_rate[ijk] += precip_iso_tmp * dt_;
+                    evap_iso_rate[ijk]   += evap_iso_tmp * dt_;
+                    
+                    //Integrate forward in time
+                    ql_tmp           += ql_tendency_tmp * dt_;
+                    qi_tmp           += qi_tendency_tmp * dt_;
+                    qrain_tmp        += qrain_tendency_tmp * dt_;
+                    qsnow_tmp        += qsnow_tendency_tmp * dt_;
+                    qt_tmp           += (precip_tmp - evap_tmp) * dt_;
+
+                    qrain_tmp         = fmax(qrain_tmp, 0.0);
+                    qsnow_tmp         = fmax(qsnow_tmp, 0.0);
+                    ql_tmp            = fmax(ql_tmp, 0.0);
+                    qi_tmp            = fmax(qi_tmp, 0.0);
+                    qt_tmp            = fmax(qt_tmp, 0.0);
+                    double qv_        = qt_tmp - ql_tmp - qi_tmp;
+                    qv_tmp            = fmax(qv_, 0.);
+
+                    // IsotopeTracer Intergrate forward in time
+                    ql_iso_tmp       += ql_iso_tendency_tmp * dt_;
+                    qi_iso_tmp       += qi_iso_tendency_tmp * dt_;
+                    qrain_iso_tmp    += qrain_iso_tendency_tmp *dt_;
+                    qsnow_iso_tmp    += qsnow_iso_tendency_tmp *dt_;
+
+                    ql_iso_tmp        = fmax(ql_iso_tmp, 0.0);
+                    qi_iso_tmp        = fmax(qi_iso_tmp, 0.0);
+                    qrain_iso_tmp     = fmax(qrain_iso_tmp, 0.0);
+                    qsnow_iso_tmp     = fmax(qsnow_iso_tmp, 0.0);
+
+                    time_added += dt_;
+                    }while(time_added < dt && iter_count < MAX_ITER);
+
+                qrain_tendency_micro[ijk]      = (qrain_tmp - qrain[ijk])/dt;
+                qrain_tendency[ijk]           += qrain_tendency_micro[ijk];
+                qsnow_tendency_micro[ijk]      = (qsnow_tmp - qsnow[ijk])/dt;
+                qsnow_tendency[ijk]           += qsnow_tendency_micro[ijk];
+
+                precip_rate[ijk]               = precip_rate[ijk]/dt;
+                evap_rate[ijk]                 = evap_rate[ijk]/dt;
+                melt_rate[ijk]                 = melt_rate[ijk]/dt;
+
+                qrain_iso_tendency_micro[ijk]  = (qrain_iso_tmp - qrain_iso[ijk])/dt;
+                qrain_iso_tendency[ijk]       += qrain_iso_tendency_micro[ijk];
+                qsnow_iso_tendency_micro[ijk]  = (qsnow_iso_tmp - qsnow_iso[ijk])/dt;
+                qsnow_iso_tendency[ijk]       += qsnow_iso_tendency_micro[ijk];
+
+                precip_iso_rate[ijk]           = precip_iso_rate[ijk]/dt;
+                evap_iso_rate[ijk]             = evap_iso_rate[ijk]/dt;
+            }
+        }
+    }
+    return;
+};
+
