@@ -10,7 +10,7 @@
 #define KT  2.5e-2 // J/m/1s/K
 #define DVAPOR 3.0e-5 // m^2/s
 
-static inline double equilibrium_fractionation_factor_H2O18(double t){
+static inline double equilibrium_fractionation_factor_H2O18_liquid(double t){
 // fractionation factor α_eq for 018 is based equations from Majoube 1971
 	double alpha_tmp = exp(1137/(t*t) - 0.4156/t -2.0667e-3);  
     return alpha_tmp;
@@ -40,7 +40,7 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
 }
 
 static inline double C_G_model(double RH,  double temperature, double alpha_k){
-    double alpha_eq = 1.0 / equilibrium_fractionation_factor_H2O18(temperature);
+    double alpha_eq = 1.0 / equilibrium_fractionation_factor_H2O18_liquid(temperature);
     double R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-RH)+alpha_k*RH);
     return R_sur_evap;
 }
@@ -88,8 +88,18 @@ double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), dou
     // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
     double b_l = (DVAPOR*rho_sat)*(L/KT/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
 
-    double S_l = sat_ratio + 1.0;
-    double D_O18 = DVAPOR*0.9723;
+    // isotopic components needed for calculation
+    double R_qr         = qr_iso / qr;
+    double R_qv_ambient = qv_iso / qv;
+    double alpha_eq     = equilibrium_fractionation_factor_H2O18_liquid(temperature);
+    double R_qr_surface = R_qr / alpha_eq;
+
+    // blossey' scheme for isotopic fractionation calculation including b_l and gterm competent
+    // double b_l          = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); 
+    // double g_therm_iso  = D_O18*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l); 
+
+    double b_l          = (D_vapor*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+    double g_therm_iso  = D_O18*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*sat_ratio)/(1+b_l) - sat_ratio);
     
     double R_qr = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
@@ -158,7 +168,7 @@ double Dm, double* qr_tendency){
 
 static inline double equilibrium_fractionation_factor_H2O18_ice(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
-	double alpha_ice = exp(1137/(t*t) - 0.4156/t -2.0667e-3);  
+	double alpha_ice = exp(11.839/t - 2.8224e-2);  
     return alpha_ice;
 }
 
