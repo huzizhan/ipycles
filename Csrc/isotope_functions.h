@@ -103,28 +103,28 @@ double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), dou
 };
 
 static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double qr_auto_tendency, double* qr_iso_auto_tendency){
-    double R_iso;
-    if(ql < SB_EPS || ql_iso < SB_EPS_iso){
-    // if liquid specific humidity is negligibly small, set source terms to zero
+    if (ql > SB_EPS && ql_iso > SB_EPS){
+        *qr_iso_auto_tendency = qr_auto_tendency * (ql_iso/ql);
+    }
+    else{
         *qr_iso_auto_tendency = 0.0;
     }
-    else{
-        R_iso = ql_iso / ql;
-        *qr_iso_auto_tendency =  R_iso * qr_auto_tendency;
-    }
-    return;
 }
-static inline void sb_iso_rain_accretion(double ql, double qr, double ql_iso, double qr_iso, double qr_accre_tendency, double* qr_iso_accre_tendency){
-    double R_iso;
-
-    if(ql < SB_EPS || qr < SB_EPS || ql_iso < SB_EPS_iso || qr_iso < SB_EPS_iso){ 
+static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_accre_tendency, double* qr_iso_accre_tendency){
+    if (ql > SB_EPS && ql_iso > SB_EPS){
+        *qr_iso_accre_tendency = qr_accre_tendency * (ql_iso/ql);
+    }
+    else{
         *qr_iso_accre_tendency = 0.0;
     }
-    else{
-        R_iso = ql_iso / ql;
-        *qr_iso_accre_tendency = R_iso * qr_accre_tendency;
+}
+static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_evap_tendency, double* qr_iso_evap_tendency){
+    if (qr > SB_EPS && qr_iso > SB_EPS){
+        *qr_iso_evap_tendency = qr_evap_tendency * (qr_iso/qr);
     }
-    return;
+    else{
+        *qr_iso_evap_tendency = 0.0;
+    }
 }
 
 void sb_iso_evaporation_rain(double g_therm_iso, double sat_ratio, double nr, double qr, double mu, double qr_iso, double rain_mass, double Dp,

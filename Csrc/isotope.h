@@ -141,7 +141,8 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
 
                     // // iso_tendencies calculations
                     sb_iso_rain_autoconversion(ql_tmp, ql_iso_tmp, qr_tendency_au, &qr_iso_auto_tendency);
-                    sb_iso_rain_accretion(ql_tmp, qr_tmp, ql_iso_tmp, qr_iso_tmp, qr_tendency_ac, &qr_iso_accre_tendency);
+                    sb_iso_rain_accretion(ql_tmp, ql_iso_tmp, qr_tendency_ac, &qr_iso_accre_tendency);
+                    // sb_iso_rain_evap_nofrac(qr_tmp, qr_iso_tmp, qr_tendency_evp, &qr_iso_evap_tendency);
                     double g_therm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio);
                     sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm, &qr_iso_evap_tendency);
                     
