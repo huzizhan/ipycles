@@ -930,7 +930,7 @@ cdef class RadiationRRTM(RadiationBase):
         # From rad_driver.f90, lines 546 to 552
         trace = np.zeros((9,lw_np),dtype=np.double,order='F')
         for i in xrange(lw_ngas):
-            gas_name = ''.join(lw_gas.variables['AbsorberNames'][i,:])
+            gas_name = ''.join(str(lw_gas.variables['AbsorberNames'][i,:]))
             if 'O3' in gas_name:
                 trace[0,:] = lw_absorber[:,i].reshape(1,lw_np)
             elif 'CO2' in gas_name:

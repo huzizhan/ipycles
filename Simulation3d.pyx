@@ -66,7 +66,7 @@ class Simulation3d:
         self.Damping = Damping.Damping(namelist, self.Pa)
         self.TS = TimeStepping.TimeStepping()
         self.Tr = TracersFactory(namelist)
-        self.IsoTracer = IsotopeTracersFactory(namelist)
+        self.IsoTracer = IsotopeTracersFactory(namelist,self.LH, self.Pa)
 
         # Add new prognostic variables
         self.PV.add_variable('u', 'm/s', 'u', 'u velocity component',"sym", "velocity", self.Pa)
