@@ -1,15 +1,8 @@
 {
-    "conditional_stats": {
-        "classes": [
-            "Spectra"
-        ],
-        "frequency": 600.0,
-        "stats_dir": "cond_stats"
-    },
     "damping": {
         "Rayleigh": {
             "gamma_r": 0.2,
-            "z_d": 800
+            "z_d": 600
         },
         "scheme": "Rayleigh"
     },
@@ -24,35 +17,30 @@
             "viscosity"
         ],
         "fields_dir": "fields",
-        "frequency": 1800.0
+        "frequency": 36000.0
     },
     "grid": {
         "dims": 3,
-        "dx": 100.0,
-        "dy": 100.0,
-        "dz": 40.0,
+        "dx": 50.0,
+        "dy": 50.0,
+        "dz": 10.0,
         "gw": 3,
         "nx": 16,
         "ny": 16,
-        "nz": 150
+        "nz": 250
     },
     "meta": {
-        "casename": "Rico",
-        "simname": "Rico",
-        "uuid": "d21d8a8b-c34f-40ed-9df8-3ec0f0f40279"
+        "casename": "Isdac",
+        "simname": "Isdac",
+        "uuid": "44f22021-5a25-4f3a-8fc6-e889544b03c6"
     },
     "microphysics": {
-        "SB_Liquid": {
-            "mu_rain": 1,
-            "nu_droplet": 0
-        },
-        "ccn": 70000000.0,
-        "cloud_sedimentation": false,
-        "phase_partitioning": "liquid_only",
-        "scheme": "SB_Liquid"
+        "n0_ice": 10000000.0,
+        "phase_partitioning": "Arctic",
+        "scheme": "Arctic_1M"
     },
     "isotopetracers":{
-        "scheme":"SB_Liquid"
+        "scheme": "Arctic_1M"
     },
     "momentum_transport": {
         "order": 5
@@ -65,6 +53,15 @@
     "output": {
         "output_root": "./"
     },
+    "radiation": {
+        "RRTM": {
+            "adjes": 0.0,
+            "buffer_points": 15,
+            "frequency": 60.0,
+            "patch_pressure": 60000.0
+        },
+        "use_RRTM": false
+    },
     "restart": {
         "frequency": 600.0,
         "init_from": false,
@@ -73,23 +70,21 @@
     },
     "scalar_transport": {
         "order": 5,
-        "order_sedimentation": 1
+        "order_sedimentation": 5
     },
     "sgs": {
+        "Smagorinsky": {
+            "iles": true
+        },
         "scheme": "Smagorinsky"
     },
     "stats_io": {
-        "auxiliary": [
-            "Cumulus"
-        ],
-        "frequency": 60.0,
+        "auxiliary": "None",
+        "frequency": 30.0,
         "stats_dir": "stats"
     },
-    "thermodynamics": {
-        "latentheat": "constant"
-    },
     "time_stepping": {
-        "cfl_limit": 0.7,
+        "cfl_limit": 0.5,
         "dt_initial": 1.0,
         "dt_max": 10.0,
         "t_max": 7200.0,

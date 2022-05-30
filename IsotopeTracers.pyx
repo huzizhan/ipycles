@@ -166,14 +166,14 @@ cdef class IsotopeTracers_SB_Liquid:
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, ThermodynamicsSA.ThermodynamicsSA Th_sa,
                  DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
         cdef:
-            Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
-            Py_ssize_t qt_shift = PV.get_varshift(Gr,'qt')
-            Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
-            Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
-            Py_ssize_t qr_shift = PV.get_varshift(Gr,'qr')
-            Py_ssize_t nr_shift = PV.get_varshift(Gr,'nr')
-            Py_ssize_t s_shift = PV.get_varshift(Gr,'s')
-            Py_ssize_t alpha_shift = DV.get_varshift(Gr, 'alpha')
+            Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
+            Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
+            Py_ssize_t qv_shift     = DV.get_varshift(Gr,'qv')
+            Py_ssize_t ql_shift     = DV.get_varshift(Gr,'ql')
+            Py_ssize_t qr_shift     = PV.get_varshift(Gr,'qr')
+            Py_ssize_t nr_shift     = PV.get_varshift(Gr,'nr')
+            Py_ssize_t s_shift      = PV.get_varshift(Gr,'s')
+            Py_ssize_t alpha_shift  = DV.get_varshift(Gr, 'alpha')
             Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
             Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
             Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
@@ -183,17 +183,17 @@ cdef class IsotopeTracers_SB_Liquid:
             Py_ssize_t qv_iso_shift = PV.get_varshift(Gr,'qv_iso')
             Py_ssize_t ql_iso_shift = PV.get_varshift(Gr,'ql_iso')
             Py_ssize_t qr_iso_shift = PV.get_varshift(Gr,'qr_iso')
-            double[:] qv_std_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ql_std_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] qv_iso_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ql_iso_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_iso_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_iso_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
             double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qt_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] nr_tend_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_tend_micro     = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_tend_tmp       = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
             double[:] qr_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qt_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
@@ -229,7 +229,7 @@ cdef class IsotopeTracers_Arctic_1M:
         PV.add_variable('qrain_std', 'kg/kg','qrain_std','rain std water tracer specific humidity','sym', "scalar", Pa)
         PV.add_variable('qsnow_std', 'kg/kg','qsnow_std','snow std water tracer specific humidity','sym', "scalar", Pa)
         DV.add_variables('w_qrain_std', 'unit', r'w_qrain_std','declaration', 'sym', Pa)
-        DV.add_variables('w_qsnwo_std', 'unit', r'w_qsnwo_std','declaration', 'sym', Pa)
+        DV.add_variables('w_qsnow_std', 'unit', r'w_qsnow_std','declaration', 'sym', Pa)
         
         PV.add_variable('qt_iso', 'kg/kg','qt_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
         PV.add_variable('qv_iso', 'kg/kg','qv_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
@@ -238,14 +238,25 @@ cdef class IsotopeTracers_Arctic_1M:
         PV.add_variable('qrain_iso', 'kg/kg','qrain_iso','rain iso water tracer specific humidity','sym', "scalar", Pa)
         PV.add_variable('qsnow_iso', 'kg/kg','qsnow_iso','declaration','sym', "scalar", Pa)
         DV.add_variables('w_qrain_iso', 'unit', r'w_qrain_iso','declaration', 'sym', Pa)
-        DV.add_variables('w_qsnwo_iso', 'unit', r'w_qsnwo_iso','declaration', 'sym', Pa)
+        DV.add_variables('w_qsnow_iso', 'unit', r'w_qsnow_iso','declaration', 'sym', Pa)
 
 
         initialize_NS_base(NS, Gr, Pa)
         
         NS.add_profile('qi_in_cloud', Gr, Pa, 'unit', '', 'qi_in_cloud')
+        NS.add_profile('ql_std_cloud', Gr, Pa, 'unit', '', 'ql_std_cloud')
+        NS.add_profile('ql_iso_cloud', Gr, Pa, 'unit', '', 'ql_iso_cloud')
         NS.add_profile('delta_qi', Gr, Pa, 'unit', '', 'delta_qi')
+        NS.add_profile('qrain_std_domain', Gr, Pa, 'kg/kg', '', 'qrain_std_domain')
+        NS.add_profile('qrain_iso_domain', Gr, Pa, 'kg/kg', '', 'qrain_iso_domain')
+        NS.add_profile('qsnow_std_domain', Gr, Pa, 'kg/kg', '', 'qsnow_std_domain')
+        NS.add_profile('qsnow_iso_domain', Gr, Pa, 'kg/kg', '', 'qsnow_iso_domain')
+        NS.add_profile('qrain_std_cloud_domain', Gr, Pa, 'unit', '', 'qrain_std_cloud_domain')
+        NS.add_profile('qrain_iso_cloud_domain', Gr, Pa, 'unit', '', 'qrain_iso_cloud_domain')
+        NS.add_profile('qsnow_std_cloud_domain', Gr, Pa, 'unit', '', 'qsnow_std_cloud_domain')
+        NS.add_profile('qsnow_iso_cloud_domain', Gr, Pa, 'unit', '', 'qsnow_iso_cloud_domain')
         return
+
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, 
 					ThermodynamicsSA.ThermodynamicsSA Th_sa, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
         cdef:
@@ -276,6 +287,7 @@ cdef class IsotopeTracers_Arctic_1M:
                 &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift], &PV.values[qi_iso_shift], 
                 &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
         return
+
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
                    ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
@@ -283,18 +295,30 @@ cdef class IsotopeTracers_Arctic_1M:
             Py_ssize_t i,j,k, ijk, ishift, jshift
             Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
             Py_ssize_t jstride = Gr.dims.nlg[2]
-            Py_ssize_t imin = Gr.dims.gw
-            Py_ssize_t jmin = Gr.dims.gw
-            Py_ssize_t kmin = Gr.dims.gw
-            Py_ssize_t imax = Gr.dims.nlg[0] - Gr.dims.gw
-            Py_ssize_t jmax = Gr.dims.nlg[1] - Gr.dims.gw
-            Py_ssize_t kmax = Gr.dims.nlg[2] - Gr.dims.gw
+            Py_ssize_t imin    = Gr.dims.gw
+            Py_ssize_t jmin    = Gr.dims.gw
+            Py_ssize_t kmin    = Gr.dims.gw
+            Py_ssize_t imax    = Gr.dims.nlg[0] - Gr.dims.gw
+            Py_ssize_t jmax    = Gr.dims.nlg[1] - Gr.dims.gw
+            Py_ssize_t kmax    = Gr.dims.nlg[2] - Gr.dims.gw
             double [:] tmp
-            Py_ssize_t qi_shift = DV.get_varshift(Gr, 'qi')
-            Py_ssize_t qi_std_shift = PV.get_varshift(Gr,'qi_std')
-            Py_ssize_t qi_iso_shift = PV.get_varshift(Gr,'qi_iso')
-            double[:] delta_qi = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] cloud_ice_mask = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            Py_ssize_t qi_shift         = DV.get_varshift(Gr, 'qi')
+            Py_ssize_t ql_shift         = DV.get_varshift(Gr,'ql')
+            Py_ssize_t qi_std_shift     = PV.get_varshift(Gr,'qi_std')
+            Py_ssize_t qi_iso_shift     = PV.get_varshift(Gr,'qi_iso')
+            Py_ssize_t ql_std_shift     = PV.get_varshift(Gr,'ql_std')
+            Py_ssize_t ql_iso_shift     = PV.get_varshift(Gr,'ql_iso')
+            
+            Py_ssize_t qrain_std_shift  = PV.get_varshift(Gr,'qrain_std')
+            Py_ssize_t qrain_iso_shift  = PV.get_varshift(Gr,'qrain_iso')
+            Py_ssize_t qsnow_std_shift  = PV.get_varshift(Gr,'qsnow_std')
+            Py_ssize_t qsnow_iso_shift  = PV.get_varshift(Gr,'qsnow_iso')
+            
+            double[:] delta_qi          = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] cloud_liquid_mask = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] cloud_ice_mask    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] rain_mask         = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] snow_mask         = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             
         with nogil:
             with cython.boundscheck(False):
@@ -304,40 +328,85 @@ cdef class IsotopeTracers_Arctic_1M:
                         jshift = j * jstride
                         for k in range(kmin,kmax):
                             ijk = ishift + jshift + k
+
+                            # define ice domain mask
                             if DV.values[qi_shift + ijk] > 0.0:
                                 cloud_ice_mask[ijk] = 1.0
                                 delta_qi[ijk] = q_2_delta(PV.values[qi_iso_shift + ijk], DV.values[qi_shift + ijk])
+
+                            if DV.values[ql_shift + ijk] > 0.0:
+                                cloud_liquid_mask[ijk] = 1.0
+
+                            # define rain domain mask
+                            if PV.values[qrain_std_shift + ijk] > 1.0e-10:
+                                rain_mask[ijk] = 1.0
+                            
+                            # define snow domain mask
+                            if PV.values[qsnow_std_shift + ijk] > 1.0e-10:
+                                snow_mask[ijk] = 1.0
 
         tmp = Pa.HorizontalMeanConditional(Gr, &DV.values[qi_shift], &cloud_ice_mask[0])
         NS.write_profile('qi_in_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
         tmp = Pa.HorizontalMeanConditional(Gr, &delta_qi[0], &cloud_ice_mask[0])
         NS.write_profile('delta_qi', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+
+        # rain domain stats_io of qrain_std, and qrain_iso
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qrain_std_shift], &rain_mask[0])
+        NS.write_profile('qrain_std_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qrain_iso_shift], &rain_mask[0])
+        NS.write_profile('qrain_iso_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        # snow domain stats_io of qsnow_std, and qsnow_iso
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qsnow_std_shift], &snow_mask[0])
+        NS.write_profile('qsnow_std_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qsnow_iso_shift], &snow_mask[0])
+        NS.write_profile('qsnow_iso_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+
+        # liquid cloud domain stats_io fo qrain_std, and qrain_iso_shift
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qrain_std_shift], &cloud_liquid_mask[0])
+        NS.write_profile('qrain_std_cloud_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qrain_iso_shift], &cloud_liquid_mask[0])
+        NS.write_profile('qrain_iso_cloud_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        # liquid cloud domain stats_io fo ql_std, and ql_iso_shift
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[ql_std_shift], &cloud_liquid_mask[0])
+        NS.write_profile('ql_std_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[ql_iso_shift], &cloud_liquid_mask[0])
+        NS.write_profile('ql_iso_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        # ice cloud domain stats_io fo qsnow_std, and qsnow_iso_shift
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qsnow_std_shift], &cloud_ice_mask[0])
+        NS.write_profile('qsnow_std_cloud_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qsnow_iso_shift], &cloud_ice_mask[0])
+        NS.write_profile('qsnow_iso_cloud_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
         return
+
 cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
     cdef:
-        Py_ssize_t imin = 0
-        Py_ssize_t jmin = 0
-        Py_ssize_t kmin = 0
-        Py_ssize_t imax = Gr.dims.nlg[0]
-        Py_ssize_t jmax = Gr.dims.nlg[1]
-        Py_ssize_t kmax = Gr.dims.nlg[2]
+        Py_ssize_t imin    = 0
+        Py_ssize_t jmin    = 0
+        Py_ssize_t kmin    = 0
+        Py_ssize_t imax    = Gr.dims.nlg[0]
+        Py_ssize_t jmax    = Gr.dims.nlg[1]
+        Py_ssize_t kmax    = Gr.dims.nlg[2]
         Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
         Py_ssize_t jstride = Gr.dims.nlg[2]
         Py_ssize_t ishift, jshift, ijk, i,j,k, iter = 0
-        double [:] tmp
-        Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
+        Py_ssize_t ql_shift     = DV.get_varshift(Gr, 'ql')
         Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
         Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
         Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
         Py_ssize_t qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
         Py_ssize_t qv_iso_shift = PV.get_varshift(Gr,'qv_iso')
         Py_ssize_t ql_iso_shift = PV.get_varshift(Gr,'ql_iso')
-        double[:] delta_qv = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-        double[:] delta_qt = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+        double[:] tmp
+        double[:] delta_qv       = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+        double[:] delta_qt       = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
         double[:] delta_ql_cloud = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-        double[:] cloud_mask = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-        double[:] no_cloud_mask = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+        double[:] cloud_mask     = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+        double[:] no_cloud_mask  = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
 
     with nogil:
         with cython.boundscheck(False):

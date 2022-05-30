@@ -325,13 +325,6 @@ cdef class Microphysics_SB_Liquid:
             Py_ssize_t wqr_iso_shift = DV.get_varshift(Gr, 'w_qr_iso')
             double[:] qr_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         
-        tracer_sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
-                                self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
-                                &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                &PV.values[qr_std_shift], dt, &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
-                                &PV.values[qr_iso_shift], &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift],
-                                &PV.tendencies[qr_iso_shift], &qr_iso_tend_micro[0])
-
         sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
                                 self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
                                 &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
@@ -339,7 +332,6 @@ cdef class Microphysics_SB_Liquid:
 
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
                                        &DV.values[wnr_shift], &DV.values[wqr_shift])
-
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
@@ -347,10 +339,9 @@ cdef class Microphysics_SB_Liquid:
                 microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
-        
-        tracer_sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &qr_iso_tend_micro[0], &PV.tendencies[qt_shift], &PV.tendencies[qt_std_shift], &PV.tendencies[qt_iso_shift])
-
         sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &PV.tendencies[qt_shift])
+
+        # tracer micro-source formation
 
         tracer_sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
                                 self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],

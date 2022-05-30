@@ -62,11 +62,6 @@ static inline double iso_vapor_diffusivity(const double temperature, const doubl
 };
 
 // <<<<< SB_Warm Scheme >>>>>
-double thermal_conductivity(const double temperature){
-    /*Straka 2009 (5.33)*/
-    double kappa_T = 2.591e-2 * pow((temperature / 296.0), 1.5) * (416.0 / (temperature - 120.0));
-    return kappa_T;
-};
 
 double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
     double lam = lam_fp(temperature);
@@ -82,19 +77,19 @@ double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), dou
 
 double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio){
-    double lam = lam_fp(temperature);
-    double L = L_fp(temperature,lam);
-    double pv_sat = lookup(LT, temperature);
-    double rho_sat = pv_sat/Rv/temperature;
-    // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
-    double b_l = (DVAPOR*rho_sat)*(L/KT/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+    double lam          = lam_fp(temperature);
+    double L            = L_fp(temperature,lam);
+    double pv_sat       = lookup(LT, temperature);
+    double rho_sat      = pv_sat/Rv/temperature;
+    // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
+    double b_l          = (DVAPOR*rho_sat)*(L/KT/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
 
-    double S_l = sat_ratio + 1.0;
-    double D_O18 = DVAPOR*0.9723;
+    double S_l          = sat_ratio + 1.0;
+    double D_O18        = DVAPOR*0.9723;
     
-    double R_qr = qr_iso / qr;
+    double R_qr         = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
-    double alpha_eq = equilibrium_fractionation_factor_H2O18(temperature);
+    double alpha_eq     = equilibrium_fractionation_factor_H2O18_liquid(temperature);
     double R_qr_surface = R_qr / alpha_eq;
     // double rat = R_qr_surface/R_qv_ambient;
     
@@ -110,6 +105,7 @@ static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double q
     else{
         *qr_iso_auto_tendency = 0.0;
     }
+    return;
 }
 static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_accre_tendency, double* qr_iso_accre_tendency){
     if (ql > SB_EPS && ql_iso > SB_EPS){
@@ -118,6 +114,7 @@ static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_acc
     else{
         *qr_iso_accre_tendency = 0.0;
     }
+    return;
 }
 static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_evap_tendency, double* qr_iso_evap_tendency){
     if (qr > SB_EPS && qr_iso > SB_EPS){
@@ -126,20 +123,21 @@ static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_e
     else{
         *qr_iso_evap_tendency = 0.0;
     }
+    return;
 }
 
 void sb_iso_evaporation_rain(double g_therm_iso, double sat_ratio, double nr, double qr, double mu, double qr_iso, double rain_mass, double Dp,
-double Dm, double* qr_tendency){
+double Dm, double* qr_iso_tendency){
     double gamma, dpfv, phi_v;
-    const double bova = B_RAIN_SED/A_RAIN_SED;
-    const double cdp  = C_RAIN_SED * Dp;
-    const double mupow = mu + 2.5;
+    const double bova      = B_RAIN_SED/A_RAIN_SED;
+    const double cdp       = C_RAIN_SED * Dp;
+    const double mupow     = mu + 2.5;
     double qr_tendency_tmp = 0.0;
     if(qr < SB_EPS || nr < SB_EPS || qr_iso < SB_EPS){
-        *qr_tendency = 0.0;
+        *qr_iso_tendency = 0.0;
     }
     else if(sat_ratio >= 0.0){
-        *qr_tendency = 0.0;
+        *qr_iso_tendency = 0.0;
     }
     else{
         gamma = 0.7; // gamma = 0.7 is used by DALES ; alternative expression gamma= d_eq/Dm * exp(-0.2*mudouble vapor_H2O18_diff, vapor_HDO16_diff; 2double vapor_H2O18_diff, vapor_HDO16_diff;) is used by S08;
@@ -149,7 +147,7 @@ double Dm, double* qr_tendency){
 
         dpfv  = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
 
-        qr_tendency_tmp = 2.0 * pi * g_therm_iso * nr * dpfv;
+        qr_tendency_tmp  = 2.0 * pi * g_therm_iso * nr * dpfv;
         *qr_iso_tendency = -qr_tendency_tmp;
     }
     return;
@@ -196,38 +194,160 @@ double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(dou
     return alpha_k_ice;
 }
 
-void arc1m_iso_auto_acc_rain(double qrain_tendency_aut, double qrain_tendency_acc, double qrain, double qrain_iso, 
-                       double* qrain_iso_tendency_auto, double *qrain_iso_tendency_acc){
-    double iso_ratio = qrain_iso / qrain;
-    if(qrain_tendency_aut == 0.0){
+void arc1m_iso_autoconversion_rain(double qrain_tendency_aut, double ql, double ql_iso, double* qrain_iso_tendency_auto){
+    if (ql > 0.0 && qrain_tendency_aut > 0.0){
+        *qrain_iso_tendency_auto = qrain_tendency_aut * (ql_iso/ql);
+    }
+    else{
         *qrain_iso_tendency_auto = 0.0;
-    }
-    else{
-        *qrain_iso_tendency_auto = qrain_tendency_aut * iso_ratio;
-    }
-    if(qrain_tendency_acc == 0.0){
-        *qrain_iso_tendency_acc = 0.0;
-    }
-    else{
-        *qrain_iso_tendency_acc = qrain_tendency_acc * iso_ratio;
     }
     return;
 }
 
-void arc1m_iso_auto_acc_snow(double qsnow_tendency_aut, double qsnow_tendency_acc, double qsnow, double qsnow_iso, 
-                       double* qsnow_iso_tendency_auto, double *qsnow_iso_tendency_acc){
-    double iso_ratio = qsnow_iso / qsnow;
-    if(qsnow_tendency_aut == 0.0){
+void arc1m_iso_autoconversion_snow(double qsnow_tendency_aut, double qi, double qi_iso, double* qsnow_iso_tendency_auto){
+    if (qi > 0.0){
+        *qsnow_iso_tendency_auto = qsnow_tendency_aut * (qi_iso/qi);
+    }
+    else{
         *qsnow_iso_tendency_auto = 0.0;
     }
-    else{
-        *qsnow_iso_tendency_auto = qsnow_tendency_aut * iso_ratio;
+    return;
+}
+
+void arc1m_iso_accretion_all(double density, double p0, double temperature, double ccn, double ql, double qi, double ni,
+                   double qrain, double nrain, double qsnow, double nsnow,
+                   double ql_iso, double qi_iso, double qrain_iso, double qsnow_iso,
+                   double* ql_iso_tendency, double* qi_iso_tendency, double* qrain_iso_tendency, double* qsnow_iso_tendency){
+    // define iso Ratio of different species:
+    double R_ql    = 0.0;
+    double R_qi    = 0.0;
+    double R_qrain = 0.0;
+    double R_qsnow = 0.0;
+    if (ql > SMALL && ql_iso > SMALL){
+        R_ql = ql_iso/ql;
     }
-    if(qsnow_tendency_acc == 0.0){
-        *qsnow_iso_tendency_acc = 0.0;
+    if (qi > SMALL && qi_iso > SMALL){
+        R_qi = qi_iso/qi;
+    }
+    if (qrain > SMALL && qrain_iso > SMALL){
+        R_qrain = qrain_iso/qrain;
+    }
+    if (qsnow > SMALL && qsnow_iso > SMALL){
+        R_qsnow = qsnow_iso/qsnow;
+    }
+
+    // ===========<<< micro-source calculation during accretion>>> ============
+    double factor_r  = 0.0;
+    double factor_s  = 0.0;
+    double piacr     = 0.0;
+
+    double e_ri      = 1.0;
+    double e_si      = exp(9.0e-2*(temperature - 273.15));
+    double e_rl      = 0.85;
+    double e_sl      = 0.8;
+
+    double liq_diam  = liquid_dmean(density, ql, ccn);
+    double snow_diam = snow_dmean(density, qsnow, nsnow);
+    double rain_diam = rain_dmean(density, qrain, nrain);
+    double rain_lam  = rain_lambda(density, qrain, nrain);
+    double snow_lam  = snow_lambda(density, qsnow, nsnow);
+    double ice_lam   = ice_lambda(density, qi, ni);
+    double rain_vel  = C_RAIN*pow(rain_diam, D_RAIN);
+    double snow_vel  = C_SNOW*pow(snow_diam, D_SNOW);
+
+    if( snow_diam < 150.0e-6 ){
+        e_sl = 0.0;
     }
     else{
-        *qsnow_iso_tendency_acc = qsnow_tendency_acc * iso_ratio;
+        if( liq_diam < 15.0e-6 ){
+            e_sl = 0.0;
+        }
+        else if( liq_diam < 40.0e-6 ){
+            e_sl = (liq_diam - 15.0e-6) * e_sl / 25.0e-6;
+        }
+    }
+
+    if( qrain > SMALL ){
+        factor_r = density*GD3_RAIN*nrain*pi*ALPHA_ACC_RAIN*C_RAIN*0.25*pow(rain_lam, (-D_RAIN - 3.0));
+        if( qi > SMALL ){
+            piacr = nrain*ni/ice_lam*e_ri*pi*0.25*A_RAIN*C_RAIN*GD6_RAIN*pow(rain_lam, (-D_RAIN - 6.0));
+        }
+    }
+
+    if( qsnow > SMALL ){
+        factor_s = density*GD3_SNOW*nsnow*pi*ALPHA_ACC_SNOW*C_SNOW*0.25*pow(snow_lam, (-D_SNOW-3.0));
+    }
+
+    double src_ri  = -piacr/density;
+    double src_rl  = factor_r*e_rl*ql/density;
+    double src_si  = factor_s*e_si*qi/density;
+    double rime_sl = factor_s*e_sl*ql/density;
+    double src_sl  = 0.0;
+
+    if( temperature > 273.16 ){
+        src_sl = -cvl/lf0*(temperature-273.16)*rime_sl;
+        src_rl = src_rl + rime_sl - src_sl;
+    }
+    else{
+        src_sl = rime_sl + (factor_r*e_ri*qi + piacr)/density;
+    }
+
+    /* Now precip-precip interactions */
+    double src_r = 0.0;
+    double src_s = 0.0;
+    double dv, k_2s, k_2r;
+
+    if( qrain > small && qsnow > small ){
+        dv   = fabs(rain_vel - snow_vel);
+        k_2s = (30.0/(pow(rain_lam, 6.0)*snow_lam) + 12.0/(pow(rain_lam, 5.0)*pow(snow_lam, 2.0))
+                + 3.0/(pow(rain_lam, 4.0)*pow(snow_lam, 3.0)));
+        k_2r = (1.0/(pow(rain_lam, 3.0)*pow(snow_lam, 3.0)) + 3.0/(pow(rain_lam, 2.0)*pow(snow_lam, 4.0))
+                + 6.0/(rain_lam*pow(snow_lam, 5.0)));
+        if( temperature < 273.16 ){
+            src_s = pi*dv*nsnow*nrain*A_RAIN*k_2s/density;
+            src_r = -src_s;
+        }
+        else{
+            src_r = pi*dv*nsnow*nrain*A_SNOW*k_2r/density;
+            src_s = -src_r;
+        }
+    }
+
+    // *qrain_tendency = src_r + src_rl + src_ri;
+    // *qsnow_tendency = src_s + src_sl + src_si;
+    // *ql_tendency    = -(src_rl + rime_sl);
+    // *qi_tendency    = -(src_ri + src_si);
+    
+    // ===========<<< Iso source calculations >>> ============
+    double src_rl_iso  = src_rl * R_ql;
+    double src_ri_iso  = src_ri * R_qi;
+    double src_sl_iso  = src_sl * R_ql;
+    double src_si_iso  = src_si * R_qi;
+    double rime_sl_iso = rime_sl *R_ql;
+    double src_s_iso, src_r_iso;
+    if (temperature < 273.16){
+        src_s_iso = src_s * R_qrain;
+        src_r_iso = -src_s_iso;
+    }
+    else{
+        src_r_iso = src_r * R_qsnow;
+        src_s_iso = -src_s_iso;
+    }
+
+    *qrain_iso_tendency = src_r_iso + src_rl_iso + src_ri_iso;
+    *qsnow_iso_tendency = src_s_iso + src_sl_iso + src_si_iso;
+    *ql_iso_tendency    = -(src_rl_iso + rime_sl_iso);
+    *qi_iso_tendency    = -(src_ri_iso + src_si_iso);
+
+    return;
+}
+
+void arc1m_iso_evap_rain_nofrac(double qrain_tendency_evap, double qrain, double qrain_iso, double* qrain_iso_tendency_evap){
+    if (qrain > 0.0){
+        *qrain_iso_tendency_evap = qrain_tendency_evap * (qrain_iso/qrain);
+    }
+    else{
+        *qrain_iso_tendency_evap = 0.0;
     }
     return;
 }
@@ -255,21 +375,21 @@ void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
         vent                = 0.78 + 0.27*sqrt(re);
         // gtherm              = 1.0e-7/(2.2*temperature/pv_star + 220.0/temperature);
         // gtherm              = 1.0 / ( (Rv*temperature/vapor_diff/pv_star) + (8.028e12/therm_cond/Rv/(temperature*temperature)) );
-        double gtherm_iso   = microphysics_g_iso(LT, lam_fp, L_fp, temperature, 
-                                                 vapor_diff, vapor_O18_diff, therm_cond, p0, satratio,
-                                                 qrain, qrain_iso, qv, qv_iso);
+        // double gtherm_iso   = microphysics_g_iso(LT, lam_fp, L_fp, temperature, 
+        //                                          vapor_diff, vapor_O18_diff, therm_cond, p0, satratio,
+        //                                          qrain, qrain_iso, qv, qv_iso);
+        double gtherm_iso = 0.0;
         *qrain_iso_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm_iso*nrain/(rain_lam*rain_lam)/density;
     }
     return;
 }
 
 void arc1m_iso_evap_snow_nofrac(double qsnow_tendency_evap, double qsnow, double qsnow_iso, double* qsnow_iso_tendency_evap){
-    double iso_ratio = qsnow_iso / qsnow;
-    if(qsnow_tendency_evap == 0.0){
-        *qsnow_iso_tendency_evap = 0.0;
+    if (qsnow > SMALL && qsnow_iso > SMALL){
+        *qsnow_iso_tendency_evap = qsnow_tendency_evap * (qsnow_iso/qsnow);
     }
     else{
-        *qsnow_iso_tendency_evap = qsnow_tendency_evap * iso_ratio;
+        *qsnow_iso_tendency_evap = 0.0;
     }
     return;
 }
@@ -298,21 +418,21 @@ void arc1m_iso_evap_snow_withfrac(struct LookupStruct *LT, double (*lam_fp)(doub
         double vent         = 0.65 + 0.39*sqrt(re);
         // gtherm           = 1.0e-7/(2.2*temperature/pv_star + 220.0/temperature);
         // gtherm           = 1.0 / ( (Rv*temperature/vapor_diff/pv_star) + (8.028e12/therm_cond/Rv/(temperature*temperature)) );
-        double gtherm_iso   = microphysics_g_iso(LT, lam_fp, L_fp, temperature,
-                                                 vapor_diff, vapor_O18_diff, therm_cond, p0, satratio,
-                                                 qsnow, qsnow_iso, qv, qv_iso);
+        // double gtherm_iso   = microphysics_g_iso(LT, lam_fp, L_fp, temperature,
+        //                                          vapor_diff, vapor_O18_diff, therm_cond, p0, satratio,
+        //                                          qsnow, qsnow_iso, qv, qv_iso);
+        double gtherm_iso = 0.0;
         *qsnow_iso_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm_iso*nsnow/(snow_lam*snow_lam)/density;
     }
     return;
 }
 
 void arc1m_iso_melt_snow(double qsnow_tendency_melt, double qsnow, double qsnow_iso, double* qsnow_iso_tendency_melt){
-    double iso_ratio = qsnow_iso / qsnow;
-    if(qsnow_tendency_melt == 0.0){
-        *qsnow_iso_tendency_melt = 0.0;
+    if (qsnow > SMALL && qsnow_iso > SMALL){
+        *qsnow_iso_tendency_melt = qsnow_tendency_melt * (qsnow_iso/qsnow);
     }
     else{
-        *qsnow_iso_tendency_melt = qsnow_tendency_melt * iso_ratio;
+        *qsnow_iso_tendency_melt = 0.0;
     }
     return;
 }
