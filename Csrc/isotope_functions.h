@@ -194,48 +194,35 @@ double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(dou
     return alpha_k_ice;
 }
 
-void arc1m_iso_autoconversion_rain(double qrain_tendency_aut, double ql, double ql_iso, double* qrain_iso_tendency_auto){
-    if (ql > 0.0 && qrain_tendency_aut > 0.0){
-        *qrain_iso_tendency_auto = qrain_tendency_aut * (ql_iso/ql);
-    }
-    else{
-        *qrain_iso_tendency_auto = 0.0;
-    }
+void arc1m_iso_autoconversion_rain(double qrain_tendency_aut, double R_ql, double* qrain_iso_tendency_auto){
+    *qrain_iso_tendency_auto = qrain_tendency_aut * R_ql;
     return;
 }
 
-void arc1m_iso_autoconversion_snow(double qsnow_tendency_aut, double qi, double qi_iso, double* qsnow_iso_tendency_auto){
-    if (qi > 0.0){
-        *qsnow_iso_tendency_auto = qsnow_tendency_aut * (qi_iso/qi);
-    }
-    else{
-        *qsnow_iso_tendency_auto = 0.0;
-    }
+void arc1m_iso_evap_rain_nofrac(double qrain_tendency_evap, double R_qrain, double* qrain_iso_tendency_evap){
+    *qrain_iso_tendency_evap = qrain_tendency_evap * R_qrain;
+    return;
+}
+
+void arc1m_iso_autoconversion_snow(double qsnow_tendency_aut, double R_qi, double* qsnow_iso_tendency_auto){
+    *qsnow_iso_tendency_auto = qsnow_tendency_aut * R_qi;
+    return;
+}
+
+void arc1m_iso_evap_snow_nofrac(double qsnow_tendency_evap, double R_qsnow, double* qsnow_iso_tendency_evap){
+    *qsnow_iso_tendency_evap = qsnow_tendency_evap * R_qsnow;
+    return;
+}
+
+void arc1m_iso_melt_snow(double qsnow_tendency_melt, double R_qsnow, double* qsnow_iso_tendency_melt){
+    *qsnow_iso_tendency_melt = qsnow_tendency_melt * R_qsnow;
     return;
 }
 
 void arc1m_iso_accretion_all(double density, double p0, double temperature, double ccn, double ql, double qi, double ni,
                    double qrain, double nrain, double qsnow, double nsnow,
-                   double ql_iso, double qi_iso, double qrain_iso, double qsnow_iso,
+                   double R_ql, double R_qi, double R_qrain, double R_qsnow,
                    double* ql_iso_tendency, double* qi_iso_tendency, double* qrain_iso_tendency, double* qsnow_iso_tendency){
-    // define iso Ratio of different species:
-    double R_ql    = 0.0;
-    double R_qi    = 0.0;
-    double R_qrain = 0.0;
-    double R_qsnow = 0.0;
-    if (ql > SMALL && ql_iso > SMALL){
-        R_ql = ql_iso/ql;
-    }
-    if (qi > SMALL && qi_iso > SMALL){
-        R_qi = qi_iso/qi;
-    }
-    if (qrain > SMALL && qrain_iso > SMALL){
-        R_qrain = qrain_iso/qrain;
-    }
-    if (qsnow > SMALL && qsnow_iso > SMALL){
-        R_qsnow = qsnow_iso/qsnow;
-    }
-
     // ===========<<< micro-source calculation during accretion>>> ============
     double factor_r  = 0.0;
     double factor_s  = 0.0;
@@ -342,15 +329,6 @@ void arc1m_iso_accretion_all(double density, double p0, double temperature, doub
     return;
 }
 
-void arc1m_iso_evap_rain_nofrac(double qrain_tendency_evap, double qrain, double qrain_iso, double* qrain_iso_tendency_evap){
-    if (qrain > 0.0){
-        *qrain_iso_tendency_evap = qrain_tendency_evap * (qrain_iso/qrain);
-    }
-    else{
-        *qrain_iso_tendency_evap = 0.0;
-    }
-    return;
-}
 
 void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                    double density, const double p0, double temperature,
@@ -384,15 +362,6 @@ void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
     return;
 }
 
-void arc1m_iso_evap_snow_nofrac(double qsnow_tendency_evap, double qsnow, double qsnow_iso, double* qsnow_iso_tendency_evap){
-    if (qsnow > SMALL && qsnow_iso > SMALL){
-        *qsnow_iso_tendency_evap = qsnow_tendency_evap * (qsnow_iso/qsnow);
-    }
-    else{
-        *qsnow_iso_tendency_evap = 0.0;
-    }
-    return;
-}
 
 void arc1m_iso_evap_snow_withfrac(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                    double density, const double p0, double temperature,
@@ -426,14 +395,3 @@ void arc1m_iso_evap_snow_withfrac(struct LookupStruct *LT, double (*lam_fp)(doub
     }
     return;
 }
-
-void arc1m_iso_melt_snow(double qsnow_tendency_melt, double qsnow, double qsnow_iso, double* qsnow_iso_tendency_melt){
-    if (qsnow > SMALL && qsnow_iso > SMALL){
-        *qsnow_iso_tendency_melt = qsnow_tendency_melt * (qsnow_iso/qsnow);
-    }
-    else{
-        *qsnow_iso_tendency_melt = 0.0;
-    }
-    return;
-}
-
