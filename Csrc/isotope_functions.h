@@ -63,29 +63,34 @@ static inline double iso_vapor_diffusivity(const double temperature, const doubl
 
 // <<<<< SB_Warm Scheme >>>>>
 
-double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
+double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature, double dvap, double kt){
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
     double pv_sat = lookup(LT, temperature);
     double rho_sat = pv_sat/Rv/temperature;
-    // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for evaporation
-    double b_l = (DVAPOR*rho_sat)*(L/KT/temperature)*(L/Rv/temperature - 1.0); //SB_Liquid evaporation scheme
 
-    double g_therm = DVAPOR*rho_sat/(1.0+b_l);
+    /*blossey's scheme for evaporation*/
+    // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); 
+    
+    /*Straka 2009 (6.13)*/
+    double b_l = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0);
+
+    double g_therm = dvap*rho_sat/(1.0+b_l);
     return g_therm;
 }
 
 double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio){
+                             double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
+                             double dvap, double kt){
     double lam          = lam_fp(temperature);
     double L            = L_fp(temperature,lam);
     double pv_sat       = lookup(LT, temperature);
     double rho_sat      = pv_sat/Rv/temperature;
     // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
-    double b_l          = (DVAPOR*rho_sat)*(L/KT/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+    double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
 
     double S_l          = sat_ratio + 1.0;
-    double D_O18        = DVAPOR*0.9723;
+    double D_O18        = dvap*0.9723;
     
     double R_qr         = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
@@ -329,35 +334,53 @@ void arc1m_iso_accretion_all(double density, double p0, double temperature, doub
     return;
 }
 
+void arc1m_std_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                      double density, const double p0, double temperature,
+                      double qt, double qrain, double nrain, double* qrain_tendency){
+    double beta = 2.0;
+    double pv_star = lookup(LT, temperature);
+    double qv_star = qv_star_c(p0, qt, pv_star);
+    double satratio = qt/qv_star;
+    double vapor_diff = vapor_diffusivity(temperature, p0);
+    double therm_cond = thermal_conductivity(temperature);
+    double rain_diam = rain_dmean(density, qrain, nrain);
+    double rain_vel = C_RAIN*pow(rain_diam, D_RAIN);
+    double rain_lam = rain_lambda(density, qrain, nrain);
+
+    double re, vent, gtherm;
+
+    if( satratio < 1.0 && qrain > 1.0e-15){
+        re = rain_diam*rain_vel/VISC_AIR;
+        vent = 0.78 + 0.27*sqrt(re);
+        gtherm = microphysics_g_std(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
+        *qrain_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm*nrain/(rain_lam*rain_lam)/density;
+    }
+
+    return;
+};
 
 void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                    double density, const double p0, double temperature,
                    double qt, double qv, double qrain, double nrain, 
                    double qv_iso, double qrain_iso, double *qrain_iso_tendency){
-    double beta           = 2.0;
-    double pv_star        = lookup(LT, temperature);
-    double qv_star        = qv_star_c(p0, qt, pv_star);
-    double satratio       = qt/qv_star;
-    double therm_cond     = thermal_conductivity(temperature);
-    double rain_diam      = rain_dmean(density, qrain, nrain);
-    double rain_vel       = C_RAIN*pow(rain_diam, D_RAIN);
-    double rain_lam       = rain_lambda(density, qrain, nrain);
+    double beta       = 2.0;
+    double pv_star    = lookup(LT, temperature);
+    double qv_star    = qv_star_c(p0, qt, pv_star);
+    double satratio   = qt/qv_star;
+    double vapor_diff = vapor_diffusivity(temperature, p0);
+    double therm_cond = thermal_conductivity(temperature);
+    double rain_diam  = rain_dmean(density, qrain, nrain);
+    double rain_vel   = C_RAIN*pow(rain_diam, D_RAIN);
+    double rain_lam   = rain_lambda(density, qrain, nrain);
 
-    double vapor_diff     = vapor_diffusivity(temperature, p0);
-    double vapor_O18_diff = vapor_diff * 0.9723;
-
-    double re, vent, gtherm;
-
-    if( satratio < 1.0 && qrain > 1.0e-15){
-        re                  = rain_diam*rain_vel/VISC_AIR;
-        vent                = 0.78 + 0.27*sqrt(re);
-        // gtherm              = 1.0e-7/(2.2*temperature/pv_star + 220.0/temperature);
-        // gtherm              = 1.0 / ( (Rv*temperature/vapor_diff/pv_star) + (8.028e12/therm_cond/Rv/(temperature*temperature)) );
-        // double gtherm_iso   = microphysics_g_iso(LT, lam_fp, L_fp, temperature, 
-        //                                          vapor_diff, vapor_O18_diff, therm_cond, p0, satratio,
-        //                                          qrain, qrain_iso, qv, qv_iso);
-        double gtherm_iso = 0.0;
-        *qrain_iso_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm_iso*nrain/(rain_lam*rain_lam)/density;
+    double re, vent, gther_iso; 
+    if( satratio < 1.0 && qrain > 1.0e-15 && qrain_iso > 1.0e-15){
+        re = rain_diam*rain_vel/VISC_AIR;
+        vent = 0.78 + 0.27*sqrt(re);
+        double sat_ratio = satratio - 1.0;
+        gther_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature, p0, qrain, qrain_iso, qv, qv_iso, sat_ratio, vapor_diff, therm_cond);
+        double qrain_evap_tend_tmp = 4.0*pi/beta*vent*gther_iso*nrain/(rain_lam*rain_lam)/density;
+        *qrain_iso_tendency = -qrain_evap_tend_tmp;
     }
     return;
 }
@@ -367,31 +390,24 @@ void arc1m_iso_evap_snow_withfrac(struct LookupStruct *LT, double (*lam_fp)(doub
                    double density, const double p0, double temperature,
                    double qt, double qv, double qsnow, double nsnow, 
                    double qv_iso, double qsnow_iso, double* qsnow_iso_tendency){
-    double beta           = 3.0;
-    double pv_star        = lookup(LT, temperature);
-    double qv_star        = qv_star_c(p0, qt, pv_star);
-    double satratio       = qt/qv_star;
-    double therm_cond     = thermal_conductivity(temperature);
-    double snow_diam      = snow_dmean(density, qsnow, nsnow);
-    double snow_vel       = C_SNOW*pow(snow_diam, D_SNOW);
-    double snow_lam       = snow_lambda(density, qsnow, nsnow);
+    double beta = 3.0;
+    double pv_star = lookup(LT, temperature);
+    double qv_star = qv_star_c(p0, qt, pv_star);
+    double satratio = qt/qv_star;
 
+    double vapor_diff = vapor_diffusivity(temperature, p0);
+    double therm_cond = thermal_conductivity(temperature);
+    double snow_diam = snow_dmean(density, qsnow, nsnow);
+    double snow_vel = C_SNOW*pow(snow_diam, D_SNOW);
+    double snow_lam = snow_lambda(density, qsnow, nsnow);
 
-    double vapor_diff     = vapor_diffusivity(temperature, p0);
-    double vapor_O18_diff = vapor_diff * 0.9723;
-
-    double re, vent, gtherm;
-
-    if( satratio < 1.0 && qsnow > 1.0e-15){
-        double re           = snow_diam*snow_vel/VISC_AIR;
-        double vent         = 0.65 + 0.39*sqrt(re);
-        // gtherm           = 1.0e-7/(2.2*temperature/pv_star + 220.0/temperature);
-        // gtherm           = 1.0 / ( (Rv*temperature/vapor_diff/pv_star) + (8.028e12/therm_cond/Rv/(temperature*temperature)) );
-        // double gtherm_iso   = microphysics_g_iso(LT, lam_fp, L_fp, temperature,
-        //                                          vapor_diff, vapor_O18_diff, therm_cond, p0, satratio,
-        //                                          qsnow, qsnow_iso, qv, qv_iso);
-        double gtherm_iso = 0.0;
-        *qsnow_iso_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm_iso*nsnow/(snow_lam*snow_lam)/density;
+    if( qsnow > 1.0e-15 ){
+        double re = snow_diam*snow_vel/VISC_AIR;
+        double vent = 0.65 + 0.39*sqrt(re);
+        double sat_ratio = satratio - 1.0;
+        double gtherm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature, p0, qsnow, qsnow_iso, qv, qv_iso, sat_ratio, vapor_diff, therm_cond);
+        double qsnow_iso_tend_tmp = 4.0*pi/beta*vent*gtherm_iso*nsnow/(snow_lam*snow_lam)/density;
+        *qsnow_iso_tendency = -qsnow_iso_tend_tmp;
     }
     return;
 }

@@ -52,7 +52,7 @@
         "scheme": "SB_Liquid"
     },
     "isotopetracers":{
-        "scheme":"SB_Liquid"
+        "scheme": "SB_Liquid"
     },
     "momentum_transport": {
         "order": 5
