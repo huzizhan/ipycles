@@ -386,7 +386,7 @@ void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
 }
 
 
-void arc1m_iso_evap_snow_withfrac(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+void arc1m_iso_evap_snow(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                    double density, const double p0, double temperature,
                    double qt, double qv, double qsnow, double nsnow, 
                    double qv_iso, double qsnow_iso, double* qsnow_iso_tendency){
