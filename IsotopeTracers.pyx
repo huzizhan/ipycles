@@ -243,10 +243,10 @@ cdef class IsotopeTracers_Arctic_1M:
 
         initialize_NS_base(NS, Gr, Pa)
         
-        NS.add_profile('qi_in_cloud', Gr, Pa, 'unit', '', 'qi_in_cloud')
+        NS.add_profile('qi_std_cloud', Gr, Pa, 'unit', '', 'qi_std_cloud')
+        NS.add_profile('qi_iso_cloud', Gr, Pa, 'unit', '', 'qi_iso_cloud')
         NS.add_profile('ql_std_cloud', Gr, Pa, 'unit', '', 'ql_std_cloud')
         NS.add_profile('ql_iso_cloud', Gr, Pa, 'unit', '', 'ql_iso_cloud')
-        NS.add_profile('delta_qi', Gr, Pa, 'unit', '', 'delta_qi')
         NS.add_profile('qrain_std_domain', Gr, Pa, 'kg/kg', '', 'qrain_std_domain')
         NS.add_profile('qrain_iso_domain', Gr, Pa, 'kg/kg', '', 'qrain_iso_domain')
         NS.add_profile('qsnow_std_domain', Gr, Pa, 'kg/kg', '', 'qsnow_std_domain')
@@ -332,7 +332,6 @@ cdef class IsotopeTracers_Arctic_1M:
                             # define ice domain mask
                             if DV.values[qi_shift + ijk] > 0.0:
                                 cloud_ice_mask[ijk] = 1.0
-                                delta_qi[ijk] = q_2_delta(PV.values[qi_iso_shift + ijk], DV.values[qi_shift + ijk])
 
                             if DV.values[ql_shift + ijk] > 0.0:
                                 cloud_liquid_mask[ijk] = 1.0
@@ -345,10 +344,16 @@ cdef class IsotopeTracers_Arctic_1M:
                             if PV.values[qsnow_std_shift + ijk] > 1.0e-10:
                                 snow_mask[ijk] = 1.0
 
-        tmp = Pa.HorizontalMeanConditional(Gr, &DV.values[qi_shift], &cloud_ice_mask[0])
-        NS.write_profile('qi_in_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
-        tmp = Pa.HorizontalMeanConditional(Gr, &delta_qi[0], &cloud_ice_mask[0])
-        NS.write_profile('delta_qi', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+        # liquid cloud domain stats_io fo ql_std, and ql_iso_shift
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[ql_std_shift], &cloud_liquid_mask[0])
+        NS.write_profile('ql_std_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[ql_iso_shift], &cloud_liquid_mask[0])
+        NS.write_profile('ql_iso_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qi_std_shift], &cloud_ice_mask[0])
+        NS.write_profile('qi_std_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qi_iso_shift], &cloud_ice_mask[0])
+        NS.write_profile('qi_iso_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
 
         # rain domain stats_io of qrain_std, and qrain_iso
         tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qrain_std_shift], &rain_mask[0])
@@ -367,12 +372,6 @@ cdef class IsotopeTracers_Arctic_1M:
         NS.write_profile('qrain_std_cloud_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qrain_iso_shift], &cloud_liquid_mask[0])
         NS.write_profile('qrain_iso_cloud_domain', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-        
-        # liquid cloud domain stats_io fo ql_std, and ql_iso_shift
-        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[ql_std_shift], &cloud_liquid_mask[0])
-        NS.write_profile('ql_std_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-        tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[ql_iso_shift], &cloud_liquid_mask[0])
-        NS.write_profile('ql_iso_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
         
         # ice cloud domain stats_io fo qsnow_std, and qsnow_iso_shift
         tmp = Pa.HorizontalMeanConditional(Gr, &PV.values[qsnow_std_shift], &cloud_ice_mask[0])

@@ -797,7 +797,9 @@ def Rico():
     namelist['microphysics']['SB_Liquid']['nu_droplet'] = 0
     namelist['microphysics']['SB_Liquid']['mu_rain'] = 1
 
-
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'SB_Liquid'
 
     namelist['sgs'] = {}
     namelist['sgs']['scheme'] = 'Smagorinsky'
@@ -882,6 +884,10 @@ def Isdac():
     namelist['microphysics']['phase_partitioning'] = 'Arctic'
     namelist['microphysics']['n0_ice'] = 1.0e7
 
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'Arctic_1M'
+    
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
     namelist['sgs']['Smagorinsky'] = {}
