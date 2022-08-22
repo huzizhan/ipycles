@@ -30,13 +30,13 @@ double microphysics_diameter_from_mass(double mass, double prefactor, double exp
     return diameter;
 }
 
+// Seifert & Beheng 2006: Equ 23.
 double microphysics_g(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
     double pv_sat = lookup(LT, temperature);
     double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
     return g_therm;
-
 }
 
 double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperature, double  p0, double qt){
@@ -46,12 +46,7 @@ double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperatur
     return saturation_ratio;
 }
 
-
-
-
 double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, const double qt, const double T){
-
-
     double Twet = T;
     double T_1 = T;
     double pv_star_1  = lookup(LT, T_1);
@@ -84,15 +79,11 @@ double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, 
         } while(iter < 1);    //(delta_T >= 1.0e-3);
         Twet  = T_1;
     }
-
     return Twet;
 }
 
-
-
 void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruct *LT, double* restrict p0, double* restrict s,
                                       double* restrict qt,  double* restrict T,  double* restrict Twet ){
-
     ssize_t i,j,k;
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -132,7 +123,6 @@ void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruc
     const double distribution_factor = exp(5.0 * log(SIGMA_G) * log(SIGMA_G));
     const double number_factor = C_STOKES_VEL * cbrt((0.75/pi/DENSITY_LIQUID/ccn) * (0.75/pi/DENSITY_LIQUID/ccn));
 
-
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
         for(ssize_t j=jmin; j<jmax; j++){
@@ -147,7 +137,6 @@ void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruc
         }
     }
 
-
      for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
         for(ssize_t j=jmin; j<jmax; j++){
@@ -159,7 +148,6 @@ void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruc
             }
         }
     }
-
 
     return;
 

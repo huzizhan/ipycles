@@ -4,6 +4,7 @@
 #include "advection_interpolation.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
+#include <cmath>
 #include <math.h>
 
 #define MAX_ITER  15 //maximum substep loops in source term computation
@@ -31,9 +32,17 @@
 #define A_NU_SQ sqrt(A_RAIN_SED/KIN_VISC_AIR)
 #define SB_EPS  1.0e-13 //small value
 
-//Unless specified otherwise, Diameter = Dm not Dp
+// ===========<<< Reference about SB_Liquid microphysics scheme >>> ============
+// SB06: Seifert & Beheng 2006: A two-moment cloud microphysics parameterization for mixed-phase clouds. Part 1: Model description
+// AS08: Axel Seifert 2008: On the Parameterization of Evaporation of Raindrops as Simulated by a One-Dimensional Rainshaft Model 
+// SS08: Seifert & Stevens 2008: Understanding macrophysical outcomes of microphysical choices in simulations of shallow cumulus convection
+//
+// ===========<<< Keys need to know about SB_Liquid microphysics scheme >>> ============
+// Unless specified otherwise, Diameter = Dm not Dp
+// Note: All sb_shape_parameter_X functions must have same signature
 
-//Note: All sb_shape_parameter_X functions must have same signature
+// ===========<<< Function section of variables definition>> ============
+
 double sb_rain_shape_parameter_0(double density, double qr, double Dm){
     //Seifert & Beheng 2001 and Seifert & Beheng 2006
     double shape_parameter = 0.0;
@@ -91,9 +100,18 @@ double sb_droplet_nu_2(double density, double ql){
     // DALES
     double nu = 1.58 * (1000.0 * density * ql) - 0.28;
     return nu;
-
 }
 
+double sb_Dp(double Dm, double mu){
+    // Dm: mass-weighted mean diameter
+    // mu: sb_rain_shape_parameter defined based on functions above (different cases)
+    // Dp: sb_rain_size_parameter defined in SS08, equ (5)
+    // Here tgamma(mu+1.0)/tgamma(mu + 4.0) is same as 1/(mu + 3.0)*(mu+2.0)*(mu+1.0) in equ (5)
+    double Dp = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
+    return Dp;
+}
+
+// ===========<<< Function section of All related microphysics processes>> ============
 
 void sb_autoconversion_rain(double (*droplet_nu)(double,double), double density, double nl, double ql, double qr, double* nr_tendency, double* qr_tendency){
     // Computation of rain specific humidity and number source terms from autoconversion of cloud liquid to rain
@@ -135,7 +153,9 @@ void sb_accretion_rain(double density, double ql, double qr, double* qr_tendency
         tau = fmin(fmax(1.0 - ql/(ql + qr), 0.0), 0.99);
         phi = pow((tau / (tau + 5.0e-5)), 4.0);      // - DALES, and SB06
         // phi = pow((tau/(tau+5.0e-4)),4.0);   // - SB01, SS08
-        *qr_tendency = KCR * ql * qr * phi * sqrt(DENSITY_SB * density); //SB06, DALES formulation of effective density
+        
+        //SB06, DALES formulation of effective density
+        *qr_tendency = KCR * ql * qr * phi * sqrt(DENSITY_SB * density); 
     }
     // if prognostic cloud liquid is used, the following tendencies would also need to be computed
     //ql_tendency = -qr_tendency
@@ -153,9 +173,9 @@ void sb_selfcollection_breakup_rain(double density, double nr, double qr, double
         *nr_tendency = 0.0;
     }
     else{
-        lambda_rain = 1.0/cbrt(rain_mass * tgamma(mu + 1.0)/ tgamma(mu + 4.0));
-        phi_sc = pow((1.0 + KAPRR/lambda_rain), -9.0); //Seifert & Beheng 2006, DALES
-        // phi_sc = 1.0; //Seifert & Beheng 2001, Seifert & Stevens 2008, Seifert 2008
+        lambda_rain    = 1.0/cbrt(rain_mass * tgamma(mu + 1.0)/ tgamma(mu + 4.0));
+        phi_sc         = pow((1.0 + KAPRR/lambda_rain), -9.0); //Seifert & Beheng 2006, DALES
+        // phi_sc      = 1.0; //Seifert & Beheng 2001, Seifert & Stevens 2008, Seifert 2008
         nr_tendency_sc = -KRR * nr * qr * phi_sc * sqrt(DENSITY_SB*density);
         // Seifert & Stevens 2008, Seifert 2008, DALES
         if(Dm > 0.3e-3){
@@ -168,11 +188,12 @@ void sb_selfcollection_breakup_rain(double density, double nr, double qr, double
 }
 
 void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr, double mu, double rain_mass, double Dp,
-double Dm, double* nr_tendency, double* qr_tendency){
+    double Dm, double* nr_tendency, double* qr_tendency){
     double gamma, dpfv, phi_v;
-    const double bova = B_RAIN_SED/A_RAIN_SED;
-    const double cdp  = C_RAIN_SED * Dp;
-    const double mupow = mu + 2.5;
+    const double bova      = B_RAIN_SED/A_RAIN_SED;
+    const double cdp       = C_RAIN_SED * Dp;
+    const double mupow     = mu + 2.5;
+    const double mup2      = mu + 2.0;
     double qr_tendency_tmp = 0.0;
 
     if(qr < SB_EPS || nr < SB_EPS){
@@ -184,25 +205,26 @@ double Dm, double* nr_tendency, double* qr_tendency){
         *qr_tendency = 0.0;
     }
     else{
-        gamma = 0.7; // gamma = 0.7 is used by DALES ; alternative expression gamma= d_eq/Dm * exp(-0.2*mu) is used by S08;
-        phi_v = 1.0 - (0.5  * bova * pow(1.0 +  cdp, -mupow) + 0.125 * bova * bova * pow(1.0 + 2.0*cdp, -mupow)
-                      + 0.0625 * bova * bova * bova * pow(1.0 +3.0*cdp, -mupow) + 0.0390625 * bova * bova * bova * bova * pow(1.0 + 4.0*cdp, -mupow));
-
-
-        dpfv  = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
-
+        gamma           = 0.7; // gamma = 0.7 is used by DALES ; alternative expression gamma= d_eq/Dm * exp(-0.2*mu) is used by S08;
+    
+        // AS08: Equ A7
+        phi_v           = 1.0 - (0.5  * bova * pow(1.0 +  cdp, -mupow) + 0.125 * bova * bova * pow(1.0 + 2.0*cdp, -mupow)
+                          + 0.0625 * bova * bova * bova * pow(1.0 +3.0*cdp, -mupow) + 0.0390625 * bova * bova * bova * bova * pow(1.0 + 4.0*cdp, -mupow));
+        dpfv            = A_VENT_RAIN * tgamma(mup2) * pow(Dp, mup2) + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, mupow) * phi_v;
+        // following expression comes from cmkaul <cmkaul@gmail.com>, the default PyCLES expression.
+        // dpfv = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
+        
         qr_tendency_tmp = 2.0 * pi * g_therm * sat_ratio* nr * dpfv;
-        *nr_tendency = gamma /rain_mass * qr_tendency_tmp;
-        *qr_tendency = qr_tendency_tmp;
+        *qr_tendency    = qr_tendency_tmp;
+
+        // Defined in AS08, Equ(22): ∂Nᵣ/∂t = γ*Nᵣ/Lᵣ*∂Lᵣ/∂t
+        *nr_tendency    = gamma /rain_mass * qr_tendency_tmp; 
     }
     return;
 }
 
-
 void sb_sedimentation_velocity_rain(const struct DimStruct *dims, double (*rain_mu)(double,double,double),
-                                        double* restrict density, double* restrict nr, double* restrict qr,
-                                        double* restrict nr_velocity, double* restrict qr_velocity){
-
+    double* restrict density, double* restrict nr, double* restrict qr, double* restrict nr_velocity, double* restrict qr_velocity){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -220,20 +242,20 @@ void sb_sedimentation_velocity_rain(const struct DimStruct *dims, double (*rain_
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin-1; k<kmax+1; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                double qr_tmp = fmax(qr[ijk],0.0);
+                double qr_tmp         = fmax(qr[ijk],0.0);
                 double density_factor = sqrt(DENSITY_SB/density[k]);
-                double rain_mass = microphysics_mean_mass(nr[ijk], qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
-                double Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
-                double mu = rain_mu(density[k], qr_tmp, Dm);
-                double Dp = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
+                double rain_mass      = microphysics_mean_mass(nr[ijk], qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
+                double Dm             = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
+                double mu             = rain_mu(density[k], qr_tmp, Dm);
+                double Dp             = sb_Dp(Dm, mu);
 
+                // Based on SS08, Equ(A8) to Equ(A10) and related paper content.
                 nr_velocity[ijk] = -fmin(fmax( density_factor * (A_RAIN_SED - B_RAIN_SED * pow(1.0 + C_RAIN_SED * Dp, -mu - 1.0)) , 0.0),10.0);
                 qr_velocity[ijk] = -fmin(fmax( density_factor * (A_RAIN_SED - B_RAIN_SED * pow(1.0 + C_RAIN_SED * Dp, -mu - 4.0)) , 0.0),10.0);
 
             }
         }
     }
-
 
      for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -249,13 +271,9 @@ void sb_sedimentation_velocity_rain(const struct DimStruct *dims, double (*rain_
         }
     }
 
-
     return;
 
 }
-
-
-
 
 void sb_sedimentation_velocity_liquid(const struct DimStruct *dims, double* restrict density, double ccn,
                                       double* restrict ql, double* restrict qt_velocity){
@@ -268,7 +286,6 @@ void sb_sedimentation_velocity_liquid(const struct DimStruct *dims, double* rest
     const ssize_t imax = dims->nlg[0];
     const ssize_t jmax = dims->nlg[1];
     const ssize_t kmax = dims->nlg[2];
-
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -285,7 +302,6 @@ void sb_sedimentation_velocity_liquid(const struct DimStruct *dims, double* rest
         }
     }
 
-
      for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
         for(ssize_t j=jmin; j<jmax; j++){
@@ -298,14 +314,8 @@ void sb_sedimentation_velocity_liquid(const struct DimStruct *dims, double* rest
         }
     }
 
-
     return;
-
 }
-
-
-
-
 
 void sb_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
@@ -319,7 +329,6 @@ void sb_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *
     double nr_tendency_au, nr_tendency_scbk, nr_tendency_evp;
     double qr_tendency_au, qr_tendency_ac,  qr_tendency_evp;
     double sat_ratio;
-
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -346,7 +355,6 @@ void sb_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *
                 double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
                 double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
 
-
                 //holding nl fixed since it doesn't change between timesteps
 
                 double time_added = 0.0, dt_, rate;
@@ -364,12 +372,12 @@ void sb_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *
                     rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
                     Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
                     mu = rain_mu(density[k], qr_tmp, Dm);
-                    Dp = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
+                    Dp = sb_Dp(Dm, mu);
                     //compute the source terms
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac);
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm, &nr_tendency_scbk);
-                    sb_evaporation_rain( g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm, &nr_tendency_evp, &qr_tendency_evp);
+                    sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm, &nr_tendency_evp, &qr_tendency_evp);
                     //find the maximum substep time
                     dt_ = dt - time_added;
                     //check the source term magnitudes
@@ -396,22 +404,16 @@ void sb_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *
                     ql_tmp = fmax(ql_tmp,0.0);
                     qt_tmp = ql_tmp + qv_tmp;
                     time_added += dt_ ;
-
-
                 }while(time_added < dt);
                 nr_tendency_micro[ijk] = (nr_tmp - nr[ijk] )/dt;
                 qr_tendency_micro[ijk] = (qr_tmp - qr[ijk])/dt;
                 nr_tendency[ijk] += nr_tendency_micro[ijk];
                 qr_tendency[ijk] += qr_tendency_micro[ijk];
-
             }
         }
     }
-
-
     return;
 }
-
 
 void sb_qt_source_formation(const struct DimStruct *dims,double* restrict qr_tendency, double* restrict qt_tendency ){
 
@@ -437,18 +439,17 @@ void sb_qt_source_formation(const struct DimStruct *dims,double* restrict qr_ten
     return;
 }
 
+// ===========<<< microphysics process's effect on thermodynamic process >>> ============
 
 void sb_entropy_source_formation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                               double* restrict p0, double* restrict T, double* restrict Twet, double* restrict qt, double* restrict qv,
                               double* restrict qr_tendency,  double* restrict entropy_tendency){
-
 
     //Here we compute the source terms of total water and entropy related to microphysics. See Pressel et al. 2015, Eq. 49-54
     //
     //Some simplifications are possible because there is only a single hydrometeor species (rain), so d(qr)/dt
     //can only represent a transfer to/from the equilibrium mixture. Furthermore, formation and evaporation of
     //rain cannot occur simultaneously at the same physical location so keeping track of each sub-tendency is not required
-
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -458,7 +459,6 @@ void sb_entropy_source_formation(const struct DimStruct *dims, struct LookupStru
     const ssize_t imax = dims->nlg[0]-dims->gw;
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
-
 
     //entropy tendencies from formation or evaporation of precipitation
     //we use fact that P = d(qr)/dt > 0, E =  d(qr)/dt < 0
@@ -488,18 +488,12 @@ void sb_entropy_source_formation(const struct DimStruct *dims, struct LookupStru
             }
         }
     }
-
     return;
 
 }
 
-
-
-
-
 void sb_entropy_source_heating(const struct DimStruct *dims, double* restrict T, double* restrict Twet, double* restrict qr,
                                double* restrict w_qr, double* restrict w,  double* restrict entropy_tendency){
-
 
     //derivative of Twet is upwinded
 
@@ -512,7 +506,6 @@ void sb_entropy_source_heating(const struct DimStruct *dims, double* restrict T,
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
     const double dzi = 1.0/dims->dx[2];
-
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -532,8 +525,6 @@ void sb_entropy_source_heating(const struct DimStruct *dims, double* restrict T,
 void sb_entropy_source_drag(const struct DimStruct *dims, double* restrict T,  double* restrict qr,
                             double* restrict w_qr, double* restrict entropy_tendency){
 
-
-
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
     const ssize_t imin = dims->gw;
@@ -542,7 +533,6 @@ void sb_entropy_source_drag(const struct DimStruct *dims, double* restrict T,  d
     const ssize_t imax = dims->nlg[0]-dims->gw;
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
-
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -692,7 +682,7 @@ void sb_evaporation_rain_wrapper(const struct DimStruct *dims, struct LookupStru
                 const double rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
                 const double Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
                 const double mu = rain_mu(density[k], qr_tmp, Dm);
-                const double Dp = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
+                const double Dp = sb_Dp(Dm, mu);
                 //compute the source terms
                 sb_evaporation_rain( g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm, &nr_tendency[ijk], &qr_tendency[ijk]);
 

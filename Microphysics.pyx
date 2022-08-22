@@ -24,7 +24,6 @@ cdef extern from "microphysics.h":
 cdef extern from "scalar_advection.h":
     void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double *rho0_half, double *velocity, double *scalar, double* flux, int d, int scheme) nogil
 
-
 cdef extern from "microphysics_sb.h":
     void sb_sedimentation_velocity_liquid(Grid.DimStruct *dims, double*  density, double ccn, double* ql, double* qt_velocity)nogil
 
@@ -40,8 +39,6 @@ cdef class No_Microphysics_Dry:
         return
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         return
-
-
 
 cdef class No_Microphysics_SA:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -79,9 +76,8 @@ cdef class No_Microphysics_SA:
             DV.add_variables('w_qt', 'm/s', r'w_ql', 'cloud liquid water sedimentation velocity', 'sym', Pa)
             NS.add_profile('qt_sedimentation_flux', Gr, Pa)
             NS.add_profile('s_qt_sedimentation_source',Gr,Pa)
-
-
         return
+
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS,ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t wqt_shift
@@ -93,9 +89,8 @@ cdef class No_Microphysics_SA:
                 microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
-
-
         return
+        
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t gw = Gr.dims.gw
@@ -113,19 +108,15 @@ cdef class No_Microphysics_SA:
             wqt_shift = DV.get_varshift(Gr,'w_qt')
 
             compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqt_shift], &DV.values[ql_shift], &dummy[0], 2, self.order)
-            tmp = Pa.HorizontalMean(Gr, &dummy[0])
+            tmp       = Pa.HorizontalMean(Gr, &dummy[0])
             NS.write_profile('qt_sedimentation_flux', tmp[gw:-gw], Pa)
 
             compute_qt_sedimentation_s_source(&Gr.dims, &Ref.p0_half[0], &Ref.rho0_half[0], &dummy[0],
                                     &PV.values[qt_shift], &DV.values[qv_shift],&DV.values[t_shift], &s_src[0], self.Lambda_fp,
                                     self.L_fp, Gr.dims.dx[2], 2)
-            tmp = Pa.HorizontalMean(Gr, &s_src[0])
+            tmp       = Pa.HorizontalMean(Gr, &s_src[0])
             NS.write_profile('s_qt_sedimentation_source', tmp[gw:-gw], Pa)
-
-
         return
-
-
 
 cdef extern from "microphysics_sb.h":
     double sb_rain_shape_parameter_0(double density, double qr, double Dm) nogil
@@ -145,7 +136,6 @@ cdef extern from "microphysics_sb.h":
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
                              double* nr_tendency, double* qr_tendency) nogil
 
-
     void sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qt_tendency )nogil
 
     void sb_entropy_source_formation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
@@ -154,9 +144,7 @@ cdef extern from "microphysics_sb.h":
 
     void sb_entropy_source_heating(Grid.DimStruct *dims, double* T, double* Twet, double* qr, double* w_qr, double* w,
                                    double* entropy_tendency)nogil
-
     void sb_entropy_source_drag(Grid.DimStruct *dims, double* T,  double* qr, double* w_qr, double* entropy_tendency)nogil
-
 
     void sb_autoconversion_rain_wrapper(Grid.DimStruct *dims,  double (*droplet_nu)(double,double), double* density,
                                         double ccn, double* ql, double* qr, double*  nr_tendency, double* qr_tendency) nogil
@@ -189,6 +177,7 @@ cdef extern from "isotope.h":
     void tracer_sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
                                         double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity, double* qr_std_velocity, double* qr_iso_velocity) nogil
     void tracer_sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qr_iso_tendency, double* qt_tendency, double* qt_std_tendency, double* qt_iso_tendency)nogil
+
 cdef class Microphysics_SB_Liquid:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
         # Create the appropriate linkages to the bulk thermodynamics
@@ -200,7 +189,6 @@ cdef class Microphysics_SB_Liquid:
         self.L_fp = latent_heat_variable
         self.CC = ClausiusClapeyron()
         self.CC.initialize(namelist, LH, Par)
-
 
         # Extract case-specific parameter values from the namelist
         # Set the number concentration of cloud condensation nuclei (1/m^3)
@@ -512,14 +500,11 @@ cdef class Microphysics_SB_Liquid:
 
         return
 
-
-
 cdef extern from "entropies.h":
     double sd_c(double pd, double T) nogil
     double sv_c(double pv, double T) nogil
 cdef extern from "thermodynamic_functions.h":
     double qv_star_c(const double p0, const double qt, const double pv)nogil
-
 
 cdef cython_wetbulb(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double *p0, double *s, double *qt, double *T, double *Twet):
 
@@ -545,8 +530,8 @@ cdef cython_wetbulb(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double *p0, d
             for j in xrange(jmin,jmax):
                 jshift = j*jstride
                 for k in xrange(kmin,kmax):
-                    ijk = ishift + jshift + k
-                    T_1 = T[ijk]
+                    ijk       = ishift + jshift + k
+                    T_1       = T[ijk]
                     pv_star_1 = Lookup.lookup(LT, T_1)
                     qv_star_1 = qv_star_c(p0[k], qt[ijk], pv_star_1)
 
@@ -554,34 +539,33 @@ cdef cython_wetbulb(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double *p0, d
                         Twet[ijk] = T_1
 
                     else:
-                        T_2 = T_1 + 1.0
-                        delta_T = fabs(T_2 - T_1)
+                        T_2       = T_1 + 1.0
+                        delta_T   = fabs(T_2 - T_1)
                         qv_star_1 = pv_star_1/(eps_vi * (p0[k] - pv_star_1) + pv_star_1)
-                        pd_1 = p0[k] - pv_star_1
-                        s_1 = sd_c(pd_1,T_1) * (1.0 - qv_star_1) + sv_c(pv_star_1,T_1) * qv_star_1
-                        f_1 = s[ijk] - s_1
+                        pd_1      = p0[k] - pv_star_1
+                        s_1       = sd_c(pd_1,T_1) * (1.0 - qv_star_1) + sv_c(pv_star_1,T_1) * qv_star_1
+                        f_1       = s[ijk] - s_1
                         iter = 0
                         while delta_T > 1.0e-3:
-                            pv_star_2 = Lookup.lookup(LT, T_2)
-                            qv_star_2 = pv_star_2/(eps_vi * (p0[k] - pv_star_2) + pv_star_2)
-                            pd_2 = p0[k] - pv_star_2
-                            s_2 = sd_c(pd_2,T_2) * (1.0 - qv_star_2) + sv_c(pv_star_2,T_2) * qv_star_2
-                            f_2 = s[ijk] - s_2
-                            T_n = T_2 - f_2*(T_2 - T_1)/(f_2 - f_1)
-                            T_1 = T_2
-                            T_2 = T_n
-                            f_1 = f_2
-                            delta_T = fabs(T_2 - T_1)
-                            iter += 1
+                            pv_star_2  = Lookup.lookup(LT, T_2)
+                            qv_star_2  = pv_star_2/(eps_vi * (p0[k] - pv_star_2) + pv_star_2)
+                            pd_2       = p0[k] - pv_star_2
+                            s_2        = sd_c(pd_2,T_2) * (1.0 - qv_star_2) + sv_c(pv_star_2,T_2) * qv_star_2
+                            f_2        = s[ijk] - s_2
+                            T_n        = T_2 - f_2*(T_2 - T_1)/(f_2 - f_1)
+                            T_1        = T_2
+                            T_2        = T_n
+                            f_1        = f_2
+                            delta_T    = fabs(T_2 - T_1)
+                            iter      += 1
+
                         Twet[ijk] = T_2
+
                         with gil:
                             print(T[ijk]-Twet[ijk], iter)
 
     print('leaving wetbulb')
     return
-
-
-
 
 def MicrophysicsFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
     if(namelist['microphysics']['scheme'] == 'None_Dry'):
