@@ -404,7 +404,6 @@ void weno_seventh_order_m_pt(struct DimStruct *dims, double* restrict rho0, doub
     return;
 }
 
-
 void weno_ninth_order_m_pt(struct DimStruct *dims, double* restrict rho0, double* restrict rho0_half,
         double* restrict alpha0, double* restrict alpha0_half,
         double* restrict vel_advected, double* restrict vel_advecting,

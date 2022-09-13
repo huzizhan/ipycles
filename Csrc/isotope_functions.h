@@ -112,6 +112,7 @@ static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double q
     }
     return;
 }
+
 static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_accre_tendency, double* qr_iso_accre_tendency){
     if (ql > SB_EPS && ql_iso > SB_EPS){
         *qr_iso_accre_tendency = qr_accre_tendency * (ql_iso/ql);
@@ -121,6 +122,7 @@ static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_acc
     }
     return;
 }
+
 static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_evap_tendency, double* qr_iso_evap_tendency){
     if (qr > SB_EPS && qr_iso > SB_EPS){
         *qr_iso_evap_tendency = qr_evap_tendency * (qr_iso/qr);
@@ -384,7 +386,6 @@ void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
     }
     return;
 }
-
 
 void arc1m_iso_evap_snow(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                    double density, const double p0, double temperature,

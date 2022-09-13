@@ -21,7 +21,6 @@ include "parameters.pxi"
 cdef extern from "thermodynamic_functions.h":
     double thetas_c(const double s, const double qt) nogil
 
-
 class AuxiliaryStatistics:
     def __init__(self, namelist):
         self.AuxStatsClasses = []
@@ -263,7 +262,6 @@ class CumulusStatistics:
 
         return
 
-
 class StableBLStatistics:
     def __init__(self,Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
             #NS.add_ts('boundary_layer_height', Gr, Pa)
@@ -316,7 +314,6 @@ class StableBLStatistics:
         # NS.write_ts('boundary_layer_height', h0, Pa)
 
         return
-
 
 class SmokeStatistics:
     def __init__(self,Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -645,7 +642,6 @@ class TKEStatistics:
         NS.write_profile('tke_prod_D', tke_D[Gr.dims.gw:-Gr.dims.gw], Pa)
 
         return
-
 
 class FluxStatistics:
     def __init__(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV,

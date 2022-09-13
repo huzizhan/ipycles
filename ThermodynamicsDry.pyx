@@ -21,7 +21,6 @@ from Thermodynamics cimport LatentHeat, ClausiusClapeyron
 cdef extern from "entropies.h":
     double sd_c(double p0, double T) nogil
 
-
 cdef extern from "thermodynamics_dry.h":
     double eos_c(double p0, double s) nogil
     double alpha_c(double p0, double T, double qt, double qv) nogil
@@ -30,7 +29,6 @@ cdef extern from "thermodynamics_dry.h":
     void buoyancy_update(Grid.DimStruct *dims, double *alpha0, double *alpha,double *buoyancy,
                          double *wt)
     void bvf_dry(Grid.DimStruct* dims,  double* p0, double* T, double* theta, double* bvf)
-
 
 cdef class ThermodynamicsDry:
     def __init__(self,namelist,LatentHeat LH, ParallelMPI.ParallelMPI Pa):

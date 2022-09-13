@@ -17,7 +17,6 @@ double* restrict buoy_freq, double* restrict strain_rate_mag, double cs, double 
     return;
 }
 
-
 void smagorinsky_update_wall(const struct DimStruct *dims, double* restrict zl_half, double* restrict visc,
 double* restrict diff,double* restrict buoy_freq, double* restrict strain_rate_mag, double cs, double prt){
 
@@ -91,8 +90,6 @@ double* restrict diff,double* restrict buoy_freq, double* restrict strain_rate_m
     }
     return;
 }
-
-
 
 double tke_ell(double cn, double e, double buoy_freq, double delta){
     double ell;

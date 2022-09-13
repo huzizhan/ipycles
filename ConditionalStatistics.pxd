@@ -22,12 +22,9 @@ cdef class ConditionalStatistics:
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, PrognosticVariables.PrognosticVariables PV,
                  DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_CondStats NC, ParallelMPI.ParallelMPI Pa)
 
-
 cdef class NullCondStats:
-
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, PrognosticVariables.PrognosticVariables PV,
                  DiagnosticVariables.DiagnosticVariables DV,  NetCDFIO_CondStats NC, ParallelMPI.ParallelMPI Pa)
-
 
 cdef class SpectraStatistics:
     cdef:
@@ -37,7 +34,6 @@ cdef class SpectraStatistics:
         double [:] kx
         double [:] ky
         cdef ParallelMPI.Pencil X_Pencil, Y_Pencil, Z_Pencil
-
 
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, PrognosticVariables.PrognosticVariables PV,
                  DiagnosticVariables.DiagnosticVariables DV,  NetCDFIO_CondStats NC, ParallelMPI.ParallelMPI Pa)

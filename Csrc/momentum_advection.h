@@ -9,7 +9,6 @@
 #include "flux_divergence.h"
 #include<stdio.h>
 
-
 void compute_advective_tendencies_m(struct DimStruct *dims, double* restrict rho0, double* restrict rho0_half,
                                 double* restrict alpha0, double* restrict alpha0_half,
                                 double* restrict vel_advected, double* restrict vel_advecting,

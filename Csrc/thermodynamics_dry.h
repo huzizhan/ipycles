@@ -119,5 +119,3 @@ void bvf_dry(struct DimStruct* dims,  double* restrict p0, double* restrict T,do
     } // End i loop
     return;
 }
-
-

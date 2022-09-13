@@ -19,7 +19,7 @@ void eos_c(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(dou
     *qv = qt;
     *ql = 0.0;
     *qi = 0.0;
-    double pv_1 = pv_c(p0,qt,qt );
+    double pv_1 = pv_c(p0,qt,qt);
     double pd_1 = p0 - pv_1;
     double T_1 = temperature_no_ql(pd_1,pv_1,s,qt);
     double pv_star_1 = lookup(LT, T_1);

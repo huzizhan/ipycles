@@ -25,7 +25,6 @@ static inline double psi_m_stable(double zeta, double zeta0){
     return psi_m;
 }
 
-
 static inline double psi_h_stable(double zeta, double zeta0){
     double psi_h = -beta_h * (zeta - zeta0);
     return psi_h;

@@ -95,8 +95,6 @@ void fourth_order_a(const struct DimStruct *dims, double* restrict rho0, double*
     return;
 }
 
-
-
 void sixth_order_a(const struct DimStruct *dims, double* restrict rho0, double* restrict rho0_half,const double* restrict velocity, const double* restrict scalar, double* restrict flux, int d){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
@@ -314,7 +312,6 @@ void weno_third_order_a(const struct DimStruct *dims, double* restrict rho0, dou
     } // End else
     return;
 }
-
 
 void weno_fifth_order_a(const struct DimStruct *dims, double* restrict rho0, double* restrict rho0_half,const double* restrict velocity, const double* restrict scalar, double* restrict flux, int d){
 
@@ -684,8 +681,6 @@ void weno_eleventh_order_a(const struct DimStruct *dims, double* restrict rho0, 
     return;
 }
 
-
-
 void compute_advective_fluxes_a(struct DimStruct *dims, double* restrict rho0, double* rho0_half ,double* restrict velocity, double* restrict scalar,
                                 double* restrict flux, int d, int scheme){
     switch(scheme){
@@ -725,10 +720,6 @@ void compute_advective_fluxes_a(struct DimStruct *dims, double* restrict rho0, d
             break;
     };
 };
-
-
-
-
 
 void compute_qt_sedimentation_s_source(const struct DimStruct *dims, double *p0_half,  double* rho0_half, double *flux,
                                     double* qt, double* qv, double* T, double* tendency, double (*lam_fp)(double),

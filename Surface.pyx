@@ -76,8 +76,6 @@ def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         else:
             return SurfaceNone()
 
-
-
 cdef class SurfaceBase:
     def __init__(self):
         return
@@ -202,7 +200,6 @@ cdef class SurfaceBase:
         NS.write_ts('obukhov_length_mean', tmp, Pa)
         return
 
-
 cdef class SurfaceNone(SurfaceBase):
     def __init__(self):
         pass
@@ -214,7 +211,6 @@ cdef class SurfaceNone(SurfaceBase):
         return
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         return
-
 
 cdef class SurfaceSullivanPatton(SurfaceBase):
     def __init__(self, LatentHeat LH):
@@ -294,8 +290,6 @@ cdef class SurfaceSullivanPatton(SurfaceBase):
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
         return
-
-
 
 cdef class SurfaceBomex(SurfaceBase):
     def __init__(self,  LatentHeat LH):
@@ -392,7 +386,6 @@ cdef class SurfaceBomex(SurfaceBase):
 
         return
 
-
 cdef class SurfaceGabls(SurfaceBase):
     def __init__(self, namelist,  LatentHeat LH):
         self.gustiness = 0.001
@@ -486,7 +479,6 @@ cdef class SurfaceGabls(SurfaceBase):
 
         return
 
-
 cdef class SurfaceDYCOMS_RF01(SurfaceBase):
     def __init__(self,namelist, LatentHeat LH):
         self.ft = 15.0
@@ -575,7 +567,6 @@ cdef class SurfaceDYCOMS_RF01(SurfaceBase):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
 
         return
-
 
 cdef class SurfaceDYCOMS_RF02(SurfaceBase):
     def __init__(self,namelist, LatentHeat LH):
@@ -676,8 +667,6 @@ cdef class SurfaceDYCOMS_RF02(SurfaceBase):
 
         return
 
-
-
 cdef class SurfaceRico(SurfaceBase):
     def __init__(self, LatentHeat LH):
         self.cm =0.001229
@@ -774,8 +763,6 @@ cdef class SurfaceRico(SurfaceBase):
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
         return
-
-
 
 cdef class SurfaceCGILS(SurfaceBase):
     def __init__(self, namelist, LatentHeat LH, ParallelMPI.ParallelMPI Pa):
@@ -895,8 +882,6 @@ cdef class SurfaceCGILS(SurfaceBase):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
 
         return
-
-
 
 cdef class SurfaceZGILS(SurfaceBase):
     def __init__(self, namelist, LatentHeat LH, ParallelMPI.ParallelMPI Pa):
@@ -1029,7 +1014,6 @@ cdef class SurfaceZGILS(SurfaceBase):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
 
         return
-
 
 cdef class SurfaceIsdac(SurfaceBase):
     def __init__(self,namelist, LatentHeat LH):
@@ -1166,7 +1150,6 @@ cdef class SurfaceIsdacCC(SurfaceBase):
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
         return
-
 
 cdef class SurfaceMpace(SurfaceBase):
     def __init__(self,namelist, LatentHeat LH):
@@ -1349,7 +1332,6 @@ cdef class SurfaceSheba(SurfaceBase):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
 
         return
-
 
 
 # Anderson, R. J., 1993: A Study of Wind Stress and Heat Flux over the Open

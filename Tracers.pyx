@@ -25,7 +25,6 @@ import cython
 cdef extern from "thermodynamic_functions.h":
     double pv_c(double p0, double qt, double qv) nogil
 
-
 def TracersFactory(namelist):
     try:
         use_tracers = namelist['tracers']['use_tracers']
@@ -47,7 +46,6 @@ def TracersFactory(namelist):
     else:
         return TracersNone()
 
-
 cdef class TracersNone:
     def __init__(self):
         return
@@ -63,7 +61,6 @@ cdef class TracersNone:
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
                    TimeStepping.TimeStepping TS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         return
-
 
 cdef class UpdraftTracers:
 
@@ -633,8 +630,6 @@ cdef class UpdraftTracers:
 
         return
 
-
-
 cdef class PurityTracers:
     def __init__(self, namelist):
         cdef UpdraftTracers TracersUpdraft
@@ -917,9 +912,6 @@ cdef updraft_indicator_sc(Grid.DimStruct *dims, double *tracer_raw, double *trac
 
     return
 
-
-
-
 cdef updraft_indicator_sc_w(Grid.DimStruct *dims, double *tracer_raw, double *tracer_normed, double *mean, double *meansquare_sigma, double *w):
     cdef:
         Py_ssize_t imax = dims.nlg[0]
@@ -1002,7 +994,6 @@ cdef updraft_indicator_sc_w_ql(Grid.DimStruct *dims,  double *tracer_raw, double
                                 tracer_normed[ijk] = 0.0
     return
 
-
 cdef purity_extract_time(Grid.DimStruct *dims,  double *purity_tracer, double *time_tracer_raw, double *time_tracer,
                          double current_time):
     cdef:
@@ -1021,8 +1012,6 @@ cdef purity_extract_time(Grid.DimStruct *dims,  double *purity_tracer, double *t
                     time_tracer[ijk] = (fmin(fmax(time_tracer_raw[ijk],0.0),current_time))/fmin(fmax(purity_tracer[ijk],1e-3),1.0)
                     time_tracer[ijk] = current_time - time_tracer[ijk]
     return
-
-
 
 cdef purity_extract_value(Grid.DimStruct *dims,  double *purity_tracer, double *value_tracer_raw, double *value_tracer):
     cdef:

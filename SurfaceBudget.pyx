@@ -36,7 +36,6 @@ cdef class SurfaceBudgetNone:
     cpdef stats_io(self, Surface.SurfaceBase Sur, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         return
 
-
 cdef class SurfaceBudget:
     def __init__(self, namelist):
 

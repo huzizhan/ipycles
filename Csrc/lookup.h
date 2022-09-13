@@ -14,8 +14,6 @@ struct LookupStruct{
 };
 
 void init_table(struct LookupStruct *LT, size_t n, double* x, double* y){
-
-
     /// Allocate memory required for storing the table
     LT->y = calloc(n,sizeof(double));
 
@@ -38,7 +36,6 @@ void init_table(struct LookupStruct *LT, size_t n, double* x, double* y){
     LT->dxi = 1.0/LT->dx;
 
 };
-
 
 void free_table(struct LookupStruct *LT){
     /// Free memory allocated in init_table

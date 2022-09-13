@@ -17,7 +17,6 @@ cdef class LatentHeat:
 
     cpdef Lambda(self, double T)
 
-
 cdef class ClausiusClapeyron:
     cdef:
         Lookup.Lookup LT

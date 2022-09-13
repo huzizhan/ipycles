@@ -144,7 +144,6 @@ double interp_weno7(double phim3, double phim2, double phim1, double phi, double
     return w0 * p0 + w1 * p1 + w2 * p2 + w3 * p3;
 };
 
-
 double interp_weno9(double phim4, double phim3, double phim2, double phim1, double phi, double phip1, double phip2, double phip3, double phip4){
     const double p0 = (1.0/5.0) * phim4 + (-21.0/20.0)*phim3 +  (137.0/60.0)*phim2 +  (-163.0/60.0)*phim1 +  (137.0/60.0)*phi;
     const double p1 = (-1.0/20.0)*phim3 + (17.0/60.0)*phim2 + (-43.0/60.0)*phim1 + (77.0/60.0)*phi + (1.0/5.0)*phip1;

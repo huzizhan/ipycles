@@ -75,7 +75,6 @@ void second_order_m(struct DimStruct *dims, double* restrict rho0, double* restr
         return;
     }
 
-
 void fourth_order_m(struct DimStruct *dims, double* restrict rho0, double* restrict rho0_half,
         double* restrict alpha0, double* restrict alpha0_half,
         double* restrict vel_advected, double* restrict vel_advecting,
@@ -229,7 +228,6 @@ void sixth_order_m(struct DimStruct *dims, double* restrict rho0, double* restri
         free(flux);
         return;
     }
-
 
 void eighth_order_m(struct DimStruct *dims, double* restrict rho0, double* restrict rho0_half,
     double* restrict alpha0, double* restrict alpha0_half,

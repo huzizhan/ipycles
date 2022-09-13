@@ -205,7 +205,8 @@ void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr
         *qr_tendency = 0.0;
     }
     else{
-        gamma           = 0.7; // gamma = 0.7 is used by DALES ; alternative expression gamma= d_eq/Dm * exp(-0.2*mu) is used by S08;
+        gamma           = 0.7; // gamma = 0.7 is used by DALES ; 
+                               // alternative expression gamma= d_eq/Dm * exp(-0.2*mu) is used by AS08, Equa23
     
         // AS08: Equ A7
         phi_v           = 1.0 - (0.5  * bova * pow(1.0 +  cdp, -mupow) + 0.125 * bova * bova * pow(1.0 + 2.0*cdp, -mupow)

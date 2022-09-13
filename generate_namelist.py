@@ -5,7 +5,6 @@ from sys import exit
 import uuid
 import ast
 
-
 def main():
     parser = argparse.ArgumentParser(prog='Namelist Generator')
     parser.add_argument('case_name')
@@ -66,7 +65,6 @@ def main():
         exit()
 
     write_file(namelist)
-
 
 def SullivanPatton():
 
@@ -149,7 +147,6 @@ def SullivanPatton():
 
     return namelist
 
-
 def SaturatedBubble():
 
     namelist = {}
@@ -228,7 +225,6 @@ def SaturatedBubble():
 
     return namelist
 
-
 def StableBubble():
 
     namelist = {}
@@ -306,7 +302,6 @@ def StableBubble():
     namelist['meta']['casename'] = 'StableBubble'
 
     return namelist
-
 
 def Bomex():
 
@@ -398,7 +393,6 @@ def Bomex():
     namelist['isotopetracers']['use_tracers'] = True
     namelist['isotopetracers']['scheme'] = 'No microphysics'
     return namelist
-
 
 def Gabls():
 
@@ -851,7 +845,6 @@ def Rico():
 
     return namelist
 
-
 def Isdac():
 
     namelist = {}
@@ -941,7 +934,6 @@ def Isdac():
     namelist['meta']['casename'] = 'Isdac'
 
     return namelist
-
 
 def IsdacCC():
 
@@ -1043,7 +1035,6 @@ def IsdacCC():
 
     return namelist
 
-
 def Mpace():
 
     namelist = {}
@@ -1132,7 +1123,6 @@ def Mpace():
     namelist['meta']['casename'] = 'Mpace'
 
     return namelist
-
 
 def Sheba():
 
@@ -1225,8 +1215,6 @@ def Sheba():
     namelist['meta']['casename'] = 'Sheba'
 
     return namelist
-
-
 
 def CGILS_S6(is_p2,is_ctl_omega):
 
@@ -1348,12 +1336,6 @@ def CGILS_S6(is_p2,is_ctl_omega):
 
     return namelist
 
-
-
-
-
-
-
 def CGILS_S11(is_p2,is_ctl_omega):
 
     namelist = {}
@@ -1469,10 +1451,6 @@ def CGILS_S11(is_p2,is_ctl_omega):
 
     return namelist
 
-
-
-
-
 def CGILS_S12(is_p2,is_ctl_omega):
 
     namelist = {}
@@ -1587,9 +1565,6 @@ def CGILS_S12(is_p2,is_ctl_omega):
 
 
     return namelist
-
-
-
 
 def ZGILS(zgils_loc):
 
@@ -1709,7 +1684,6 @@ def ZGILS(zgils_loc):
 
     return namelist
 
-
 def write_file(namelist):
 
     try:
@@ -1727,7 +1701,6 @@ def write_file(namelist):
     fh.close()
 
     return
-
 
 if __name__ == '__main__':
     main()

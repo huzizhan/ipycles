@@ -845,8 +845,6 @@ void entropy_source_heating_snow(const struct DimStruct *dims, double* restrict 
 void entropy_source_drag(const struct DimStruct *dims, double* restrict temperature,  double* restrict qprec,
                             double* restrict w_qprec, double* restrict entropy_tendency){
 
-
-
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
     const ssize_t imin = dims->gw;
@@ -855,7 +853,6 @@ void entropy_source_drag(const struct DimStruct *dims, double* restrict temperat
     const ssize_t imax = dims->nlg[0]-dims->gw;
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
-
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -867,9 +864,7 @@ void entropy_source_drag(const struct DimStruct *dims, double* restrict temperat
             }
         }
     }
-
     return;
-
 };
 
 void get_virtual_potential_temperature(const struct DimStruct *dims, double* restrict p0, double* restrict temperature, double* restrict qv,

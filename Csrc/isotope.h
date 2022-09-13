@@ -191,6 +191,7 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
     }
     return;
 }
+
 void tracer_sb_sedimentation_velocity_rain(const struct DimStruct *dims, double (*rain_mu)(double,double,double),
                                         double* restrict density, double* restrict nr, double* restrict qr, 
                                         double* restrict nr_velocity, double* restrict qr_velocity, double* restrict qr_std_velocity, double* restrict qr_iso_velocity){
@@ -203,7 +204,6 @@ void tracer_sb_sedimentation_velocity_rain(const struct DimStruct *dims, double 
     const ssize_t imax = dims->nlg[0];
     const ssize_t jmax = dims->nlg[1];
     const ssize_t kmax = dims->nlg[2];
-
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -224,8 +224,6 @@ void tracer_sb_sedimentation_velocity_rain(const struct DimStruct *dims, double 
             }
         }
     }
-
-
      for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
         for(ssize_t j=jmin; j<jmax; j++){

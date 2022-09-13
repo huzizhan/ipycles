@@ -269,7 +269,6 @@ void set_bcs(ssize_t dim, ssize_t s, double bc_factor ,struct DimStruct *dims,
     return;
 }
 
-
 void set_to_zero(ssize_t nv, struct DimStruct *dims, double* restrict array){
 
     ssize_t i;

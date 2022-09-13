@@ -434,8 +434,6 @@ cdef class NetCDFIO_Fields:
         rootgrp.close()
         return
 
-
-
 cdef class NetCDFIO_CondStats:
     def __init__(self):
 

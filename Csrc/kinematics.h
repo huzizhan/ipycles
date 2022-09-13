@@ -34,7 +34,6 @@ void compute_velocity_gradient(const struct DimStruct *dims, double* restrict v,
     return;
 }
 
-
 void compute_strain_rate(const struct DimStruct *dims, double* restrict vgrad, double* restrict strain_rate){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
@@ -69,7 +68,6 @@ void compute_strain_rate(const struct DimStruct *dims, double* restrict vgrad, d
     }
     return;
 }
-
 
 void compute_strain_rate_mag(const struct DimStruct *dims, double* restrict strain_rate, double* restrict strain_rate_mag){
 
@@ -166,6 +164,5 @@ void compute_wind_speed_angle(const struct DimStruct *dims, double* restrict u, 
             }
         }
     }
-
     return;
 }
