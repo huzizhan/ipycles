@@ -169,7 +169,7 @@ void tracer_sb_microphysics_sources(const struct DimStruct *dims, struct LookupS
                     qt_tmp  = ql_tmp + qv_tmp;
                     time_added += dt_ ;
                     
-                    // isotope_tracer Intergrate forward in time
+                    // isotope tracers Intergrate forward in time
                     qr_iso_tmp += qr_iso_tendency_tmp * dt_;
                     ql_iso_tmp += ql_iso_tendency_tmp * dt_;
                     qv_iso_tmp += -qr_iso_evap_tendency * dt_;
@@ -395,7 +395,7 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
                 evap_rate[ijk]   = 0.0;
                 melt_rate[ijk]   = 0.0;
 
-                // First get initial values of isotope_tracers
+                // First get initial values of isotope tracers
                 qi_iso_tmp           = fmax(qi_iso[ijk], 0.0);
                 qt_iso_tmp           = qt_iso[ijk];
                 qv_iso_tmp           = fmax(qv_iso[ijk], 0.0);

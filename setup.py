@@ -99,6 +99,16 @@ _ext = Extension('Microphysics', ['Microphysics.pyx'], include_dirs=include_path
                  runtime_library_dirs=library_dirs)
 extensions.append(_ext)
 
+_ext = Extension('Microphysics_SB_Liquid', ['Microphysics_SB_Liquid.pyx'], include_dirs=include_path,
+                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+                 runtime_library_dirs=library_dirs)
+extensions.append(_ext)
+
+_ext = Extension('Microphysics_SB_SI', ['Microphysics_SB_SI.pyx'], include_dirs=include_path,
+                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+                 runtime_library_dirs=library_dirs)
+extensions.append(_ext)
+
 _ext = Extension('Microphysics_Arctic_1M', ['Microphysics_Arctic_1M.pyx'], include_dirs=include_path,
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
                  runtime_library_dirs=library_dirs)

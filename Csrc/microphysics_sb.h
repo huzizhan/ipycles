@@ -4,7 +4,7 @@
 #include "advection_interpolation.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
-#include <cmath>
+// #include <cmath>
 #include <math.h>
 
 #define MAX_ITER  15 //maximum substep loops in source term computation

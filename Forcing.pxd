@@ -34,6 +34,7 @@ cdef class ForcingBomex:
         double [:] dqtidt
         double [:] subsidence
         double coriolis_param
+        bint isotope_tracers
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
                  PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa)
@@ -89,6 +90,7 @@ cdef class ForcingRico:
         double [:] dqtdt
         double [:] subsidence
         double coriolis_param
+        bint isotope_tracers
         Py_ssize_t momentum_subsidence
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
@@ -209,9 +211,6 @@ cdef class ForcingCGILS:
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
                  PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
                    NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
-
-
-
 
 cdef class ForcingZGILS:
     cdef:

@@ -52,15 +52,15 @@ def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         if casename == 'SullivanPatton':
            return SurfaceSullivanPatton(LH)
         elif casename == 'Bomex':
-            return SurfaceBomex(LH)
+            return SurfaceBomex(namelist, LH)
         elif casename == 'Gabls':
-            return SurfaceGabls(namelist,LH)
+            return SurfaceGabls(namelist, LH)
         elif casename == 'DYCOMS_RF01':
             return SurfaceDYCOMS_RF01(namelist, LH)
         elif casename == 'DYCOMS_RF02':
             return SurfaceDYCOMS_RF02(namelist, LH)
         elif casename == 'Rico':
-            return SurfaceRico(LH)
+            return SurfaceRico(namelist, LH)
         elif casename == 'Isdac':
             return SurfaceIsdac(namelist, LH)
         elif casename == 'IsdacCC':
@@ -292,10 +292,20 @@ cdef class SurfaceSullivanPatton(SurfaceBase):
         return
 
 cdef class SurfaceBomex(SurfaceBase):
-    def __init__(self,  LatentHeat LH):
+    def __init__(self,  namelist, LatentHeat LH):
         self.L_fp = LH.L_fp
         self.Lambda_fp = LH.Lambda_fp
         self.dry_case = False
+        
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
+
         return
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -318,7 +328,6 @@ cdef class SurfaceBomex(SurfaceBase):
 
         if Pa.sub_z_rank != 0:
             return
-
 
         cdef :
             Py_ssize_t i
@@ -354,6 +363,7 @@ cdef class SurfaceBomex(SurfaceBase):
         compute_windspeed(&Gr.dims, &PV.values[u_shift], &PV.values[v_shift], &windspeed[0], Ref.u0, Ref.v0, self.gustiness)
 
         # Get the shear stresses
+
         with nogil:
             for i in xrange(1,imax-1):
                 for j in xrange(1,jmax-1):
@@ -365,18 +375,22 @@ cdef class SurfaceBomex(SurfaceBase):
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa, TS)
         # isotope surface flux calculation and added to qt_iso_tendency
         cdef: 
-            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            Py_ssize_t qt_iso_shift
+            Py_ssize_t qt_std_shift
             double dzi = 1.0/Gr.dims.dx[2]
             double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
             double R_vapor = 2.225e-3 # there the isotope R of vapor is calculated using C-G model, and given surface conditions.
-        with nogil:
-            for i in xrange(gw, imax):
-                for j in xrange(gw, jmax): 
-                    ijk = i * istride + j * jstride + gw
-                    ij = i * istride_2d + j
-                    PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
-                    PV.tendencies[qt_iso_shift + ijk] += (self.qt_flux[ij] * R_vapor) / R_std_O18 * tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
+            
+        if self.isotope_tracers:
+            qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            with nogil:
+                for i in xrange(gw, imax):
+                    for j in xrange(gw, jmax): 
+                        ijk = i * istride + j * jstride + gw
+                        ij = i * istride_2d + j
+                        PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
+                        PV.tendencies[qt_iso_shift + ijk] += (self.qt_flux[ij] * R_vapor) / R_std_O18 * tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
         return
 
 
@@ -668,7 +682,7 @@ cdef class SurfaceDYCOMS_RF02(SurfaceBase):
         return
 
 cdef class SurfaceRico(SurfaceBase):
-    def __init__(self, LatentHeat LH):
+    def __init__(self, namelist, LatentHeat LH):
         self.cm =0.001229
         self.ch = 0.001094
         self.cq = 0.001133
@@ -677,6 +691,16 @@ cdef class SurfaceRico(SurfaceBase):
         self.L_fp = LH.L_fp
         self.Lambda_fp = LH.Lambda_fp
         self.dry_case = False
+        
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
+
         return
 
 
@@ -744,19 +768,23 @@ cdef class SurfaceRico(SurfaceBase):
 
         # tracers surface source
         cdef:
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
-            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
             double dzi = 1.0/Gr.dims.dx[2]
             double R_evap
             double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
-        with nogil:
-            for i in xrange(gw, imax-gw):
-                for j in xrange(gw,jmax-gw):
-                    ijk = i * istride + j * jstride + gw
-                    ij = i * istride_2d + j
-                    R_evap = C_G_model(self.RH, self.T_surface, 1.0)
-                    PV.tendencies[qt_std_shift + ijk] +=  self.qt_flux[ij] * tendency_factor
-                    PV.tendencies[qt_iso_shift + ijk] +=  self.qt_flux[ij] * R_evap * tendency_factor / R_std_O18
+            Py_ssize_t qt_std_shift
+            Py_ssize_t qt_iso_shift
+
+        if self.isotope_tracers:
+            qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            with nogil:
+                for i in xrange(gw, imax-gw):
+                    for j in xrange(gw,jmax-gw):
+                        ijk = i * istride + j * jstride + gw
+                        ij = i * istride_2d + j
+                        R_evap = C_G_model(self.RH, self.T_surface, 1.0)
+                        PV.tendencies[qt_std_shift + ijk] +=  self.qt_flux[ij] * tendency_factor
+                        PV.tendencies[qt_iso_shift + ijk] +=  self.qt_flux[ij] * R_evap * tendency_factor / R_std_O18
         return
 
 
@@ -1298,8 +1326,6 @@ cdef class SurfaceSheba(SurfaceBase):
             Py_ssize_t istride_2d = Gr.dims.nlg[1]
 
             double lam, lv, pv, pd, sv, sd
-
-
 
         with nogil:
             for i in xrange(gw-1, imax-gw+1):

@@ -362,7 +362,13 @@ def InitBomex(namelist,Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                     PV.values[e_varshift + ijk] = 1.0-Gr.zl_half[k]/3000.0
 
     # initialize r_vapor profile using rayleigh approach, based on equation 66 in Wei 2018
-    initialize_Rayleigh(Gr, PV, Pa)
+    try:
+        isotope_tracers = namelist["isotopetracers"]["use_tracers"]
+        if isotope_tracers:
+            initialize_Rayleigh(Gr, PV, Pa)
+    except:
+        return
+
     return
 
 def InitGabls(namelist,Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV,
@@ -883,7 +889,12 @@ def InitRico(namelist,Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                         PV.values[e_varshift + ijk] = 0.1
 
     # initialize r_vapor profile using rayleigh approach, based on equation 66 in Wei 2018
-    initialize_Rayleigh(Gr, PV, Pa)
+    try:
+        isotope_tracers = namelist["isotopetracers"]["use_tracers"]
+        if isotope_tracers:
+            initialize_Rayleigh(Gr, PV, Pa)
+    except:
+        return
 
     return
 

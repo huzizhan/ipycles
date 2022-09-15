@@ -8,7 +8,6 @@ from SurfaceBudget cimport SurfaceBudget
 from Thermodynamics cimport  LatentHeat, ClausiusClapeyron
 from NetCDFIO cimport NetCDFIO_Stats
 
-
 cdef class SurfaceBase:
     cdef:
         double T_surface
@@ -32,14 +31,12 @@ cdef class SurfaceBase:
                  DiagnosticVariables.DiagnosticVariables DV,ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
-
 cdef class SurfaceNone(SurfaceBase):
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
                  DiagnosticVariables.DiagnosticVariables DV,  ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
-
 
 cdef class SurfaceSullivanPatton(SurfaceBase):
     cdef:
@@ -54,7 +51,6 @@ cdef class SurfaceSullivanPatton(SurfaceBase):
                  DiagnosticVariables.DiagnosticVariables DV,  ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
-
 cdef class SurfaceBomex(SurfaceBase):
     cdef:
         double theta_flux
@@ -64,12 +60,13 @@ cdef class SurfaceBomex(SurfaceBase):
         double buoyancy_flux
         double gustiness
 
+        bint isotope_tracers 
+        # 0 means flase, 1 means true 
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,DiagnosticVariables.DiagnosticVariables DV,
                  ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
-
 
 cdef class SurfaceGabls(SurfaceBase):
     cdef:
@@ -82,7 +79,6 @@ cdef class SurfaceGabls(SurfaceBase):
                  ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
-
 cdef class SurfaceDYCOMS_RF01(SurfaceBase):
     cdef:
         double lv
@@ -92,9 +88,6 @@ cdef class SurfaceDYCOMS_RF01(SurfaceBase):
         double buoyancy_flux
         double gustiness
         double [:] windspeed
-
-
-
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
@@ -127,12 +120,11 @@ cdef class SurfaceRico(SurfaceBase):
         double s_star
         double RH
 
-
+        bint isotope_tracers 
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
-
 
 cdef class SurfaceIsdac(SurfaceBase):
     cdef:
@@ -144,7 +136,6 @@ cdef class SurfaceIsdac(SurfaceBase):
                  DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
-
 cdef class SurfaceIsdacCC(SurfaceBase):
     cdef:
         double gustiness
@@ -155,7 +146,6 @@ cdef class SurfaceIsdacCC(SurfaceBase):
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
                  DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
-
 
 cdef class SurfaceMpace(SurfaceBase):
     cdef:
@@ -198,7 +188,6 @@ cdef class SurfaceCGILS(SurfaceBase):
                  DiagnosticVariables.DiagnosticVariables DV,   ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
-
 cdef class SurfaceZGILS(SurfaceBase):
     cdef:
         Py_ssize_t loc
@@ -212,7 +201,5 @@ cdef class SurfaceZGILS(SurfaceBase):
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
                  DiagnosticVariables.DiagnosticVariables DV,   ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS)
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
-
-
 
 cdef double compute_z0(double z1, double windspeed) nogil

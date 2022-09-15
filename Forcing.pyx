@@ -36,7 +36,7 @@ cdef class Forcing:
         if casename == 'SullivanPatton':
             self.scheme = ForcingSullivanPatton()
         elif casename == 'Bomex':
-            self.scheme = ForcingBomex()
+            self.scheme = ForcingBomex(namelist)
         elif casename == 'Gabls':
             self.scheme = ForcingGabls()
         elif casename == 'DYCOMS_RF01':
@@ -47,7 +47,7 @@ cdef class Forcing:
         elif casename == 'SMOKE':
             self.scheme = ForcingNone()
         elif casename == 'Rico':
-            self.scheme = ForcingRico()
+            self.scheme = ForcingRico(namelist)
         elif casename == 'StableBubble':
             self.scheme = ForcingNone()
         elif casename == 'SaturatedBubble': 
@@ -87,7 +87,6 @@ cdef class Forcing:
 
         return
 
-
 cdef class ForcingNone:
     def __init__(self):
         pass
@@ -104,7 +103,17 @@ cdef class ForcingNone:
         return
 
 cdef class ForcingBomex:
-    def __init__(self):
+    def __init__(self, namelist):
+        
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
+
         return
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -117,7 +126,6 @@ cdef class ForcingBomex:
 
         cdef:
             Py_ssize_t k
-
 
         with nogil:
             for k in xrange(Gr.dims.nlg[2]):
@@ -143,7 +151,6 @@ cdef class ForcingBomex:
                 if Gr.zl_half[k] > 1500.0 and Gr.zl_half[k] <= 2100.0:
                     self.subsidence[k] = -0.65/100 + (Gr.zl_half[k] - 1500.0)* (0.0 - -0.65/100.0)/(2100.0 - 1500.0)
 
-
         #Initialize Statistical Output
         NS.add_profile('s_subsidence_tendency', Gr, Pa)
         NS.add_profile('qt_subsidence_tendency', Gr, Pa)
@@ -153,7 +160,6 @@ cdef class ForcingBomex:
         NS.add_profile('v_coriolis_tendency',Gr, Pa)
 
         return
-
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
                  PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
@@ -178,8 +184,10 @@ cdef class ForcingBomex:
             double [:] umean = Pa.HorizontalMean(Gr, &PV.values[u_shift])
             double [:] vmean = Pa.HorizontalMean(Gr, &PV.values[v_shift])
 
-
-
+            # isotope tracer components variables and indexes
+            double iso_ratio, qt_, qt_iso_
+            Py_ssize_t qt_iso_shift
+            Py_ssize_t qt_std_shift
 
         #Apply Coriolis Forcing
         large_scale_p_gradient(&Gr.dims, &umean[0], &vmean[0], &PV.tendencies[u_shift],
@@ -204,25 +212,25 @@ cdef class ForcingBomex:
         apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_shift], &PV.tendencies[qt_shift])
         apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[u_shift], &PV.tendencies[u_shift])
         apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[v_shift], &PV.tendencies[v_shift])
+
         # Add Focing for tracers: std+iso
-        cdef:
-            double iso_ratio, qt_, qt_iso_
-            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
-        with nogil:
-            for i in xrange(imin,imax):
-                ishift = i * istride
-                for j in xrange(jmin,jmax):
-                    jshift = j * jstride
-                    for k in xrange(kmin,kmax):
-                        ijk = ishift + jshift + k
-                        qt_ = PV.values[qt_std_shift] 
-                        qt_iso_ = PV.values[qt_iso_shift] 
-                        iso_ratio = qt_iso_ / qt_
-                        PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                        PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
-        apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_shift], &PV.tendencies[qt_iso_shift])
-        apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
+        if self.isotope_tracers:
+            qt_iso_shift = PV.get_varshift(Gr, "qt_iso")
+            qt_std_shift = PV.get_varshift(Gr, "qt_std")
+            with nogil:
+                for i in xrange(imin,imax):
+                    ishift = i * istride
+                    for j in xrange(jmin,jmax):
+                        jshift = j * jstride
+                        for k in xrange(kmin,kmax):
+                            ijk = ishift + jshift + k
+                            qt_ = PV.values[qt_std_shift] 
+                            qt_iso_ = PV.values[qt_iso_shift] 
+                            iso_ratio = qt_iso_ / qt_
+                            PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
+                            PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
+            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_shift], &PV.tendencies[qt_iso_shift])
+            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
         return
 
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
@@ -321,7 +329,6 @@ cdef class ForcingSullivanPatton:
 
         return
 
-
 cdef class ForcingGabls:
     def __init__(self):
         return
@@ -364,7 +371,6 @@ cdef class ForcingGabls:
         NS.write_profile('v_coriolis_tendency',mean_tendency_2[Gr.dims.gw:-Gr.dims.gw],Pa)
 
         return
-
 
 cdef class ForcingDyCOMS_RF01:
     def __init__(self,casename):
@@ -483,10 +489,20 @@ cdef class ForcingDyCOMS_RF01:
         return
 
 cdef class ForcingRico:
-    def __init__(self):
+    def __init__(self, namelist):
         latitude = 18.0 # degrees
         self.coriolis_param = 2.0 * omega * sin(latitude * pi / 180.0 )
         self.momentum_subsidence = 0
+        
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
+
         return
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -545,18 +561,17 @@ cdef class ForcingRico:
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
             Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
             double qt, qv, p0, t
+            
+            # isotope tracer components variables and indexes
             double qt_, qt_iso_, iso_ratio
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
-            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
+            Py_ssize_t qt_std_shift
+            Py_ssize_t qt_iso_shift
 
         apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[s_shift],&PV.tendencies[s_shift])
         apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_shift],&PV.tendencies[qt_shift])
-        apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
-        apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
         if self.momentum_subsidence == 1:
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[u_shift],&PV.tendencies[u_shift])
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[v_shift],&PV.tendencies[v_shift])
-
 
         #Apply large scale source terms
         with nogil:
@@ -570,14 +585,32 @@ cdef class ForcingRico:
                         qt = PV.values[qt_shift + ijk]
                         qv = qt - DV.values[ql_shift + ijk]
                         t  = DV.values[t_shift + ijk]
-                        iso_ratio = PV.values[qt_iso_shift + ijk] / PV.values[qt_std_shift + ijk]
                         PV.tendencies[s_shift + ijk] += s_tendency_c(p0, qt, qv, t, self.dqtdt[k], self.dtdt[k])
                         PV.tendencies[qt_shift + ijk] += self.dqtdt[k]
-                        PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                        PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
 
         coriolis_force(&Gr.dims,&PV.values[u_shift],&PV.values[v_shift],&PV.tendencies[u_shift],
-                       &PV.tendencies[v_shift],&self.ug[0], &self.vg[0],self.coriolis_param, RS.u0, RS.v0  )
+                                   &PV.tendencies[v_shift],&self.ug[0], &self.vg[0],self.coriolis_param, RS.u0, RS.v0  )
+
+        # Add Focing for tracers: std+iso
+        if self.isotope_tracers:
+            qt_std_shift = PV.get_varshift(Gr,'qt_std')
+            qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
+                
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
+        
+            with nogil:
+                for i in xrange(imin,imax):
+                    ishift = i * istride
+                    for j in xrange(jmin,jmax):
+                        jshift = j * jstride
+                        for k in xrange(kmin,kmax):
+                            ijk = ishift + jshift + k
+                            qt_ = PV.values[qt_std_shift] 
+                            qt_iso_ = PV.values[qt_iso_shift] 
+                            iso_ratio = qt_iso_ / qt_
+                            PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
+                            PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
 
         return
 
@@ -586,7 +619,6 @@ cdef class ForcingRico:
                  NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
 
         return
-
 
 cdef extern from "isotope.h":
     double Rayleigh_distillation(double qt) nogil
@@ -838,7 +870,6 @@ cdef class ForcingIsdac:
 
         return
 
-
 cdef class ForcingIsdacCC:
     def __init__(self, namelist):
 
@@ -995,7 +1026,6 @@ cdef class ForcingIsdacCC:
         NS.write_profile('qt_nudging_tendency',mean_tendency[Gr.dims.gw:-Gr.dims.gw],Pa)
 
         return
-
 
 cdef class ForcingMpace:
     def __init__(self):
@@ -1332,15 +1362,9 @@ cdef class ForcingSheba:
 
         mean_tendency = Pa.HorizontalMean(Gr,&tmp_tendency[0])
         NS.write_profile('s_ls_adv_tendency',mean_tendency[Gr.dims.gw:-Gr.dims.gw],Pa)
-
         NS.write_profile('qt_ls_adv_tendency',self.dqtdt[Gr.dims.gw:-Gr.dims.gw],Pa)
 
         return
-
-
-
-
-
 
 cdef class ForcingCGILS:
     def __init__(self, namelist, ParallelMPI.ParallelMPI Pa):
@@ -1355,14 +1379,12 @@ cdef class ForcingCGILS:
             Pa.root_print('Must specify if CGILS run is perturbed')
             Pa.kill()
 
-
         try:
             self.is_ctl_omega = namelist['meta']['CGILS']['CTL_omega']
         except:
             self.is_ctl_omega = False
             if self.is_p2:
                 Pa.root_print('ForcingCGILS: Assuming perturbed omega is used')
-
 
         if self.loc == 12:
             self.z_relax = 1200.0
@@ -1648,10 +1670,6 @@ cdef class ForcingCGILS:
 
         return
 
-
-
-
-
 cdef class ForcingZGILS:
     def __init__(self, namelist, LatentHeat LH, ParallelMPI.ParallelMPI Pa):
         try:
@@ -1915,8 +1933,6 @@ cdef class ForcingZGILS:
         NS.write_ts('nudging_height',self.h_BL, Pa)
         return
 
-
-
 cdef extern from "thermodynamics_sa.h":
     void eos_c(Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double), double p0, double s, double qt, double *T, double *qv, double *ql, double *qi) nogil
 cdef extern from "thermodynamic_functions.h":
@@ -1926,7 +1942,6 @@ cdef extern from "entropies.h":
     double sd_c(double pd, double T) nogil
     double sv_c(double pv, double T) nogil
     double sc_c(double L, double T) nogil
-
 
 # This class computes the reference profiles needed for ZGILS cases
 # Reference temperature profile correspondends to a moist adiabat
@@ -1990,9 +2005,6 @@ cdef class AdjustedMoistAdiabat:
             self.rv[k] = self.qt[k]/(1.0-self.qt[k])
         return
 
-
-
-
 cdef coriolis_force(Grid.DimStruct *dims, double *u, double *v, double *ut, double *vt, double *ug, double *vg, double coriolis_param, double u0, double v0 ):
 
     cdef:
@@ -2019,7 +2031,6 @@ cdef coriolis_force(Grid.DimStruct *dims, double *u, double *v, double *ut, doub
                     ut[ijk] = ut[ijk] - coriolis_param * (vg[k] - v_at_u)
                     vt[ijk] = vt[ijk] + coriolis_param * (ug[k] - u_at_v)
     return
-
 
 cdef large_scale_p_gradient(Grid.DimStruct *dims, double *umean, double *vmean, double *ut, double *vt, double *ug, double *vg,
                           double coriolis_param, double u0, double v0 ):
