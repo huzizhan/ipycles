@@ -309,8 +309,8 @@ def Bomex():
 
     namelist['grid'] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64
-    namelist['grid']['ny'] = 64
+    namelist['grid']['nx'] = 64 / 4
+    namelist['grid']['ny'] = 64 / 4
     namelist['grid']['nz'] = 75
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 100.0
@@ -333,7 +333,7 @@ def Bomex():
     namelist['thermodynamics']['latentheat'] = 'constant'
 
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'None_SA'
+    namelist['microphysics']['scheme'] = 'SB_Liquid'
     namelist['microphysics']['phase_partitioning'] = 'liquid_only'
 
     namelist['sgs'] = {}
@@ -355,12 +355,12 @@ def Bomex():
     namelist['damping']['Rayleigh']['z_d'] = 600
 
     namelist['output'] = {}
-    namelist['output']['output_root'] = '../Output/'
+    namelist['output']['output_root'] = './'
 
     namelist['restart'] = {}
     namelist['restart']['output'] = True
     namelist['restart']['init_from'] = False
-    namelist['restart']['input_path'] = '../Output/'
+    namelist['restart']['input_path'] = './'
     namelist['restart']['frequency'] = 600.0
 
     namelist['stats_io'] = {}
@@ -389,9 +389,9 @@ def Bomex():
     # namelist['tracers']['use_tracers'] = True
     # namelist['tracers']['scheme'] = 'PurityTracers'
 
-    namelist['isotopetracers'] = {}
-    namelist['isotopetracers']['use_tracers'] = True
-    namelist['isotopetracers']['scheme'] = 'No microphysics'
+    # namelist['isotopetracers'] = {}
+    # namelist['isotopetracers']['use_tracers'] = True
+    # namelist['isotopetracers']['scheme'] = 'No microphysics'
     return namelist
 
 def Gabls():

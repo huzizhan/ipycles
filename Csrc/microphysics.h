@@ -1,4 +1,6 @@
 #pragma once
+#include "microphysics_arctic_1m.h"
+#include "microphysics_sb.h"
 #include "parameters.h"
 #include "thermodynamic_functions.h"
 #include "advection_interpolation.h"
@@ -9,7 +11,7 @@
 #define MICRO_EPS  1.0e-13
 #define C_STOKES_VEL 1.19e8 //(m s)^-1, Rogers 1979, Ackerman 2009
 #define SIGMA_G 1.5 //1.2 // geometric standard deviation of droplet psdf.  Ackerman 2009
-
+                   
 // Here, only functions that can be used commonly by any microphysical scheme
 // convention: begin function name with "microphysics"
 // Scheme-specific functions should be place in a scheme specific .h file, function name should indicate which scheme
@@ -44,6 +46,63 @@ double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperatur
     double qv_sat = qv_star_c(p0, qt, pv_sat);
     double saturation_ratio = qt/qv_sat - 1.0;
     return saturation_ratio;
+}
+
+// Seifert & Beheng 2006: Equ 41, 85-89
+double microphysics_ventilation_coefficient_ice(double Dm, double v_fall, double mass, double n){
+    // Dm: mass weighted diameter;
+    // v_fall: mass weighted falling velocity;
+    // mass: average mass of specific ice particle;
+    // n: n-th power of moment;
+    // N_re: the Reynolds number which is a function of mass N_re(mass)
+
+    double N_re = v_fall*Dm/KIN_VISC_AIR;
+    double b_i;
+    double beta_i;
+    double mu_ = 3.0; // 1/mu_ice, and mu_ice =1/3
+    double nu  = 1.0;
+    double a_exponent = b_i + n - 1.0; 
+    double b_var_tmp  = 1.5*b_i + 0.5*beta_i;
+    double b_exponent = b_var_tmp + n - 1.0; 
+    double var_const  = gamma((nu+1.0)*mu_)/gamma((nu+2.0)*mu_);
+
+    double a_vent_n = A_VI * gamma((nu+n+b_i)*mu_)/gamma((nu+1)*mu_) * pow(var_const, a_exponent);
+    double b_vent_n = B_VI * gamma((nu+n+b_var_tmp)*mu_)/gamma((nu+1)*mu_) * pow(var_const, b_exponent);
+
+    double F_vn = a_vent_n + b_vent_n * NSC_3 * sqrt(N_re);
+    return F_vn;
+}
+
+double microphysics_homogenous_freezing_rate(double temperature){
+    double T_celsius = temperature - 273.15;
+    double liquid_density_cc = 1e-6; // 1 kg/m³ = 1e6 kg/cm³
+    
+    double exp_var_tmp;
+    // following section is based on Cotton & Feild, Equ 12
+    if (T_celsius < -65.0){
+        exp_var_tmp = 25.63;
+    }
+    else if(T_celsius <= -30.0){
+        exp_var_tmp = -243.4 - 14.75*T_celsius - 0.307*T_celsius*T_celsius - 0.00287*T_celsius*T_celsius*T_celsius - 1.02e-5*pow(T_celsius, 4.0);
+    }
+    else{
+    }
+        exp_var_tmp = -7.63 - 2.996*(T_celsius + 30.0);
+
+    // J_i: cm ^-3 /s; is defined in Cotton & Feild, Equ 12
+    double J_i = exp(exp_var_tmp); 
+    
+    // return J_hom with the unit: kg^-1/s
+    return liquid_density_cc * J_i;
+}
+
+// Seifert & Beheng 2006: Equ 44
+double microphysics_heterogenous_freezing_rate(double temperature){
+    double A_het = 0.2; // kg^-1 s^-1
+    double B_het = 0.65; // K^-1
+    double t_3 = 273.15; // J
+    double var_tmp = B_het*(t_3 - temperature) - 1.0;
+    return A_het * exp(var_tmp);
 }
 
 double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, const double qt, const double T){
@@ -108,47 +167,47 @@ void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruc
     return;
  }
 
-//See Ackerman et al 2009 (DYCOMS-RF02 IC paper) Eq. 7
- void microphysics_stokes_sedimentation_velocity(const struct DimStruct *dims, double* restrict density, double ccn,
-                                      double* restrict ql, double* restrict qt_velocity){
+void microphysics_stokes_sedimentation_velocity(const struct DimStruct *dims, double* restrict density, double ccn,
+                                     double* restrict ql, double* restrict qt_velocity){
 
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = 0;
-    const ssize_t jmin = 0;
-    const ssize_t kmin = 0;
-    const ssize_t imax = dims->nlg[0];
-    const ssize_t jmax = dims->nlg[1];
-    const ssize_t kmax = dims->nlg[2];
-    const double distribution_factor = exp(5.0 * log(SIGMA_G) * log(SIGMA_G));
-    const double number_factor = C_STOKES_VEL * cbrt((0.75/pi/DENSITY_LIQUID/ccn) * (0.75/pi/DENSITY_LIQUID/ccn));
+   const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+   const ssize_t jstride = dims->nlg[2];
+   const ssize_t imin = 0;
+   const ssize_t jmin = 0;
+   const ssize_t kmin = 0;
+   const ssize_t imax = dims->nlg[0];
+   const ssize_t jmax = dims->nlg[1];
+   const ssize_t kmax = dims->nlg[2];
+   const double distribution_factor = exp(5.0 * log(SIGMA_G) * log(SIGMA_G));
+   const double number_factor = C_STOKES_VEL * cbrt((0.75/pi/DENSITY_LIQUID/ccn) * (0.75/pi/DENSITY_LIQUID/ccn));
+
+   for(ssize_t i=imin; i<imax; i++){
+       const ssize_t ishift = i * istride;
+       for(ssize_t j=jmin; j<jmax; j++){
+           const ssize_t jshift = j * jstride;
+           for(ssize_t k=kmin-1; k<kmax+1; k++){
+               const ssize_t ijk = ishift + jshift + k;
+               double ql_tmp = fmax(ql[ijk],0.0);
+
+               qt_velocity[ijk] = -number_factor * distribution_factor *  cbrt(density[k]* density[k] *ql_tmp* ql_tmp);
+
+           }
+       }
+   }
 
     for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin-1; k<kmax+1; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                double ql_tmp = fmax(ql[ijk],0.0);
+       const ssize_t ishift = i * istride;
+       for(ssize_t j=jmin; j<jmax; j++){
+           const ssize_t jshift = j * jstride;
+           for(ssize_t k=kmin; k<kmax-1 ; k++){
+               const ssize_t ijk = ishift + jshift + k;
 
-                qt_velocity[ijk] = -number_factor * distribution_factor *  cbrt(density[k]* density[k] *ql_tmp* ql_tmp);
+               qt_velocity[ijk] = interp_2(qt_velocity[ijk], qt_velocity[ijk+1]) ;
+           }
+       }
+   }
 
-            }
-        }
-    }
-
-     for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax-1 ; k++){
-                const ssize_t ijk = ishift + jshift + k;
-
-                qt_velocity[ijk] = interp_2(qt_velocity[ijk], qt_velocity[ijk+1]) ;
-            }
-        }
-    }
-
-    return;
+   return;
 
 }
+//See Ackerman et al 2009 (DYCOMS-RF02 IC paper) Eq. 7

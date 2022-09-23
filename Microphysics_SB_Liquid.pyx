@@ -40,7 +40,17 @@ cdef extern from "microphysics_sb.h":
     void sb_sedimentation_velocity_liquid(Grid.DimStruct *dims, double*  density, double ccn, double* ql, double* qt_velocity)nogil
     void sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
                                         double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity) nogil
-    void sb_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+    void sb_autoconversion_rain_wrapper(Grid.DimStruct *dims,  double (*droplet_nu)(double,double), double* density,
+                                        double ccn, double* ql, double* qr, double*  nr_tendency, double* qr_tendency) nogil
+    void sb_accretion_rain_wrapper(Grid.DimStruct *dims, double* density, double*  ql, double* qr, double* qr_tendency)nogil
+    void sb_selfcollection_breakup_rain_wrapper(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
+                                            double* density, double* nr, double* qr, double*  nr_tendency)nogil
+    void sb_evaporation_rain_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                             double (*rain_mu)(double,double,double),  double* density, double* p0,  double* temperature,  double* qt,
+                             double* ql, double* nr, double* qr, double* nr_tendency, double* qr_tendency)nogil
+
+cdef extern from "microphysics_sb_liquid.h":
+    void sb_liquid_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
                              double* density, double* p0, double* temperature,  double* qt, double ccn,
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
@@ -52,26 +62,15 @@ cdef extern from "microphysics_sb.h":
     void sb_entropy_source_heating(Grid.DimStruct *dims, double* T, double* Twet, double* qr, double* w_qr, double* w,
                                    double* entropy_tendency)nogil
     void sb_entropy_source_drag(Grid.DimStruct *dims, double* T,  double* qr, double* w_qr, double* entropy_tendency)nogil
-    void sb_autoconversion_rain_wrapper(Grid.DimStruct *dims,  double (*droplet_nu)(double,double), double* density,
-                                        double ccn, double* ql, double* qr, double*  nr_tendency, double* qr_tendency) nogil
-    void sb_accretion_rain_wrapper(Grid.DimStruct *dims, double* density, double*  ql, double* qr, double* qr_tendency)nogil
-    void sb_selfcollection_breakup_rain_wrapper(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
-                                            double* density, double* nr, double* qr, double*  nr_tendency)nogil
-    void sb_evaporation_rain_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double (*rain_mu)(double,double,double),  double* density, double* p0,  double* temperature,  double* qt,
-                             double* ql, double* nr, double* qr, double* nr_tendency, double* qr_tendency)nogil
 
 cdef extern from "isotope.h":
-    void tracer_sb_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+    void tracer_sb_liquid_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
                              double* density, double* p0, double* temperature,  double* qt, double ccn,
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
                              double* nr_tendency, double* qr_tendency,
                              double* qr_iso, double* qt_iso, double* qv_iso, double* ql_iso,
                              double* qr_iso_tendency_micro, double* qr_iso_tendency) nogil
-    void tracer_sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
-                                        double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity, double* qr_std_velocity, double* qr_iso_velocity) nogil
-    void tracer_sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qr_iso_tendency, double* qt_tendency, double* qt_std_tendency, double* qt_iso_tendency)nogil
 
 cdef class Microphysics_SB_Liquid:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -186,7 +185,9 @@ cdef class Microphysics_SB_Liquid:
         NS.add_profile('s_precip_drag', Gr, Pa)
         return
 
-    cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+    cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
+                 DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+
         cdef:
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
             Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
@@ -201,9 +202,8 @@ cdef class Microphysics_SB_Liquid:
             Py_ssize_t wqt_shift
             double[:] qr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-
         
-        sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
+        sb_liquid_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
                                 self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
                                 &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
                                 &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift] )
@@ -249,7 +249,7 @@ cdef class Microphysics_SB_Liquid:
             qt_iso_shift  = PV.get_varshift(Gr, 'qt_iso')
             wqr_iso_shift = DV.get_varshift(Gr, 'w_qr_iso')
 
-            tracer_sb_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
+            tracer_sb_liquid_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
                                     self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
                                     &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
                                     &PV.values[qr_std_shift], dt, &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
