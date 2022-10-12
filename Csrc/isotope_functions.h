@@ -1,15 +1,15 @@
 #pragma once
 #include "parameters.h"
+#include "parameters_micro_sb.h"
 #include "thermodynamic_functions.h"
 #include "microphysics.h"
 #include "microphysics_sb.h"
 #include "microphysics_arctic_1m.h"
 #include "lookup.h"
 #include <math.h>
-#define SB_EPS  1.0e-13 //small value
 #define SB_EPS_iso 1.02e-13
-#define KT  2.5e-2 // J/m/1s/K
-#define DVAPOR 3.0e-5 // m^2/s
+// #define KT  2.5e-2 // J/m/1s/K
+// #define DVAPOR 3.0e-5 // m^2/s
 
 static inline double equilibrium_fractionation_factor_H2O18_liquid(double t){
 // fractionation factor α_eq for 018 is based equations from Majoube 1971

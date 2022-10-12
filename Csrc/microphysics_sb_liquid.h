@@ -1,5 +1,6 @@
 #pragma once
 #include "parameters.h"
+#include "parameters_micro_sb.h"
 #include "microphysics.h"
 #include "microphysics_sb.h"
 #include "advection_interpolation.h"
@@ -171,11 +172,11 @@ void sb_entropy_source_formation(const struct DimStruct *dims, struct LookupStru
                 const double sd_T = sd_c(pd, T[ijk]);
                 const double sv_star_T = sv_c(pv_star_T,T[ijk] );
                 const double sv_star_Tw = sv_c(pv_star_Tw, Twet[ijk]);
-                const double S_P = sd_T - sv_star_T + L_fp_T/T[ijk];
-                const double S_E = sv_star_Tw - L_fp_Tw/Twet[ijk] - sd_T;
-                const double S_D = -Rv * log(pv/pv_star_T) + cpv * log(T[ijk]/Twet[ijk]);
-                entropy_tendency[ijk] += S_P * 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk])) - (S_E + S_D) * 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk])) ;
-
+                const double S_P = sd_T - sv_star_T + L_fp_T/T[ijk]; //Pressel15, Equ 49
+                const double S_E = sv_star_Tw - L_fp_Tw/Twet[ijk] - sd_T; //Pressel15, Equ 50  
+                const double S_D = -Rv * log(pv/pv_star_T) + cpv * log(T[ijk]/Twet[ijk]); //Pressel15, Equ 51 
+                // add SP SE and SD in Pressel15 
+                entropy_tendency[ijk] += S_P * 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk])) - (S_E + S_D) * 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk]));
             }
         }
     }
@@ -203,15 +204,16 @@ void sb_entropy_source_heating(const struct DimStruct *dims, double* restrict T,
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                entropy_tendency[ijk]+= qr[ijk]*(fabs(w_qr[ijk]) - w[ijk]) * cl * (Twet[ijk+1] - Twet[ijk])* dzi/T[ijk];
+                // Q_P = qr[ijk]*(fabs(w_qr[ijk]) - w[ijk]) * cl * (Twet[ijk+1] - Twet[ijk])* dzi;
+                // Q_P should following the Pressel15 Equ 52
+                entropy_tendency[ijk]+= qr[ijk]*(fabs(w_qr[ijk]) - w[ijk]) * cl * (Twet[ijk+1] - Twet[ijk])* dzi / T[ijk];
             }
         }
     }
-
     return;
-
 }
 
+// following  Pressel15 Equ 54.
 void sb_entropy_source_drag(const struct DimStruct *dims, double* restrict T,  double* restrict qr,
                             double* restrict w_qr, double* restrict entropy_tendency){
 
@@ -234,8 +236,6 @@ void sb_entropy_source_drag(const struct DimStruct *dims, double* restrict T,  d
             }
         }
     }
-
     return;
-
 }
 

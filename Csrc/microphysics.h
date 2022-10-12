@@ -1,12 +1,13 @@
 #pragma once
-#include "microphysics_arctic_1m.h"
-#include "microphysics_sb.h"
+// #include "microphysics_arctic_1m.h"
+// #include "microphysics_sb.h"
 #include "parameters.h"
+#include "lookup.h"
+#include "parameters_micro_sb.h"
 #include "thermodynamic_functions.h"
 #include "advection_interpolation.h"
 #include "entropies.h"
-#define KT  2.5e-2 // J/m/s/K
-#define DVAPOR 3.0e-5 // m^2/s
+
 #define DENSITY_LIQUID  1000.0 // density of liquid water, kg/m^3
 #define MICRO_EPS  1.0e-13
 #define C_STOKES_VEL 1.19e8 //(m s)^-1, Rogers 1979, Ackerman 2009
@@ -57,8 +58,11 @@ double microphysics_ventilation_coefficient_ice(double Dm, double v_fall, double
     // N_re: the Reynolds number which is a function of mass N_re(mass)
 
     double N_re = v_fall*Dm/KIN_VISC_AIR;
-    double b_i;
-    double beta_i;
+    // ================================================
+    // ToDo: find out the value of b_i and beta_i;
+    // ================================================
+    double b_i = 1.0;
+    double beta_i = 1.0;
     double mu_ = 3.0; // 1/mu_ice, and mu_ice =1/3
     double nu  = 1.0;
     double a_exponent = b_i + n - 1.0; 

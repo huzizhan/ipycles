@@ -1,59 +1,61 @@
 #pragma once
+#include "lookup.h"
 #include "parameters.h"
+#include "parameters_micro_sb.h"
 #include "microphysics.h"
 #include "advection_interpolation.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
 // #include <cmath>
-#include <cmath>
+// #include <cmath>
 #include <math.h>
 
-#define MAX_ITER  15 //maximum substep loops in source term computation
-#define RAIN_MAX_MASS  5.2e-7 //kg; DALES: 5.0e-6 kg
-#define RAIN_MIN_MASS  2.6e-10 //kg
-#define DROPLET_MIN_MASS 4.20e-15 // kg
-#define DROPLET_MAX_MASS  2.6e-10 //1.0e-11  // kg
-#define DENSITY_SB  1.225 // kg/m^3; a reference density used in Seifert & Beheng 2006, DALES
-#define XSTAR  2.6e-10
-#define KCC  10.58e9 // Constant in cloud-cloud kernel, m^3 kg^{-2} s^{-1}: Using Value in DALES; also, 9.44e9 (SB01, SS08), 4.44e9 (SB06)
-#define KCR  5.25   // Constant in cloud-rain kernel, m^3 kg^{-1} s^{-1}: Using Value in DALES and SB06;  KCR = kr = 5.78 (SB01, SS08)
-#define KRR  7.12   // Constant in rain-rain kernel,  m^3 kg^{-1} s^{-1}: Using Value in DALES and SB06; KRR = kr = 5.78 (SB01, SS08); KRR = 4.33 (S08)
-#define KAPRR  60.7  // Raindrop typical mass (4.471*10^{-6} kg to the -1/3 power), kg^{-1/3}; = 0.0 (SB01, SS08)
-#define KAPBR  2.3e3 // m^{-1} - Only used in SB06 break-up
-#define D_EQ  0.9e-3 // equilibrium raindrop diameter, m, used for SB-breakup
-#define D_EQ_MU  1.1e-3 // equilibrium raindrop diameter, m, used for SB-mu, opt=4
-#define A_RAIN_SED  9.65    // m s^{-1}
-#define B_RAIN_SED  9.796 // 10.3    # m s^{-1}
-#define C_RAIN_SED  600.0   // m^{-1}
-#define C_LIQUID_SED 702780.63036 //1.19e8 *(3.0/(4.0*pi*rho_liq))**(2.0/3.0)*np.exp(5.0*np.log(1.34)**2.0)
-#define A_VENT_RAIN  0.78
-#define B_VENT_RAIN  0.308
-#define NSC_3  0.892112 //cbrt(0.71) // Schmidt number to the 1/3 power
-#define KIN_VISC_AIR  1.4086e-5 //m^2/s kinematic viscosity of air
-#define A_NU_SQ sqrt(A_RAIN_SED/KIN_VISC_AIR)
-#define SB_EPS  1.0e-13 //small value
-#define LIQUID_DM_PREFACTOR  1.0 
-#define LIQUID_DM_EXPONENT  1.0 
+// #define MAX_ITER  15 //maximum substep loops in source term computation
+// #define RAIN_MAX_MASS  5.2e-7 //kg; DALES: 5.0e-6 kg
+// #define RAIN_MIN_MASS  2.6e-10 //kg
+// #define DROPLET_MIN_MASS 4.20e-15 // kg
+// #define DROPLET_MAX_MASS  2.6e-10 //1.0e-11  // kg
+// #define DENSITY_SB  1.225 // kg/m^3; a reference density used in Seifert & Beheng 2006, DALES
+// #define XSTAR  2.6e-10
+// #define KCC  10.58e9 // Constant in cloud-cloud kernel, m^3 kg^{-2} s^{-1}: Using Value in DALES; also, 9.44e9 (SB01, SS08), 4.44e9 (SB06)
+// #define KCR  5.25   // Constant in cloud-rain kernel, m^3 kg^{-1} s^{-1}: Using Value in DALES and SB06;  KCR = kr = 5.78 (SB01, SS08)
+// #define KRR  7.12   // Constant in rain-rain kernel,  m^3 kg^{-1} s^{-1}: Using Value in DALES and SB06; KRR = kr = 5.78 (SB01, SS08); KRR = 4.33 (S08)
+// #define KAPRR  60.7  // Raindrop typical mass (4.471*10^{-6} kg to the -1/3 power), kg^{-1/3}; = 0.0 (SB01, SS08)
+// #define KAPBR  2.3e3 // m^{-1} - Only used in SB06 break-up
+// #define D_EQ  0.9e-3 // equilibrium raindrop diameter, m, used for SB-breakup
+// #define D_EQ_MU  1.1e-3 // equilibrium raindrop diameter, m, used for SB-mu, opt=4
+// #define A_RAIN_SED  9.65    // m s^{-1}
+// #define B_RAIN_SED  9.796 // 10.3    # m s^{-1}
+// #define C_RAIN_SED  600.0   // m^{-1}
+// #define C_LIQUID_SED 702780.63036 //1.19e8 *(3.0/(4.0*pi*rho_liq))**(2.0/3.0)*np.exp(5.0*np.log(1.34)**2.0)
+// #define A_VENT_RAIN  0.78
+// #define B_VENT_RAIN  0.308
+// #define NSC_3  0.892112 //cbrt(0.71) // Schmidt number to the 1/3 power
+// #define KIN_VISC_AIR  1.4086e-5 //m^2/s kinematic viscosity of air
+// #define A_NU_SQ sqrt(A_RAIN_SED/KIN_VISC_AIR)
+// #define SB_EPS  1.0e-13 //small value
+// #define LIQUID_DM_PREFACTOR  1.0 
+// #define LIQUID_DM_EXPONENT  1.0 
 
-// ===========<<< ventilation parameters >>> ============
-#define A_VR  0.78 // constant ventilation coefficient for raindrops aᵥᵣ
-#define A_VI  (0.78+0.86)/2 // constant ventilation coefficient for ice aᵥᵢ
-#define B_VR  0.308 // constant ventilation coefficient for raindrops bᵥᵣ
-#define B_VI  (0.28+0.308)/2 // constant ventilation coefficient for raindrops bᵥᵢ
+// // ===========<<< ventilation parameters >>> ============
+// #define A_VR  0.78 // constant ventilation coefficient for raindrops aᵥᵣ
+// #define A_VI  (0.78+0.86)/2 // constant ventilation coefficient for ice aᵥᵢ
+// #define B_VR  0.308 // constant ventilation coefficient for raindrops bᵥᵣ
+// #define B_VI  (0.28+0.308)/2 // constant ventilation coefficient for raindrops bᵥᵢ
 
-// ===========<<< ice-particle parameters >>> ============
-#define ICE_MAX_MASS  5.2e-7 //kg; DALES: 5.0e-6 kg
-#define ICE_MIN_MASS  2.6e-10 //kg
-#define N_M92  1e3 // m^{-3}
-#define A_M92  -0.639
-#define B_M92  12.96
-#define X_ICE_NUC  1e-12 // kg
-#define L_MELTING  0.333e6 // J/kg latent heat of melting
-#define L_SUBLIMATION  2.834e6 // J/kg latent heat of sublimation
-#define D_L0  1.5e-5 // 15μm 
-#define D_L1  4e-5 // 40μm 
-#define D_I0  1.5e-4 // 150μm 
-#define SIGMA_ICE  0.2 // m/s
+// // ===========<<< ice-particle parameters >>> ============
+// #define ICE_MAX_MASS  5.2e-7 //kg; DALES: 5.0e-6 kg
+// #define ICE_MIN_MASS  2.6e-10 //kg
+// #define N_M92  1e3 // m^{-3}
+// #define A_M92  -0.639
+// #define B_M92  12.96
+// #define X_ICE_NUC  1e-12 // kg
+// #define L_MELTING  0.333e6 // J/kg latent heat of melting
+// #define L_SUBLIMATION  2.834e6 // J/kg latent heat of sublimation
+// #define D_L0  1.5e-5 // 15μm 
+// #define D_L1  4e-5 // 40μm 
+// #define D_I0  1.5e-4 // 150μm 
+// #define SIGMA_ICE  0.2 // m/s
 
 // ===========<<< Reference about SB_Liquid microphysics scheme >>> ============
 // SB06: Seifert & Beheng 2006: A two-moment cloud microphysics parameterization for mixed-phase clouds. Part 1: Model description
@@ -288,7 +290,9 @@ void sb_freezing_ice(double (*droplet_nu)(double,double), double density, double
         double liquid_mass, double rain_mass, double ql, double nl, double qr, double nr, 
         double* ql_tendency, double* qr_tendency, double* nr_tendency, double* qi_tendency, double* ni_tendency){
 
-    // ToDo give a conditional settings of the threshold of freezing
+    // ================================================
+    // ToDo: ToDo give a conditional settings of the threshold of freezing
+    // ================================================
     if(ql < SB_EPS || qr < SB_EPS || nr < SB_EPS || temperature >= 275.15){
         // if liquid specific humidity is negligibly small, set source terms to zero
         *ql_tendency = 0.0;
@@ -317,6 +321,63 @@ void sb_freezing_ice(double (*droplet_nu)(double,double), double density, double
     return;
 }
 
+// ===========<<< SB06 accretion of ice and cloud droplets parameters >>> ============
+// adopted in sb_accretion_cloud_ice()
+// Seifert & Beheng 2006: Equ
+
+double microphysics_sb_E_il(double Dm_l, double Dm_i){
+    double E_l, E_i;
+    // calculation of E_l
+    if(Dm_l < 1.5e-5){
+        E_l = 0.0;
+    }
+    else if(Dm_l <= 4.0e-5){
+        E_l = (Dm_l - 1.5e-5)/2.5e-5;
+    }
+    else{
+        E_l = 1.0;
+    }
+    // calculation of E_i
+    if(Dm_i <= 1.5e-4){
+        E_i = 0.0;
+    }
+    else{
+        E_i = 0.8;
+    }
+    return E_l*E_i;
+}
+
+void microphysics_sb_collision_parameters(double sb_a_ice, double sb_b_ice, double sb_beta_ice, double k,
+        double* delta_li, double* delta_l, double* delta_i, double* vartheta_l, double* vartheta_li){
+    // k: k-th moment
+    double ice_mu_        = 3.0; // 1/mu_ice, and mu_ice =1/3.0
+    double liquid_mu_     = 1.0; // liquid_mu_ = 1.0
+    double nu             = 1.0; // both ice and cloud droplets
+    double var_ice_1      = gamma(6.0); // Γ((nu+1)/ice_mu)
+    double var_ice_2      = gamma(9.0); // Γ((nu+2)/ice_mu)
+    double var_ice_3      = var_ice_1/var_ice_2;
+    double var_ice_4      = (2*sb_b_ice + nu + 1.0 + k) * ice_mu_;
+    double var_ice_5      = (sb_b_ice + nu + 1.0 +k) * ice_mu_;
+    double var_ice_6      = (sb_beta_ice + sb_b_ice + nu + 1.0 + k) * ice_mu_;
+    double var_ice_7      = (sb_b_ice + nu + 1.0 + k) * ice_mu_;
+
+    double var_liquid_1   = gamma(2.0); // Γ((nu+1)/liquid_mu)
+    double var_liquid_2   = gamma(3.0); // Γ((nu+2)/liquid_mu)
+    double var_liquid_3   = var_liquid_1/var_liquid_2;
+    double var_liquid_4   = 8.0 + 3.0*k; // (2*sb_b_liquid + nu + 1.0 + k)*ice_mu_
+    double sb_b_liquid    = 1.0/3.0;
+    double sb_beta_liquid = 2.0/3.0;
+    double var_liquid_5   = 7.0 + 3.0*k; // (sb_b_liquid + nu + 1.0 + k)*ice_mu_
+    double var_liquid_6   = 12.0 + 3.0*k; // (2*sb_beta_liquid + 2*sb_b_liquid + nu + 1.0 + k)*ice_mu_
+   
+    *delta_i     = gamma(var_ice_4)/var_ice_1 * pow(var_ice_3, (2*sb_b_ice+k));
+    *delta_l     = gamma(var_liquid_4)/var_liquid_1 * pow(var_liquid_3, (2*sb_b_liquid+k));
+    *delta_li    = 2.0 * gamma(var_ice_5)/var_ice_1 * gamma(7.0)/var_liquid_1 * pow(var_ice_3, (sb_b_ice+k)) * cbrt(var_liquid_3);
+    
+    *vartheta_l  = gamma(var_liquid_6)/gamma(var_liquid_4)*pow(var_liquid_3, 2*sb_beta_liquid);
+    *vartheta_li = 2.0 * gamma(var_ice_6)/gamma(var_ice_7) * gamma(9.0)/gamma(7.0) * pow(var_ice_3, sb_beta_ice) * pow(var_liquid_3, sb_beta_liquid);
+}
+
 void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double ice_mass, double Dm_i, 
         double velocity_i, double nl, double ql, double ni, double qi,
         double sb_a_ice, double sb_b_ice, double sb_beta_ice,
@@ -328,10 +389,9 @@ void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double ice_mass, do
         double delta_il, delta_l, delta_i, vartheta_l, vartheta_il;
         double E_il = microphysics_sb_E_il(Dm_l, Dm_i);
         double n = 1.0; // 1-th moments 
-         microphysics_sb_collision_parameters(sb_a_ice, sb_b_ice, sb_beta_ice, n,
-                &delta_il, &delta_l, &delta_i, &vartheta_l, &vartheta_il);
+        microphysics_sb_collision_parameters(sb_a_ice, sb_b_ice, sb_beta_ice, n, &delta_il, &delta_l, &delta_i, &vartheta_l, &vartheta_il);
 
-        double velocity_l = C_RAIN*pow(Dm_l, D_RAIN);
+        double velocity_l = LIQUID_DM_EXPONENT*pow(Dm_l, LIQUID_DM_EXPONENT);
 
         double qi_tendency_tmp, nl_tendency_tmp;
         double qi_var_1 = 1.0*pow(Dm_i,2) + delta_il*Dm_l*Dm_i + delta_l*pow(Dm_l,2);
@@ -348,7 +408,24 @@ void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double ice_mass, do
     return;
 }
 
-void sb_melting_ice(double temperature, double ice_mass, double Dm_i, double qv, double ni, double qi, 
+// Seifert & Beheng 2006: Equ 
+double sb_ice_melting_thermo(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double temperature, double qv){
+    double D_T = 1.0;
+    double t_3 = 273.15; // J T_3
+    double lam = lam_fp(t_3);
+    double L = L_fp(t_3,lam);
+    double pv_sat = lookup(LT, t_3);
+    double pv = 1.0;
+
+    // ToDo: find the right definition of D_T, and pv;
+    
+    double melt_thermo = (KT*D_T/DVAPOR)*(temperature - t_3) + DVAPOR*L/Rv*(pv/temperature - pv_sat/t_3);
+    return melt_thermo;
+}
+
+void sb_melting_ice(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double temperature, double ice_mass, double Dm_i, double qv, double ni, double qi, 
         double* qi_tendency, double* ni_tendency){
 
     if( qi < SB_EPS || ni < SB_EPS){
@@ -357,7 +434,7 @@ void sb_melting_ice(double temperature, double ice_mass, double Dm_i, double qv,
     }
     else{
         double F_vl_ni, F_vl_qi;
-        double G_melt = sb_ice_melting_thermo(temperature, qv);
+        double G_melt = sb_ice_melting_thermo(LT, lam_fp, L_fp, temperature, qv);
 
         double qi_tendency_tmp = 2*pi/L_MELTING * G_melt * ni * Dm_i * pow(ice_mass, 0) * F_vl_qi; 
         double ni_tendency_tmp = 2*pi/L_MELTING * G_melt * ni * Dm_i * pow(ice_mass,-1) * F_vl_ni; 
@@ -380,7 +457,6 @@ void sb_sedimentation_velocity_rain(const struct DimStruct *dims, double (*rain_
     const ssize_t jmax = dims->nlg[1];
     const ssize_t kmax = dims->nlg[2];
 
-
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
         for(ssize_t j=jmin; j<jmax; j++){
@@ -394,30 +470,26 @@ void sb_sedimentation_velocity_rain(const struct DimStruct *dims, double (*rain_
                 double mu             = rain_mu(density[k], qr_tmp, Dm);
                 double Dp             = sb_Dp(Dm, mu);
 
-                // Based on SS08, Equ(A8) to Equ(A10) and related paper content.
+                // Based on equation 21 in SB06
+                // But the relationship between γ and Dp is defined in SB08
                 nr_velocity[ijk] = -fmin(fmax( density_factor * (A_RAIN_SED - B_RAIN_SED * pow(1.0 + C_RAIN_SED * Dp, -mu - 1.0)) , 0.0),10.0);
                 qr_velocity[ijk] = -fmin(fmax( density_factor * (A_RAIN_SED - B_RAIN_SED * pow(1.0 + C_RAIN_SED * Dp, -mu - 4.0)) , 0.0),10.0);
 
             }
         }
     }
-
      for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
         for(ssize_t j=jmin; j<jmax; j++){
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax-1 ; k++){
                 const ssize_t ijk = ishift + jshift + k;
-
                 nr_velocity[ijk] = interp_2(nr_velocity[ijk], nr_velocity[ijk+1]) ;
                 qr_velocity[ijk] = interp_2(qr_velocity[ijk], qr_velocity[ijk+1]) ;
-
             }
         }
     }
-
     return;
-
 }
 
 void sb_sedimentation_velocity_liquid(const struct DimStruct *dims, double* restrict density, double ccn,

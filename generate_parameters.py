@@ -38,8 +38,6 @@ def default():
     parameters['omega'] = 7.2921151467064e-5  # Earth's rotational rate (http://hpiers.obspm.fr/eop-pc/models/constants.html)
     parameters['ql_threshold'] = 1.0e-8
 
-
-
     # Surface Monin-Obukhov related parameters
     parameters['vkb'] = 0.35     # Von Karman constant from Businger 1971 used by Byun surface formulation
     parameters['Pr0'] = 0.74 
@@ -47,7 +45,6 @@ def default():
     parameters['beta_h'] = parameters['beta_m']/parameters['Pr0'] 
     parameters['gamma_m'] = 15.0
     parameters['gamma_h'] = 9.0
-
 
     # Surface Monin-Obukhov related parameters
     parameters['vkb'] = 0.35     # Von Karman constant from Businger 1971 used by Byun surface formulation
@@ -102,7 +99,6 @@ def default():
         print('\t' + param + ' = ' + str(parameters[param]))
 
     return
-
 
 if __name__ == "__main__":
     main()

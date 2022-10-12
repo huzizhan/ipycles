@@ -87,8 +87,6 @@ def default_arctic():
     parameters['N_MIN_ICE'] = parameters['GSTAR_ICE'] / (parameters['A_ICE'] * parameters['DIA_MAX_ICE'] **
                                                            (1.0 + parameters['B_ICE']))
 
-
-
     #############################
     # Users shouldn't modify below
     #############################
@@ -99,7 +97,7 @@ def default_arctic():
     message2 = 'End generated code'
 
     # First write the pxi file
-    f = './parameters_micro.pxi'
+    f = './parameters_micro_a1m.pxi'
     fh = open(f, 'w')
     fh.write('#' + message1)
     fh.write('\n')
@@ -110,7 +108,7 @@ def default_arctic():
     fh.close()
 
     # Now write the C include file
-    f = './Csrc/parameters_micro.h'
+    f = './Csrc/parameters_micro_a1m.h'
     fh = open(f, 'w')
     fh.write('//' + message1)
     for param in parameters:
@@ -118,13 +116,12 @@ def default_arctic():
     fh.write('//' + message2)
     fh.close()
 
-    print('Generated ./parameters_micro.pxi and '
+    print('Generated ./parameters_micro_a1m.pxi and '
           './Csrc/parameters_micro.h with the following values:')
     for param in parameters:
         print('\t' + param + ' = ' + str(parameters[param]))
 
     return
-
 
 if __name__ == "__main__":
     main()

@@ -6,7 +6,7 @@
 #include "thermodynamic_functions.h"
 #include <stdio.h>
 #include <math.h>
-#include "parameters_micro.h"
+#include "parameters_micro_a1m.h"
 #include "advection_interpolation.h"
 #include "microphysics.h"
 
