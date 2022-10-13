@@ -217,7 +217,8 @@ void microphysics_stokes_sedimentation_velocity(const struct DimStruct *dims, do
 //See Ackerman et al 2009 (DYCOMS-RF02 IC paper) Eq. 7
 
 
-double entropy_src_precipitation_c(const double p0, const double temperature, const double qt, const double qv, const double L, const double precip_rate){
+double entropy_src_precipitation_c(const double p0, const double temperature, const double qt, const double qv, 
+        const double L, const double precip_rate){
     double pd = pd_c(p0, qt, qv);
     double pv = pv_c(p0, qt, qv);
     double sd = sd_c(pd, temperature);
@@ -227,12 +228,27 @@ double entropy_src_precipitation_c(const double p0, const double temperature, co
     return -(sd - sv - sc) * precip_rate;
 };
 
-double entropy_src_evaporation_c(const double p0, const double temperature, double Tw, const double qt, const double qv, const double L, const double evap_rate){
+double entropy_src_evaporation_c(const double pv_star_T, const double p0, const double temperature, double Tw, 
+        const double qt, const double qv, const double L, const double evap_rate){
     double pd = pd_c(p0, qt, qv);
     double pv = pv_c(p0, qt, qv);
     double sd = sd_c(pd, temperature);
     double sv = sv_c(pv, Tw);
     double sc = sc_c(L, Tw);
+    double S_e = sv + sc - sd;
+    double S_d = -Rv*log(pv/pv_star_T) + cpv*log(temperature/Tw);
 
-    return -(sv + sc - sd) * evap_rate;
+    return  -(S_e + S_d)* evap_rate;
+};
+
+double a1m_entropy_src_evaporation_c(const double p0, const double temperature, double Tw, 
+        const double qt, const double qv, const double L, const double evap_rate){
+    double pd = pd_c(p0, qt, qv);
+    double pv = pv_c(p0, qt, qv);
+    double sd = sd_c(pd, temperature);
+    double sv = sv_c(pv, Tw);
+    double sc = sc_c(L, Tw);
+    double S_e = sv + sc - sd;
+
+    return  -S_e * evap_rate;
 };

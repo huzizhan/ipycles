@@ -401,7 +401,8 @@ void sb_si_entropy_source_evaporation(const struct DimStruct *dims, struct Looku
                 const ssize_t ijk = ishift + jshift + k;
                 double lam = lam_fp(temperature[ijk]);
                 double L = L_fp(temperature[ijk],lam);
-                entropy_tendency[ijk] += entropy_src_evaporation_c(p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L, evap_rate[ijk]);
+                const double pv_star_T = lookup(LT, temperature[ijk]);:
+                entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_T, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L, evap_rate[ijk]);
             }
         }
     }
