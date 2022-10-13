@@ -26,8 +26,8 @@ cdef extern from "microphysics.h":
 cdef extern from "scalar_advection.h":
     void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double *rho0_half, double *velocity, double *scalar, double* flux, int d, int scheme) nogil
     void compute_qt_sedimentation_s_source(Grid.DimStruct *dims, double *p0_half,  double* rho0_half, double *flux,
-                                           double* qt, double* qv, double* T, double* tendency, double (*lam_fp)(double),
-                                           double (*L_fp)(double, double), double dx, ssize_t d)nogil
+                             double* qt, double* qv, double* T, double* tendency, double (*lam_fp)(double),
+                             double (*L_fp)(double, double), double dx, ssize_t d)nogil
 
 cdef extern from "microphysics_sb.h":
     double sb_rain_shape_parameter_0(double density, double qr, double Dm) nogil
@@ -39,12 +39,12 @@ cdef extern from "microphysics_sb.h":
     double sb_droplet_nu_2(double density, double ql) nogil
     void sb_sedimentation_velocity_liquid(Grid.DimStruct *dims, double*  density, double ccn, double* ql, double* qt_velocity)nogil
     void sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
-                                        double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity) nogil
+                             double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity) nogil
     void sb_autoconversion_rain_wrapper(Grid.DimStruct *dims,  double (*droplet_nu)(double,double), double* density,
-                                        double ccn, double* ql, double* qr, double*  nr_tendency, double* qr_tendency) nogil
+                             double ccn, double* ql, double* qr, double*  nr_tendency, double* qr_tendency) nogil
     void sb_accretion_rain_wrapper(Grid.DimStruct *dims, double* density, double*  ql, double* qr, double* qr_tendency)nogil
     void sb_selfcollection_breakup_rain_wrapper(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
-                                            double* density, double* nr, double* qr, double*  nr_tendency)nogil
+                             double* density, double* nr, double* qr, double*  nr_tendency)nogil
     void sb_evaporation_rain_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double (*rain_mu)(double,double,double),  double* density, double* p0,  double* temperature,  double* qt,
                              double* ql, double* nr, double* qr, double* nr_tendency, double* qr_tendency)nogil
@@ -54,14 +54,18 @@ cdef extern from "microphysics_sb_liquid.h":
                              double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
                              double* density, double* p0, double* temperature,  double* qt, double ccn,
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
-                             double* nr_tendency, double* qr_tendency) nogil
+                             double* nr_tendency, double* qr_tendency, double* precip_rate, double* evap_rate) nogil
     void sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qt_tendency )nogil
-    void sb_entropy_source_formation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
-                                     double (*L_fp)(double, double), double* p0, double* T, double* Twet, double* qt,
-                                     double* qv, double* qr_tendency,  double*  entropy_tendency)nogil
-    void sb_entropy_source_heating(Grid.DimStruct *dims, double* T, double* Twet, double* qr, double* w_qr, double* w,
-                                   double* entropy_tendency)nogil
-    void sb_entropy_source_drag(Grid.DimStruct *dims, double* T,  double* qr, double* w_qr, double* entropy_tendency)nogil
+    void sb_liquid_entropy_source_evaporation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
+                             double (*L_fp)(double, double), double* p0, double* temperature,
+                             double* Twet, double* qt, double* qv, double* evap_rate, double* entropy_tendency)
+    void sb_liquid_entropy_source_precipitation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
+                             double (*L_fp)(double, double), double* p0, double* temperature,
+                             double* qt, double* qv, double* precip_rate, double* entropy_tendency)
+    void sb_liquid_entropy_source_heating_rain(Grid.DimStruct *dims, double* T, double* Twet, double* qrain,
+                             double* w_qrain, double* w,  double* entropy_tendency) nogil
+    void sb_liquid_entropy_source_drag(Grid.DimStruct *dims, double* T, double* qprec, double* w_qprec,
+                             double* entropy_tendency) nogil
 
 cdef extern from "isotope.h":
     void tracer_sb_liquid_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
@@ -96,7 +100,7 @@ cdef class Microphysics_SB_Liquid:
             self.ccn = namelist['microphysics']['ccn']
         except:
             pass
-        # Set option for calculation of mu (distribution shape parameter)
+        # Set option for calculation ofsb_liquid_ mu (distribution shape parameter)
         try:
             mu_opt = namelist['microphysics']['SB_Liquid']['mu_rain']
             if mu_opt == 1:
@@ -155,6 +159,10 @@ cdef class Microphysics_SB_Liquid:
         return
 
     cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+
+        self.precip_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.evap_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
         # add prognostic variables for mass and number of rain
         PV.add_variable('nr', '1/kg', r'n_r', 'rain droplet number concentration','sym','scalar',Pa)
         PV.add_variable('qr', 'kg/kg', r'q_r', 'rain water specific humidity','sym','scalar',Pa)
@@ -206,7 +214,8 @@ cdef class Microphysics_SB_Liquid:
         sb_liquid_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
                                 self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
                                 &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift] )
+                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
+                                &self.precip_rate[0], &self.evap_rate[0])
 
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
                                        &DV.values[wnr_shift], &DV.values[wqr_shift])
@@ -274,29 +283,27 @@ cdef class Microphysics_SB_Liquid:
             sb_qt_source_formation(&Gr.dims,  &qr_std_tend_micro[0], &PV.tendencies[qt_std_shift])
             sb_qt_source_formation(&Gr.dims,  &qr_iso_tend_micro[0], &PV.tendencies[qt_iso_shift])
         
-        # update the Boundary conditions and ghost cells of the sedimentation velocities
-        # wnr_nv = DV.name_index['w_nr']
-        # wqr_nv = DV.name_index['w_qr']
-        # DV.communicate_variable(Gr,Pa,wnr_nv)
-        # DV.communicate_variable(Gr,Pa,wqr_nv )
-
-        # sb_qt_source_formation(&Gr.dims,  &qr_tend_micro[0], &PV.tendencies[qt_shift])
 
         cdef:
             Py_ssize_t tw_shift = DV.get_varshift(Gr, 'temperature_wb')
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
 
         microphysics_wetbulb_temperature(&Gr.dims, &self.CC.LT.LookupStructC, &Ref.p0_half[0], &PV.values[s_shift],
-                                         &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
+                            &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
 
-        sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                                    &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift],
-                                    &qr_tend_micro[0], &PV.tendencies[s_shift])
+        sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+                            &self.precip_rate[0], &PV.tendencies[s_shift])
 
-        sb_entropy_source_heating(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
-                                  &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
+        sb_liquid_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+                            &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift],
+                            &DV.values[qv_shift], &self.evap_rate[0], &PV.tendencies[s_shift])
 
-        sb_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift], &PV.tendencies[s_shift])
+        sb_liquid_entropy_source_heating_rain(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
+                            &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
+
+        sb_liquid_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift],
+                            &PV.tendencies[s_shift])
 
         return
     
@@ -362,10 +369,9 @@ cdef class Microphysics_SB_Liquid:
         tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
         NS.write_profile('qr_autoconversion', tmp[gw:-gw], Pa)
         cdef double[:] s_auto =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                                  &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
+        sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+                                  &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift],
                                   &qr_tendency[0], &s_auto[0])
-
         tmp = Pa.HorizontalMean(Gr, &s_auto[0])
         NS.write_profile('s_autoconversion', tmp[gw:-gw], Pa)
 
@@ -375,9 +381,9 @@ cdef class Microphysics_SB_Liquid:
         tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
         NS.write_profile('qr_accretion', tmp[gw:-gw], Pa)
         cdef double[:] s_accr =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                                  &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
-                                  &qr_tendency[0], &s_accr[0])
+        sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+                            &qr_tendency[0], &s_accr[0])
         tmp = Pa.HorizontalMean(Gr, &s_accr[0])
         NS.write_profile('s_accretion', tmp[gw:-gw], Pa)
 
@@ -398,21 +404,20 @@ cdef class Microphysics_SB_Liquid:
         tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
         NS.write_profile('qr_evaporation', tmp[gw:-gw], Pa)
         cdef double[:] s_evp =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                                  &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
-                                  &qr_tendency[0], &s_evp[0])
+        sb_liquid_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+                            &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift],
+                            &DV.values[qv_shift], &qr_tendency[0], &s_evp[0])
         tmp = Pa.HorizontalMean(Gr, &s_evp[0])
         NS.write_profile('s_evaporation', tmp[gw:-gw], Pa)
 
-
         cdef double[:] s_heat =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        sb_entropy_source_heating(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
-                                  &DV.values[wqr_shift],  &PV.values[w_shift], &s_heat[0])
+        sb_liquid_entropy_source_heating_rain(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
+                            &DV.values[wqr_shift],  &PV.values[w_shift], &s_heat[0])
         tmp = Pa.HorizontalMean(Gr, &s_heat[0])
         NS.write_profile('s_precip_heating', tmp[gw:-gw], Pa)
 
         cdef double[:] s_drag =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        sb_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift], &s_drag[0])
+        sb_liquid_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift], &s_drag[0])
         tmp = Pa.HorizontalMean(Gr, &s_drag[0])
         NS.write_profile('s_precip_drag', tmp[gw:-gw], Pa)
 

@@ -1,4 +1,5 @@
 #pragma once
+#include "microphysics_arctic_1m.h"
 #include "parameters.h"
 #include "parameters_micro_sb.h"
 #include "microphysics.h"
@@ -13,7 +14,8 @@ void sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupS
                              double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
                              double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
                              double* restrict ql, double* restrict nr, double* restrict qr, double dt,
-                             double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency){
+                             double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
+                             double* restrict precip_rate, double*restrict evap_rate){
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
     //Temporal substepping is used to help ensure boundedness of moments
@@ -21,6 +23,7 @@ void sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupS
     double nr_tendency_au, nr_tendency_scbk, nr_tendency_evp;
     double qr_tendency_au, qr_tendency_ac,  qr_tendency_evp;
     double sat_ratio;
+    double precip_tmp, evap_tmp;
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -60,6 +63,10 @@ void sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupS
                     qr_tendency_au    = 0.0;
                     qr_tendency_ac    = 0.0;
                     qr_tendency_evp   = 0.0;
+                    
+                    precip_tmp = 0.0;
+                    evap_tmp = 0.0;
+
                     //obtain some parameters
                     rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
                     Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
@@ -86,6 +93,15 @@ void sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupS
                         //Don't adjust if we have reached the maximum iteration number
                         dt_ = fmax(dt_/rate, 1.0e-3);
                     }
+                    
+                    // precip_tmp is NEGATIVE if rain forms (+precip_tmp is to remove qt via precip formation);
+                    // evap_tmp is NEGATIVE if rain evaporate (-evap_tmp is to add qt via evap/subl);
+                    precip_tmp = - qr_tendency_au - qr_tendency_ac;
+                    evap_tmp = qr_tendency_evp;
+
+                    precip_rate[ijk] += precip_tmp * dt_;
+                    evap_rate[ijk] += evap_tmp * dt_;
+                                                                 //
                     //Integrate forward in time
                     ql_tmp += ql_tendency_tmp * dt_;
                     nr_tmp += nr_tendency_tmp * dt_;
@@ -101,6 +117,9 @@ void sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupS
                 qr_tendency_micro[ijk] = (qr_tmp - qr[ijk])/dt;
                 nr_tendency[ijk] += nr_tendency_micro[ijk];
                 qr_tendency[ijk] += qr_tendency_micro[ijk];
+
+                precip_rate[ijk] = precip_rate[ijk]/dt;
+                evap_rate[ijk] = evap_rate[ijk]/dt;
             }
         }
     }
@@ -239,3 +258,124 @@ void sb_entropy_source_drag(const struct DimStruct *dims, double* restrict T,  d
     return;
 }
 
+// entropy source functions which are adopted from arctic 1m scheme
+void sb_liquid_entropy_source_evaporation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
+                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
+                              double* restrict Twet, double* restrict qt, double* restrict qv,
+                              double* restrict evap_rate, double* restrict entropy_tendency){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    //entropy tendencies from evaporation of rain and sublimation of snow
+    //we use fact that P = d(qr)/dt > 0, E =  d(qr)/dt < 0
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                double lam = lam_fp(temperature[ijk]);
+                double L = L_fp(temperature[ijk],lam);
+
+                entropy_tendency[ijk] += entropy_src_evaporation_c(p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L, evap_rate[ijk]);
+            }
+        }
+    }
+    return;
+};
+
+void sb_liquid_entropy_source_precipitation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
+                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
+                              double* restrict qt, double* restrict qv,
+                              double* restrict precip_rate, double* restrict entropy_tendency){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    //entropy tendencies from formation of snow and rain
+    //we use fact that P = d(qr)/dt > 0, E =  d(qr)/dt < 0
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                double lam = lam_fp(temperature[ijk]);
+                double L = L_fp(temperature[ijk],lam);
+
+                entropy_tendency[ijk] += entropy_src_precipitation_c(p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
+
+            }
+        }
+    }
+    return;
+};
+
+void sb_liquid_entropy_source_heating_rain(const struct DimStruct *dims, double* restrict temperature, double* restrict Twet, double* restrict qrain,
+                               double* restrict w_qrain, double* restrict w,  double* restrict entropy_tendency){
+
+
+    //derivative of Twet is upwinded
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    const double dzi = 1.0/dims->dx[2];
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                entropy_tendency[ijk]+= qrain[ijk]*(fabs(w_qrain[ijk]) - w[ijk]) * cl * (Twet[ijk+1] - Twet[ijk])* dzi/temperature[ijk];
+            }
+        }
+    }
+    return;
+};
+
+void sb_liquid_entropy_source_drag(const struct DimStruct *dims, double* restrict temperature,  double* restrict qprec,
+                            double* restrict w_qprec, double* restrict entropy_tendency){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                entropy_tendency[ijk]+= g * qprec[ijk]* fabs(w_qprec[ijk])/ temperature[ijk];
+            }
+        }
+    }
+    return;
+};
