@@ -291,13 +291,13 @@ cdef class Microphysics_SB_Liquid:
         microphysics_wetbulb_temperature(&Gr.dims, &self.CC.LT.LookupStructC, &Ref.p0_half[0], &PV.values[s_shift],
                             &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
 
-        sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
-                            &self.precip_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
+        # sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+        #                     &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
+        #                     &self.precip_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
 
-        # sb_liquid_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-        #                     &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift],
-        #                     &self.evap_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
+        sb_liquid_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+                            &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+                            &self.evap_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
 
         sb_liquid_entropy_source_heating_rain(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
                             &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
