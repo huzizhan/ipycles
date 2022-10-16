@@ -288,7 +288,7 @@ void sb_liquid_entropy_source_precipitation(const struct DimStruct *dims, struct
                 // entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
 
                 // following function to calculate P is used in original SB06;
-                double precip_rate_tmp = -0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk]));
+                double precip_rate_tmp = 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk]));
                 entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate_tmp);
 
             }

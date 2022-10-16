@@ -219,13 +219,15 @@ void microphysics_stokes_sedimentation_velocity(const struct DimStruct *dims, do
 
 double entropy_src_precipitation_c(const double pv_sat_T, const double p0, const double temperature, 
         const double qt, const double qv, const double L, const double precip_rate){
-    double pd = pd_c(p0, qt, qv);
+    // double pd = pd_c(p0, qt, qv);
+    const double pv = pv_c(p0, qt, qv);
+    const double pd = p0 - pv;
     double sd = sd_c(pd, temperature);
     // double pv = pv_c(p0, qt, qv);
     double sv_star_t = sv_c(pv_sat_T, temperature);
     double sc = sc_c(L, temperature);
 
-    return -(sd - sv_star_t - sc) * precip_rate;
+    return (sd - sv_star_t - sc) * precip_rate;
 };
 
 double entropy_src_evaporation_c(const double pv_sat_Tw, const double p0, const double temperature, 
