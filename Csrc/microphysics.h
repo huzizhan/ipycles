@@ -230,17 +230,17 @@ double entropy_src_precipitation_c(const double pv_sat_T, const double p0, const
     return (sd - sv_star_t - sc) * precip_rate;
 };
 
-double entropy_src_evaporation_c(const double pv_sat_Tw, const double p0, const double temperature, 
-        double Tw, const double qt, const double qv, const double L_Tw, const double evap_rate){
-    // double pd = pd_c(p0, qt, qv);
-    const double pv = pv_c(p0, qt, qv);
-    const double pd = p0 - pv;
+double entropy_src_evaporation_c(const double pv_sat_T, const double pv_sat_Tw, const double p0, 
+        const double temperature, double Tw, const double qt, const double qv, const double L_Tw, const double evap_rate){
+    double pd = pd_c(p0, qt, qv);
+    // const double pv = pv_c(p0, qt, qv);
+    // const double pd = p0 - pv;
     double sd = sd_c(pd, temperature);
-    // double pv = pv_c(p0, qt, qv);
+    double pv = pv_c(p0, qt, qv);
     double sv_star_tw = sv_c(pv_sat_Tw, Tw);
     double sc = sc_c(L_Tw, Tw);
     double S_E = sv_star_tw + sc - sd;
-    double S_D = -Rv*log(pv/pv_sat_Tw) + cpv*log(temperature/Tw);
+    double S_D = -Rv*log(pv/pv_sat_T) + cpv*log(temperature/Tw);
     //
     return -S_D * evap_rate;
     // return -(sv_star_tw + sc - sd) * evap_rate;

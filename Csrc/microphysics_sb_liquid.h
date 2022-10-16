@@ -322,13 +322,15 @@ void sb_liquid_entropy_source_evaporation(const struct DimStruct *dims, struct L
                 const ssize_t ijk = ishift + jshift + k;
                 double lam_Tw = lam_fp(Twet[ijk]);
                 double L_Tw = L_fp(Twet[ijk],lam_Tw);
+                const double pv_star_T = lookup(LT, temperature[ijk]);
                 const double pv_star_Tw = lookup(LT, Twet[ijk]); 
                 // following function to calculate E is used in original Arc1m, where evap_rate is calculated during microphysics_source;
                 // entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate[ijk]);
 
                 // following function to calculate P is used in original SB06;
                 double evap_rate_tmp = 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk]));
-                entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate_tmp);
+                entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_T, pv_star_Tw, p0[k], temperature[ijk], 
+                        Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate_tmp);
             }
         }
     }
