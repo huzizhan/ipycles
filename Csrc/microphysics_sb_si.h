@@ -149,6 +149,14 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
+                
+                // ================================================
+                // ToDo: ICE_MIN_MASS and ICE_MAX_MASS need to defined
+                // ================================================
+                qr[ijk] = fmax(qr[ijk],0.0);
+                nr[ijk] = fmax(fmin(nr[ijk], qr[ijk]/RAIN_MIN_MASS),qr[ijk]/RAIN_MAX_MASS);
+                qi[ijk] = fmax(qi[ijk],0.0);
+                ni[ijk] = fmax(fmin(ni[ijk], qi[ijk]/RAIN_MIN_MASS),qi[ijk]/RAIN_MAX_MASS);
 
                 double qv_tmp = qt[ijk] - fmax(ql[ijk],0.0);
                 double qt_tmp = qt[ijk];
@@ -377,6 +385,47 @@ void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restric
     return;
 }
 
+void sb_si_entropy_source_precipitation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
+                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
+                              double* restrict qt, double* restrict qv,
+                              double* restrict precip_rate, double* restrict entropy_tendency){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    //entropy tendencies from formation of snow and rain
+    //we use fact that P = d(qr)/dt > 0, E =  d(qr)/dt < 0
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                double lam = lam_fp(temperature[ijk]);
+                double L = L_fp(temperature[ijk],lam);
+                double pv_star_T = lookup(LT, temperature[ijk]);
+
+                // following function to calculate P is used in original Arc1m, where precip_rate is calculated during microphysics_source;
+                // precip_rate[ijk] < 0.0; so need make -precip_rate[ijk] 
+                double precip_rate_tmp = -precip_rate[ijk];
+
+                // following function to calculate P is used in original SB06;
+                // precip_rate_tmp > 0.0;
+                // double precip_rate_tmp = 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk]));
+                
+                entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate_tmp);
+            }
+        }
+    }
+    return;
+};
+
 void sb_si_entropy_source_evaporation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
                               double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
                               double* restrict Twet, double* restrict qt, double* restrict qv,
@@ -403,39 +452,16 @@ void sb_si_entropy_source_evaporation(const struct DimStruct *dims, struct Looku
                 double L_Tw = L_fp(Twet[ijk],lam_Tw);
                 const double pv_star_T = lookup(LT, temperature[ijk]);
                 const double pv_star_Tw = lookup(LT, Twet[ijk]); 
-                entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_T, pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate[ijk]);
-            }
-        }
-    }
-    return;
-};
 
-void sb_si_entropy_source_precipitation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
-                              double* restrict qt, double* restrict qv,
-                              double* restrict precip_rate, double* restrict entropy_tendency){
+                // following function to calculate E is used in original Arc1m, where evap_rate is calculated during microphysics_source;
+                // evaporate rate E < 0.0;
+                double evap_rate_tmp = - evap_rate[ijk];
 
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
+                // following function to calculate P is used in original SB06;
+                // evap_rate_tmp > 0.0;
+                // double evap_rate_tmp = 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk]));
 
-    //entropy tendencies from formation of snow and rain
-    //we use fact that P = d(qr)/dt > 0, E =  d(qr)/dt < 0
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                double lam = lam_fp(temperature[ijk]);
-                double L = L_fp(temperature[ijk],lam);
-                double pv_star_T = lookup(LT, temperature[ijk]);
-                entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
+                entropy_tendency[ijk] -= entropy_src_evaporation_c(pv_star_T, pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate_tmp);
             }
         }
     }

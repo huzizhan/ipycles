@@ -285,9 +285,11 @@ void sb_liquid_entropy_source_precipitation(const struct DimStruct *dims, struct
                 double pv_star_T = lookup(LT, temperature[ijk]);
 
                 // following function to calculate P is used in original Arc1m, where precip_rate is calculated during microphysics_source;
-                // entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
+                // precip_rate[ijk] < 0.0; so need make -precip_rate[ijk] 
+                // double precip_rate_tmp = -precip_rate[ijk];
 
                 // following function to calculate P is used in original SB06;
+                // precip_rate_tmp > 0.0;
                 double precip_rate_tmp = 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk]));
                 entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate_tmp);
 
@@ -325,12 +327,13 @@ void sb_liquid_entropy_source_evaporation(const struct DimStruct *dims, struct L
                 const double pv_star_T = lookup(LT, temperature[ijk]);
                 const double pv_star_Tw = lookup(LT, Twet[ijk]); 
                 // following function to calculate E is used in original Arc1m, where evap_rate is calculated during microphysics_source;
-                // entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate[ijk]);
+                // evaporate rate E < 0.0;
+                // double evap_rate_tmp = - evap_rate[ijk];
 
                 // following function to calculate P is used in original SB06;
+                // evap_rate_tmp > 0.0;
                 double evap_rate_tmp = 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk]));
-                entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_T, pv_star_Tw, p0[k], temperature[ijk], 
-                        Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate_tmp);
+                entropy_tendency[ijk] -= entropy_src_evaporation_c(pv_star_T, pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate_tmp);
             }
         }
     }

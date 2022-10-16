@@ -219,29 +219,25 @@ void microphysics_stokes_sedimentation_velocity(const struct DimStruct *dims, do
 
 double entropy_src_precipitation_c(const double pv_sat_T, const double p0, const double temperature, 
         const double qt, const double qv, const double L, const double precip_rate){
-    // double pd = pd_c(p0, qt, qv);
-    const double pv = pv_c(p0, qt, qv);
-    const double pd = p0 - pv;
+    double pd = pd_c(p0, qt, qv);
     double sd = sd_c(pd, temperature);
-    // double pv = pv_c(p0, qt, qv);
+    double pv = pv_c(p0, qt, qv);
     double sv_star_t = sv_c(pv_sat_T, temperature);
     double sc = sc_c(L, temperature);
+    double S_P = sd - sv_star_t - sc;
 
-    return (sd - sv_star_t - sc) * precip_rate;
+    return S_P * precip_rate;
 };
 
 double entropy_src_evaporation_c(const double pv_sat_T, const double pv_sat_Tw, const double p0, 
         const double temperature, double Tw, const double qt, const double qv, const double L_Tw, const double evap_rate){
     double pd = pd_c(p0, qt, qv);
-    // const double pv = pv_c(p0, qt, qv);
-    // const double pd = p0 - pv;
-    double sd = sd_c(pd, temperature);
     double pv = pv_c(p0, qt, qv);
+    double sd = sd_c(pd, temperature);
     double sv_star_tw = sv_c(pv_sat_Tw, Tw);
     double sc = sc_c(L_Tw, Tw);
     double S_E = sv_star_tw + sc - sd;
     double S_D = -Rv*log(pv/pv_sat_T) + cpv*log(temperature/Tw);
     //
-    return -S_D * evap_rate;
-    // return -(sv_star_tw + sc - sd) * evap_rate;
+    return (S_E + S_D) * evap_rate;
 };
