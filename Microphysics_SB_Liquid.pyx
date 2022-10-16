@@ -56,12 +56,12 @@ cdef extern from "microphysics_sb_liquid.h":
                              double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
                              double* nr_tendency, double* qr_tendency, double* precip_rate, double* evap_rate) nogil
     void sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qt_tendency )nogil
-    void sb_liquid_entropy_source_evaporation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
-                             double (*L_fp)(double, double), double* p0, double* temperature,
-                             double* Twet, double* qt, double* qv, double* evap_rate, double* entropy_tendency)
     void sb_liquid_entropy_source_precipitation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
                              double (*L_fp)(double, double), double* p0, double* temperature,
-                             double* qt, double* qv, double* precip_rate, double* entropy_tendency)
+                             double* qt, double* qv, double* precip_rate, double* qr_tendency, double* entropy_tendency)
+    void sb_liquid_entropy_source_evaporation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
+                             double (*L_fp)(double, double), double* p0, double* temperature, double* Twet, double* qt, 
+                             double* qv, double* evap_rate, double* qr_tendency, double* entropy_tendency)
     void sb_liquid_entropy_source_heating_rain(Grid.DimStruct *dims, double* T, double* Twet, double* qrain,
                              double* w_qrain, double* w,  double* entropy_tendency) nogil
     void sb_liquid_entropy_source_drag(Grid.DimStruct *dims, double* T, double* qprec, double* w_qprec,
@@ -292,12 +292,12 @@ cdef class Microphysics_SB_Liquid:
                             &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
 
         sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift],
-                            &self.precip_rate[0], &PV.tendencies[s_shift])
+                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
+                            &self.precip_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
 
         sb_liquid_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                            &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift],
-                            &DV.values[qv_shift], &self.evap_rate[0], &PV.tendencies[s_shift])
+                            &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+                            &self.evap_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
 
         sb_liquid_entropy_source_heating_rain(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
                             &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
@@ -370,7 +370,7 @@ cdef class Microphysics_SB_Liquid:
         NS.write_profile('qr_autoconversion', tmp[gw:-gw], Pa)
         cdef double[:] s_auto =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                                  &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+                                  &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], &self.precip_rate[0], 
                                   &qr_tendency[0], &s_auto[0])
         tmp = Pa.HorizontalMean(Gr, &s_auto[0])
         NS.write_profile('s_autoconversion', tmp[gw:-gw], Pa)
@@ -382,7 +382,7 @@ cdef class Microphysics_SB_Liquid:
         NS.write_profile('qr_accretion', tmp[gw:-gw], Pa)
         cdef double[:] s_accr =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], &self.evap_rate[0],
                             &qr_tendency[0], &s_accr[0])
         tmp = Pa.HorizontalMean(Gr, &s_accr[0])
         NS.write_profile('s_accretion', tmp[gw:-gw], Pa)
@@ -406,7 +406,7 @@ cdef class Microphysics_SB_Liquid:
         cdef double[:] s_evp =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         sb_liquid_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
                             &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift],
-                            &DV.values[qv_shift], &qr_tendency[0], &s_evp[0])
+                            &DV.values[qv_shift], &self.evap_rate[0], &qr_tendency[0], &s_evp[0])
         tmp = Pa.HorizontalMean(Gr, &s_evp[0])
         NS.write_profile('s_evaporation', tmp[gw:-gw], Pa)
 

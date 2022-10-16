@@ -399,10 +399,10 @@ void sb_si_entropy_source_evaporation(const struct DimStruct *dims, struct Looku
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                double lam = lam_fp(temperature[ijk]);
-                double L = L_fp(temperature[ijk],lam);
-                const double pv_star_T = lookup(LT, temperature[ijk]);:
-                entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_T, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L, evap_rate[ijk]);
+                double lam_Tw = lam_fp(Twet[ijk]);
+                double L_Tw = L_fp(Twet[ijk],lam_Tw);
+                const double pv_star_Tw = lookup(LT, Twet[ijk]); 
+                entropy_tendency[ijk] += entropy_src_evaporation_c(pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate[ijk]);
             }
         }
     }
@@ -433,7 +433,8 @@ void sb_si_entropy_source_precipitation(const struct DimStruct *dims, struct Loo
                 const ssize_t ijk = ishift + jshift + k;
                 double lam = lam_fp(temperature[ijk]);
                 double L = L_fp(temperature[ijk],lam);
-                entropy_tendency[ijk] += entropy_src_precipitation_c(p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
+                double pv_star_T = lookup(LT, temperature[ijk]);
+                entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
             }
         }
     }

@@ -659,25 +659,25 @@ void qt_source_formation(const struct DimStruct *dims, double* restrict qt_tende
     return;
 };
 
-// double entropy_src_precipitation_c(const double p0, const double temperature, const double qt, const double qv, const double L, const double precip_rate){
-//     double pd = pd_c(p0, qt, qv);
-//     double pv = pv_c(p0, qt, qv);
-//     double sd = sd_c(pd, temperature);
-//     double sv = sv_c(pv, temperature);
-//     double sc = sc_c(L, temperature);
-//
-//     return -(sd - sv - sc) * precip_rate;
-// };
-//
-// double entropy_src_evaporation_c(const double p0, const double temperature, double Tw, const double qt, const double qv, const double L, const double evap_rate){
-//     double pd = pd_c(p0, qt, qv);
-//     double pv = pv_c(p0, qt, qv);
-//     double sd = sd_c(pd, temperature);
-//     double sv = sv_c(pv, Tw);
-//     double sc = sc_c(L, Tw);
-//
-//     return -(sv + sc - sd) * evap_rate;
-// };
+double a1m_entropy_src_precipitation_c(const double p0, const double temperature, const double qt, const double qv, const double L, const double precip_rate){
+    double pd = pd_c(p0, qt, qv);
+    double pv = pv_c(p0, qt, qv);
+    double sd = sd_c(pd, temperature);
+    double sv = sv_c(pv, temperature);
+    double sc = sc_c(L, temperature);
+
+    return -(sd - sv - sc) * precip_rate;
+};
+
+double a1m_entropy_src_evaporation_c(const double p0, const double temperature, double Tw, const double qt, const double qv, const double L, const double evap_rate){
+    double pd = pd_c(p0, qt, qv);
+    double pv = pv_c(p0, qt, qv);
+    double sd = sd_c(pd, temperature);
+    double sv = sv_c(pv, Tw);
+    double sc = sc_c(L, Tw);
+
+    return -(sv + sc - sd) * evap_rate;
+};
 
 void entropy_source_evaporation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
                               double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
@@ -740,7 +740,7 @@ void entropy_source_precipitation(const struct DimStruct *dims, struct LookupStr
                 double lam = lam_fp(temperature[ijk]);
                 double L = L_fp(temperature[ijk],lam);
 
-                entropy_tendency[ijk] += entropy_src_precipitation_c(p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
+                entropy_tendency[ijk] += a1m_entropy_src_precipitation_c(p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate[ijk]);
 
             }
         }
