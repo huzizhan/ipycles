@@ -69,13 +69,13 @@ cdef extern from "microphysics_sb_si.h":
                                     double* entropy_tendency) nogil
     void sb_si_entropy_source_evaporation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
                                     double (*L_fp)(double, double), double* p0, double* temperature,
-                                    double* Twet, double* qt, double* qv, double* evap_rate, double* entropy_tendency)
+                                    double* Twet, double* qt, double* qv, double* qr_tend, double* evap_rate, double* entropy_tendency)
     void sb_si_entropy_source_precipitation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
                                     double (*L_fp)(double, double), double* p0, double* temperature,
-                                    double* qt, double* qv, double* precip_rate, double* entropy_tendency)
+                                    double* qt, double* qv, double* qr_tend, double* precip_rate, double* entropy_tendency)
     void sb_si_entropy_source_melt(Grid.DimStruct *dims, double* temperature, double* melt_rate, double* entropy_tendency)
 
-cdef class Microphysics_SB_Liquid:
+cdef class Microphysics_SB_SI:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
         # Create the appropriate linkages to the bulk thermodynamics
         LH.Lambda_fp = lambda_constant
@@ -159,6 +159,11 @@ cdef class Microphysics_SB_Liquid:
 
     cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
                      NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        # Define the precip_rate, evap_rate and melt_rate for entropy source calculation. 
+        self.precip_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
+        self.evap_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
+        self.melt_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
+        
         # add prognostic variables for mass and number of rain
         PV.add_variable('nr', '1/kg', r'n_r', 'rain droplet number concentration','sym','scalar',Pa)
         PV.add_variable('qr', 'kg/kg', r'q_r', 'rain water specific humidity','sym','scalar',Pa)
@@ -175,10 +180,18 @@ cdef class Microphysics_SB_Liquid:
             DV.add_variables('w_qt', 'm/s', r'w_ql', 'cloud liquid water sedimentation velocity', 'sym', Pa)
             NS.add_profile('qt_sedimentation_flux', Gr, Pa)
             NS.add_profile('s_qt_sedimentation_source',Gr,Pa)
-        # add wet bulb temperature DV.add_variables('temperature_wb', 'K', r'T_{wb}','wet bulb temperature','sym', Pa) Define the precip_rate, evap_rate and melt_rate for entropy source calculation. self.precip_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') self.evap_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') self.melt_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') add statistical output for the class NS.add_profile('qr_sedimentation_flux', Gr, Pa) NS.add_profile('nr_sedimentation_flux', Gr, Pa) NS.add_profile('qr_autoconversion', Gr, Pa) NS.add_profile('nr_autoconversion', Gr, Pa) NS.add_profile('qi_sedimentation_flux', Gr, Pa) NS.add_profile('ni_sedimentation_flux', Gr, Pa)
+        # add wet bulb temperature 
+        DV.add_variables('temperature_wb', 'K', r'T_{wb}','wet bulb temperature','sym', Pa) 
+        
+        # add statistical output for the class 
+        NS.add_profile('qr_sedimentation_flux', Gr, Pa) 
+        NS.add_profile('nr_sedimentation_flux', Gr, Pa) 
+        NS.add_profile('qr_autoconversion', Gr, Pa) 
+        NS.add_profile('nr_autoconversion', Gr, Pa) 
+        NS.add_profile('qi_sedimentation_flux', Gr, Pa) 
+        NS.add_profile('ni_sedimentation_flux', Gr, Pa)
         NS.add_profile('qi_autoconversion', Gr, Pa)
         NS.add_profile('ni_autoconversion', Gr, Pa)
-
         NS.add_profile('s_autoconversion', Gr, Pa)
         NS.add_profile('nr_selfcollection', Gr, Pa)
         NS.add_profile('qr_accretion', Gr, Pa)
@@ -244,12 +257,12 @@ cdef class Microphysics_SB_Liquid:
                                           &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
 
         sb_si_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                                     &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+                                     &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], &qr_tend_micro[0],
                                      &self.precip_rate[0], &PV.tendencies[s_shift])
 
         sb_si_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                                   &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift],
-                                   &DV.values[qv_shift], &self.evap_rate[0], &PV.tendencies[s_shift])
+                                   &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
+                                   &qr_tend_micro[0], &self.evap_rate[0], &PV.tendencies[s_shift])
 
         sb_si_entropy_source_melt(&Gr.dims, &DV.values[t_shift], &self.melt_rate[0], &PV.tendencies[s_shift])
 

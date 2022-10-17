@@ -229,22 +229,22 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     ice_vel  = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
 
                     //compute the source terms
-                    sb_nucleation_ice(sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
+                    // sb_nucleation_ice(sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
-                    sb_freezing_ice(droplet_nu, temperature[ijk], density[k], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
-                            &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
-                    sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, ice_vel,
-                            qi_tmp, ni_tmp, &qi_tendency_dep, &ni_tendency_dep);
+                    // sb_freezing_ice(droplet_nu, temperature[ijk], density[k], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
+                    //         &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
+                    // sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, ice_vel,
+                    //         qi_tmp, ni_tmp, &qi_tendency_dep, &ni_tendency_dep);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
-                    sb_accretion_cloud_ice(liquid_mass, Dm_l, ice_mass, Dm_i, ice_vel, nl, ql_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
+                    // sb_accretion_cloud_ice(liquid_mass, Dm_l, ice_mass, Dm_i, ice_vel, nl, ql_tmp, ni_tmp, qi_tmp, 
+                    //         sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
                     sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
                     // ================================================
                     // TODO: the evaporation processes of single ice are still missing.
                     // ================================================
-                    sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qi_tendency_evap);
-                    sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
+                    // sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qi_tendency_evap);
+                    // sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
 
                     //find the maximum substep time
                     dt_ = dt - time_added;
@@ -387,7 +387,7 @@ void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restric
 
 void sb_si_entropy_source_precipitation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
                               double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
-                              double* restrict qt, double* restrict qv,
+                              double* restrict qt, double* restrict qv, double* restrict qr_tendency,
                               double* restrict precip_rate, double* restrict entropy_tendency){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
@@ -413,11 +413,11 @@ void sb_si_entropy_source_precipitation(const struct DimStruct *dims, struct Loo
 
                 // following function to calculate P is used in original Arc1m, where precip_rate is calculated during microphysics_source;
                 // precip_rate[ijk] < 0.0; so need make -precip_rate[ijk] 
-                double precip_rate_tmp = -precip_rate[ijk];
+                // double precip_rate_tmp = -precip_rate[ijk];
 
                 // following function to calculate P is used in original SB06;
                 // precip_rate_tmp > 0.0;
-                // double precip_rate_tmp = 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk]));
+                double precip_rate_tmp = 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk]));
                 
                 entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate_tmp);
             }
@@ -428,7 +428,7 @@ void sb_si_entropy_source_precipitation(const struct DimStruct *dims, struct Loo
 
 void sb_si_entropy_source_evaporation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
                               double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
-                              double* restrict Twet, double* restrict qt, double* restrict qv,
+                              double* restrict Twet, double* restrict qt, double* restrict qv, double* restrict qr_tendency,
                               double* restrict evap_rate, double* restrict entropy_tendency){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
@@ -455,11 +455,11 @@ void sb_si_entropy_source_evaporation(const struct DimStruct *dims, struct Looku
 
                 // following function to calculate E is used in original Arc1m, where evap_rate is calculated during microphysics_source;
                 // evaporate rate E < 0.0;
-                double evap_rate_tmp = - evap_rate[ijk];
+                // double evap_rate_tmp = - evap_rate[ijk];
 
                 // following function to calculate P is used in original SB06;
                 // evap_rate_tmp > 0.0;
-                // double evap_rate_tmp = 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk]));
+                double evap_rate_tmp = 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk]));
 
                 entropy_tendency[ijk] -= entropy_src_evaporation_c(pv_star_T, pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate_tmp);
             }

@@ -7,7 +7,7 @@ cimport TimeStepping
 from NetCDFIO cimport NetCDFIO_Stats
 from Thermodynamics cimport LatentHeat, ClausiusClapeyron
 
-cdef class Microphysics_SB_Liquid:
+cdef class Microphysics_SB_SI:
     # Make the thermodynamics_type member available from Python-Space
     cdef public:
         str thermodynamics_type
