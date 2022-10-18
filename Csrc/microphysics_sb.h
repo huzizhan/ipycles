@@ -250,12 +250,12 @@ void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr
     return;
 }
 
-void sb_nucleation_ice(double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
+void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
 
     double n_in = N_M92*exp(A_M92 + B_M92*S_i);
     double ni_tend_tmp;
 
-    if (S_i < 0.0 || ni >= n_in || ni < SB_EPS){
+    if (temperature > T_ICE || S_i < 0.0 || ni >= n_in || ni < SB_EPS){
         ni_tend_tmp = 0.0;
     }
     else{
@@ -269,7 +269,7 @@ void sb_deposition_ice(struct LookupStruct *LT,  double (*lam_fp)(double), doubl
         double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
         double qi, double ni, double* qi_tendency, double* ni_tendency){
     
-    if(qi < SB_EPS || ni < SB_EPS){
+    if(temperature > T_ICE || qi < SB_EPS || ni < SB_EPS){
         *ni_tendency = 0.0;
         *qi_tendency = 0.0;
     }

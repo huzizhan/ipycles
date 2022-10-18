@@ -36,6 +36,7 @@ cdef double A_RAIN_SED = 9.65
 cdef double B_RAIN_SED = 9.796
 cdef double C_RAIN_SED = 600.0
 cdef double A_NU_SQ = 827.6940145956895
+cdef double T_ICE = 235.0
 cdef double ICE_MAX_MASS = 5.2e-07
 cdef double ICE_MIN_MASS = 2.6e-10
 cdef double N_M92 = 1000.0

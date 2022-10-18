@@ -229,12 +229,12 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     ice_vel  = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
 
                     //compute the source terms
-                    // sb_nucleation_ice(sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
+                    sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
                     // sb_freezing_ice(droplet_nu, temperature[ijk], density[k], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
                     //         &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
-                    // sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, ice_vel,
-                    //         qi_tmp, ni_tmp, &qi_tendency_dep, &ni_tendency_dep);
+                    sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, ice_vel,
+                            qi_tmp, ni_tmp, &qi_tendency_dep, &ni_tendency_dep);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
                     // sb_accretion_cloud_ice(liquid_mass, Dm_l, ice_mass, Dm_i, ice_vel, nl, ql_tmp, ni_tmp, qi_tmp, 
                     //         sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
