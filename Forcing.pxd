@@ -114,6 +114,7 @@ cdef class ForcingIsdac:
         double [:] ls_adv_qt
         double [:] ls_adv_t
         double divergence
+        bint isotope_tracers
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,

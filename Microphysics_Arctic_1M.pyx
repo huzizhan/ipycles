@@ -151,6 +151,15 @@ cdef class Microphysics_Arctic_1M:
         self.CC = ClausiusClapeyron()
         self.CC.initialize(namelist, LH, Par)
 
+        # define the isotope tracers components 
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
+
         return
 
     cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -259,53 +268,71 @@ cdef class Microphysics_Arctic_1M:
 
         # Tracer source terms, including std and iso
         cdef:
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
-            Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
-            Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
-            Py_ssize_t qi_std_shift = PV.get_varshift(Gr,'qi_std')
-            Py_ssize_t qrain_std_shift = PV.get_varshift(Gr,'qrain_std')
-            Py_ssize_t qsnow_std_shift = PV.get_varshift(Gr,'qsnow_std')
-            Py_ssize_t wqrain_std_shift = DV.get_varshift(Gr,'w_qrain_std')
-            Py_ssize_t wqsnow_std_shift = DV.get_varshift(Gr,'w_qsnow_std')
+            Py_ssize_t qt_std_shift
+            Py_ssize_t qv_std_shift
+            Py_ssize_t ql_std_shift
+            Py_ssize_t qi_std_shift
+            Py_ssize_t qrain_std_shift
+            Py_ssize_t qsnow_std_shift
+            Py_ssize_t wqrain_std_shift
+            Py_ssize_t wqsnow_std_shift
             double [:] qrain_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double [:] qsnow_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
-            Py_ssize_t qv_iso_shift = PV.get_varshift(Gr,'qv_iso')
-            Py_ssize_t ql_iso_shift = PV.get_varshift(Gr,'ql_iso')
-            Py_ssize_t qi_iso_shift = PV.get_varshift(Gr,'qi_iso')
-            Py_ssize_t qsnow_iso_shift = PV.get_varshift(Gr,'qsnow_iso')
-            Py_ssize_t qrain_iso_shift = PV.get_varshift(Gr,'qrain_iso')
-            Py_ssize_t wqrain_iso_shift = DV.get_varshift(Gr,'w_qrain_iso')
-            Py_ssize_t wqsnow_iso_shift = DV.get_varshift(Gr,'w_qsnow_iso')
+            Py_ssize_t qt_iso_shift
+            Py_ssize_t qv_iso_shift
+            Py_ssize_t ql_iso_shift
+            Py_ssize_t qi_iso_shift
+            Py_ssize_t qsnow_iso_shift
+            Py_ssize_t qrain_iso_shift
+            Py_ssize_t wqrain_iso_shift
+            Py_ssize_t wqsnow_iso_shift
             double [:] qrain_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double [:] qsnow_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double [:] precip_rate_iso = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double [:] evap_rate_iso = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        
-        # Calculation of sources
-        tracer_arctic1m_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.rho0_half[0],
-                             &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, self.n0_ice_input,
-                             &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift], &PV.values[qrain_std_shift], &DV.values[nrain_shift],
-                             &PV.values[qsnow_std_shift], &DV.values[nsnow_shift], TS.dt,
-                             &PV.values[ql_std_shift], &PV.values[qi_std_shift],
-                             &qrain_std_tend_micro[0], &PV.tendencies[qrain_std_shift],
-                             &qsnow_std_tend_micro[0], &PV.tendencies[qsnow_std_shift], &self.precip_rate[0], &self.evap_rate[0],&self.melt_rate[0],
-                             &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift], &PV.values[qi_iso_shift], &PV.values[qrain_iso_shift], &PV.values[qsnow_iso_shift],
-                             &PV.tendencies[qrain_iso_shift], &qrain_iso_tend_micro[0], &PV.tendencies[qsnow_iso_shift], &qsnow_iso_tend_micro[0], &precip_rate_iso[0], &evap_rate_iso[0])
-        
-        sedimentation_velocity_rain(&Gr.dims, &Ref.rho0_half[0], &DV.values[nrain_shift], &PV.values[qrain_shift],
-                                    &DV.values[wqrain_std_shift])
-        sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], &DV.values[nsnow_shift], &PV.values[qsnow_shift],
-                                    &DV.values[wqsnow_std_shift])
+       
+        if self.isotope_tracers:
+            qt_std_shift = PV.get_varshift(Gr,'qt_std')
+            qv_std_shift = PV.get_varshift(Gr,'qv_std')
+            ql_std_shift = PV.get_varshift(Gr,'ql_std')
+            qi_std_shift = PV.get_varshift(Gr,'qi_std')
+            qrain_std_shift = PV.get_varshift(Gr,'qrain_std')
+            qsnow_std_shift = PV.get_varshift(Gr,'qsnow_std')
+            wqrain_std_shift = DV.get_varshift(Gr,'w_qrain_std')
+            wqsnow_std_shift = DV.get_varshift(Gr,'w_qsnow_std')
+            qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
+            qv_iso_shift = PV.get_varshift(Gr,'qv_iso')
+            ql_iso_shift = PV.get_varshift(Gr,'ql_iso')
+            qi_iso_shift = PV.get_varshift(Gr,'qi_iso')
+            qsnow_iso_shift = PV.get_varshift(Gr,'qsnow_iso')
+            qrain_iso_shift = PV.get_varshift(Gr,'qrain_iso')
+            wqrain_iso_shift = DV.get_varshift(Gr,'w_qrain_iso')
+            wqsnow_iso_shift = DV.get_varshift(Gr,'w_qsnow_iso')
 
-        sedimentation_velocity_rain(&Gr.dims, &Ref.rho0_half[0], &DV.values[nrain_shift], &PV.values[qrain_shift],
-                                    &DV.values[wqrain_iso_shift])
-        sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], &DV.values[nsnow_shift], &PV.values[qsnow_shift],
-                                    &DV.values[wqsnow_iso_shift])
+            # Calculation of sources
+            tracer_arctic1m_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.rho0_half[0],
+                                 &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, self.n0_ice_input,
+                                 &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift], &PV.values[qrain_std_shift], &DV.values[nrain_shift],
+                                 &PV.values[qsnow_std_shift], &DV.values[nsnow_shift], TS.dt,
+                                 &PV.values[ql_std_shift], &PV.values[qi_std_shift],
+                                 &qrain_std_tend_micro[0], &PV.tendencies[qrain_std_shift],
+                                 &qsnow_std_tend_micro[0], &PV.tendencies[qsnow_std_shift], &self.precip_rate[0], &self.evap_rate[0],&self.melt_rate[0],
+                                 &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift], &PV.values[qi_iso_shift], &PV.values[qrain_iso_shift], &PV.values[qsnow_iso_shift],
+                                 &PV.tendencies[qrain_iso_shift], &qrain_iso_tend_micro[0], &PV.tendencies[qsnow_iso_shift], &qsnow_iso_tend_micro[0], &precip_rate_iso[0], &evap_rate_iso[0])
+            
+            sedimentation_velocity_rain(&Gr.dims, &Ref.rho0_half[0], &DV.values[nrain_shift], &PV.values[qrain_shift],
+                                        &DV.values[wqrain_std_shift])
+            sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], &DV.values[nsnow_shift], &PV.values[qsnow_shift],
+                                        &DV.values[wqsnow_std_shift])
 
-        qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], &self.precip_rate[0], &self.evap_rate[0])
-        qt_source_formation(&Gr.dims, &PV.tendencies[qt_iso_shift], &precip_rate_iso[0], &evap_rate_iso[0])
+            sedimentation_velocity_rain(&Gr.dims, &Ref.rho0_half[0], &DV.values[nrain_shift], &PV.values[qrain_shift],
+                                        &DV.values[wqrain_iso_shift])
+            sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], &DV.values[nsnow_shift], &PV.values[qsnow_shift],
+                                        &DV.values[wqsnow_iso_shift])
+
+            qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], &self.precip_rate[0], &self.evap_rate[0])
+            qt_source_formation(&Gr.dims, &PV.tendencies[qt_iso_shift], &precip_rate_iso[0], &evap_rate_iso[0])
 
         #Entropy tendencies due to microphysics
         microphysics_wetbulb_temperature(&Gr.dims, &self.CC.LT.LookupStructC, &Ref.p0_half[0], &PV.values[s_shift],
@@ -333,7 +360,6 @@ cdef class Microphysics_Arctic_1M:
 
         entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qsnow_shift], &DV.values[wqsnow_shift],
                             &PV.tendencies[s_shift])
-
 
         return
 
