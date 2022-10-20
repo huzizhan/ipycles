@@ -34,7 +34,6 @@ cdef extern from "thermodynamic_functions.h":
     # Water vapor partial pressure
     double pv_c(double p0, double qt, double qv) nogil
 
-
 cdef extern from "entropies.h":
     # Specific entropy of dry air
     double sd_c(double pd, double T) nogil
@@ -42,7 +41,6 @@ cdef extern from "entropies.h":
     double sv_c(double pv, double T) nogil
     # Specific entropy of condensed water
     double sc_c(double L, double T) nogil
-
 
 cdef class ThermodynamicsSA:
     def __init__(self, dict namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
@@ -272,9 +270,7 @@ cdef class ThermodynamicsSA:
             double[:] data = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] tmp
 
-
-
-        # Ouput profiles of thetas
+        # Ouput profiles of thetas: 
         with nogil:
             count = 0
             for i in range(imin, imax):
@@ -286,8 +282,6 @@ cdef class ThermodynamicsSA:
                         data[count] = thetas_c(PV.values[s_shift + ijk], PV.values[qt_shift + ijk])
 
                         count += 1
-
-
 
         # Compute and write mean
 
@@ -327,7 +321,6 @@ cdef class ThermodynamicsSA:
                         ijk = ishift + jshift + k
                         data[count] = theta_c(RS.p0_half[k], DV.values[t_shift + ijk])
                         count += 1
-
         # Compute and write mean
         tmp = Pa.HorizontalMean(Gr, &data[0])
         NS.write_profile('theta_mean', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
@@ -351,10 +344,8 @@ cdef class ThermodynamicsSA:
         NS.write_ts('theta_min', np.amin(tmp[Gr.dims.gw:-Gr.dims.gw]), Pa)
 
 
-        cdef:
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             double pv_star, pv
-
 
         # Ouput profiles of relative humidity
         with nogil:
@@ -370,8 +361,6 @@ cdef class ThermodynamicsSA:
                         data[count] = pv/pv_star
 
                         count += 1
-
-
 
         # Compute and write mean
 
@@ -396,7 +385,7 @@ cdef class ThermodynamicsSA:
         NS.write_profile('rh_min', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
         # NS.write_ts('rh_min', np.amin(tmp[Gr.dims.gw:-Gr.dims.gw]), Pa)
 
-        #Output profiles of thetali  (liquid-ice potential temperature)
+        # Output profiles of thetali  (liquid-ice potential temperature)
         # Compute additional stats
         self.liquid_stats(Gr, RS, PV, DV, NS, Pa)
 

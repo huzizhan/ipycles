@@ -921,7 +921,6 @@ def InitIsdac(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
 
     RS.initialize(Gr, Th, NS, Pa)
 
-
     #Get the variable number for each of the velocity components
     cdef:
         Py_ssize_t i
@@ -990,7 +989,7 @@ def InitIsdac(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                 T,ql = sat_adjst(RS.p0_half[k],thetal[k] + theta_pert_,qt[k], Th)
                 PV.values[ijk + s_varshift] = Th.entropy(RS.p0_half[k], T, qt[k], ql, 0.0)
     
-    # initialize r_vapor profile using rayleigh approach, based on equation 66 in Wei 2018
+    # initialize r_vapor profile using rayleigh approach, based on Equ 66 in Wei 2018
     try:
         isotope_tracers = namelist["isotopetracers"]["use_tracers"]
         if isotope_tracers:

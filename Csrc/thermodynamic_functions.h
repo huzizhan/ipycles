@@ -37,10 +37,12 @@ static inline double cpm_c(const double qt){
 }
 
 static inline double thetas_c(const double s, const double qt){
+    // expression of entropy temperature based on Equ 47, in Pressel15
     return T_tilde*exp((s-(1.0-qt)*sd_tilde - qt*sv_tilde)/cpm_c(qt));
 }
 
 static inline double thetas_t_c(const double p0, const double T, const double qt, const double qv, const double qc, const double L){
+    // expression of entropy temperature based on temperature and other related thermodynamic variables, based on Equ 48, in Pressel15
     const double qd = 1.0 - qt;
     const double pd = pd_c(p0,qt,qt-qc);
     const double pv = pv_c(p0,qt,qt-qc);
