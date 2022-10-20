@@ -343,7 +343,7 @@ cdef class ThermodynamicsSA:
         NS.write_profile('theta_min', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
         NS.write_ts('theta_min', np.amin(tmp[Gr.dims.gw:-Gr.dims.gw]), Pa)
 
-
+        cdef:  
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             double pv_star, pv
 

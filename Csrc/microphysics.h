@@ -42,6 +42,15 @@ double microphysics_g(struct LookupStruct *LT, double (*lam_fp)(double), double 
     return g_therm;
 }
 
+double microphysics_g_vi(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
+    double lam = lam_fp(temperature);
+    double L = L_fp(temperature,lam);
+    double pv_sat = lookup(LT, temperature);
+    double G_iv = 1.0/(Rv*temperature/DVAPOR/pv_sat + L_IV/KT/temperature * (L_IV/Rv/temperature - 1.0));
+    // double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
+    return G_iv;
+}
+
 double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperature, double  p0, double qt){
     double pv_sat = lookup(LT, temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat);

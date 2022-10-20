@@ -851,8 +851,8 @@ def Isdac():
 
     namelist["grid"] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64
-    namelist['grid']['ny'] = 64
+    namelist['grid']['nx'] = 64/4
+    namelist['grid']['ny'] = 64/4
     namelist['grid']['nz'] = 250
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 50.0
@@ -869,17 +869,17 @@ def Isdac():
     namelist['time_stepping']['cfl_limit'] = 0.5
     namelist['time_stepping']['dt_initial'] = 1.0
     namelist['time_stepping']['dt_max'] = 10.0
-    namelist['time_stepping']['t_max'] = 3600.0 * 8.0
+    namelist['time_stepping']['t_max'] = 3600.0 * 0.5
 
 
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'Arctic_1M'
-    namelist['microphysics']['phase_partitioning'] = 'Arctic'
+    namelist['microphysics']['scheme'] = 'SB_SI'
+    namelist['microphysics']['phase_partitioning'] = 'liquid_only'
     namelist['microphysics']['n0_ice'] = 1.0e7
 
-    namelist['isotopetracers'] = {}
-    namelist['isotopetracers']['use_tracers'] = True
-    namelist['isotopetracers']['scheme'] = 'Arctic_1M'
+    # namelist['isotopetracers'] = {}
+    # namelist['isotopetracers']['use_tracers'] = True
+    # namelist['isotopetracers']['scheme'] = 'Arctic_1M'
     
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'

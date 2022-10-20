@@ -174,6 +174,7 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                 double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/RAIN_MIN_MASS),qi_tmp/RAIN_MAX_MASS);
 
                 double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
+                // double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature[ijk]);
 
                 //holding nl fixed since it doesn't change between timesteps
                 
@@ -222,6 +223,9 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     Dp        = sb_Dp(Dm_r, mu);
 
                     //obtain some parameters of ice particle
+                    // ================================================
+                    // ToDo: set the right calculation processes of lwp and iwp, and following calculation of Ri 
+                    // ================================================
                     double Ri;
                     ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
                     sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
@@ -231,8 +235,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     //compute the source terms
                     sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
-                    // sb_freezing_ice(droplet_nu, temperature[ijk], density[k], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
-                    //         &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
+                    sb_freezing_ice(droplet_nu, temperature[ijk], density[k], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
+                            &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
                     sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, ice_vel,
                             qi_tmp, ni_tmp, &qi_tendency_dep, &ni_tendency_dep);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 

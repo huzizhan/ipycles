@@ -25,22 +25,19 @@
         "dy": 50.0,
         "dz": 10.0,
         "gw": 3,
-        "nx": 32,
-        "ny": 32,
+        "nx": 16.0,
+        "ny": 16.0,
         "nz": 250
     },
     "meta": {
         "casename": "Isdac",
         "simname": "Isdac",
-        "uuid": "44f22021-5a25-4f3a-8fc6-e889544b03c6"
+        "uuid": "df9d444b-9113-4716-bb66-60e2bf579afb"
     },
     "microphysics": {
         "n0_ice": 10000000.0,
-        "phase_partitioning": "Arctic",
-        "scheme": "Arctic_1M"
-    },
-    "isotopetracers":{
-        "scheme": "Arctic_1M"
+        "phase_partitioning": "liquid_only",
+        "scheme": "SB_SI"
     },
     "momentum_transport": {
         "order": 5
@@ -87,7 +84,7 @@
         "cfl_limit": 0.5,
         "dt_initial": 1.0,
         "dt_max": 10.0,
-        "t_max":28800.0,
+        "t_max": 1800.0,
         "ts_type": 3
     }
 }
