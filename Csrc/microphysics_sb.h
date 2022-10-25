@@ -7,7 +7,6 @@
 #include "entropies.h"
 #include "thermodynamic_functions.h"
 // #include <cmath>
-// #include <cmath>
 #include <math.h>
 
 // #define MAX_ITER  15 //maximum substep loops in source term computation
@@ -296,6 +295,36 @@ void sb_deposition_ice(struct LookupStruct *LT,  double (*lam_fp)(double), doubl
     return;
 }
 
+void sb_sublimation_ice(struct LookupStruct *LT,  double (*lam_fp)(double), double (*L_fp)(double, double),
+        double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
+        double qi, double ni, double* qi_tendency, double* ni_tendency){
+    
+    // if(temperature > T_ICE || qi < SB_EPS || ni < SB_EPS){
+    if(qi < SB_EPS || ni < SB_EPS || ice_mass < SB_EPS){
+        *ni_tendency = 0.0;
+        *qi_tendency = 0.0;
+    }
+    else if(S_i >= 0.0){
+        *ni_tendency = 0.0;
+        *qi_tendency = 0.0;
+    }
+    else{
+        // double G_iv  = microphysics_g(LT, lam_fp, L_fp, temperature);
+        
+        double pv_sat = lookup(LT, temperature);
+        double G_iv = 1.0/(Rv*temperature/DVAPOR/pv_sat + L_IV/KT/temperature * (L_IV/Rv/temperature - 1.0));
+
+        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1);
+        double gamma = 1.0; // following same statement in rain evaporation.
+
+        double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
+
+        *qi_tendency = qi_tendency_tmp;
+        *ni_tendency = gamma/ice_mass * qi_tendency_tmp;
+    }
+    return;
+}
+
 void sb_freezing_ice(double (*droplet_nu)(double,double), double density, double temperature, 
         double liquid_mass, double rain_mass, double ql, double nl, double qr, double nr, 
         double* ql_tendency, double* qr_tendency, double* nr_tendency, double* qi_tendency, double* ni_tendency){
@@ -423,14 +452,14 @@ void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double ice_mass, do
 // Seifert & Beheng 2006: Equ 
 double sb_ice_melting_thermo(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
         double temperature, double qv){
-    double D_T = 1.0;
     double t_3 = 273.15; // J T_3
     double lam = lam_fp(t_3);
     double L = L_fp(t_3,lam);
     double pv_sat = lookup(LT, t_3);
-    double pv = 1.0;
 
     // ToDo: find the right definition of D_T, and pv;
+    double D_T = 1.0;
+    double pv = 1.0;
     
     double melt_thermo = (KT*D_T/DVAPOR)*(temperature - t_3) + DVAPOR*L/Rv*(pv/temperature - pv_sat/t_3);
     return melt_thermo;
