@@ -1,5 +1,6 @@
 #pragma once
 #include "lookup.h"
+#include "microphysics_arctic_1m.h"
 #include "parameters.h"
 #include "parameters_micro_sb.h"
 #include "microphysics.h"
@@ -251,76 +252,52 @@ void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr
 
 void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
 
-    double n_in = N_M92*exp(A_M92 + B_M92*S_i);
-    double ni_tend_tmp;
-
-    // if (temperature > T_ICE || S_i < 0.0 || ni >= n_in || ni < SB_EPS){
-    if (S_i < 0.0 || ni >= n_in){
-        ni_tend_tmp = 0.0;
+    // double n_in = N_M92*exp(A_M92 + B_M92*S_i);
+    if (S_i >= 0.0){
+        double N_nc = 1.0e-2 * exp(0.6*(273.15 - fmax(temperature, 246.0))); // scheme from RR98;
+        // double N_nc = 0.005 * exp(0.304*(273.15 - temperature)); // scheme from MS08(Coper62);
+        // double N_nc = exp(-2.8 + 0.262*(273.15 - temperature)); // scheme from MY92;
+        if (N_nc > ni){
+            double ni_tend_tmp = (N_nc - ni)/dt;
+            *ni_tendency = ni_tend_tmp;
+            *qi_tendency = X_ICE_NUC*ni_tend_tmp;
+        } 
     }
     else{
-        ni_tend_tmp = (n_in - ni)/dt;
+        *qi_tendency = 0.0;
+        *ni_tendency = 0.0;
     }
-    *ni_tendency = ni_tend_tmp;
-    *qi_tendency = X_ICE_NUC*ni_tend_tmp;
+    return;
 }
 
 void sb_deposition_ice(struct LookupStruct *LT,  double (*lam_fp)(double), double (*L_fp)(double, double),
         double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
-        double qi, double ni, double* qi_tendency, double* ni_tendency){
+        double qi, double ni, double* qi_tendency){
     
-    // if(temperature > T_ICE || qi < SB_EPS || ni < SB_EPS){
-    if(qi < SB_EPS || ni < SB_EPS || ice_mass < SB_EPS){
-        *ni_tendency = 0.0;
-        *qi_tendency = 0.0;
-    }
-    else if(S_i <= 0.0){
-        *ni_tendency = 0.0;
-        *qi_tendency = 0.0;
+    if(qi > 1e-12 && ni > 1e-12 && S_i >= 0.0){
+        double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature);
+        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1);
+        double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
+        *qi_tendency = qi_tendency_tmp;
     }
     else{
-        // double G_iv  = microphysics_g(LT, lam_fp, L_fp, temperature);
-        
-        double pv_sat = lookup(LT, temperature);
-        double G_iv = 1.0/(Rv*temperature/DVAPOR/pv_sat + L_IV/KT/temperature * (L_IV/Rv/temperature - 1.0));
-
-        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1);
-        double gamma = 1.0; // following same statement in rain evaporation.
-
-        double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
-
-        *qi_tendency = qi_tendency_tmp;
-        *ni_tendency = gamma/ice_mass * qi_tendency_tmp;
+        *qi_tendency = 0.0;
     }
     return;
 }
 
 void sb_sublimation_ice(struct LookupStruct *LT,  double (*lam_fp)(double), double (*L_fp)(double, double),
         double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
-        double qi, double ni, double* qi_tendency, double* ni_tendency){
-    
-    // if(temperature > T_ICE || qi < SB_EPS || ni < SB_EPS){
-    if(qi < SB_EPS || ni < SB_EPS || ice_mass < SB_EPS){
-        *ni_tendency = 0.0;
-        *qi_tendency = 0.0;
-    }
-    else if(S_i >= 0.0){
-        *ni_tendency = 0.0;
-        *qi_tendency = 0.0;
+        double qi, double ni, double* qi_tendency){
+
+    if(qi > 1e-12 && ni > 1e-12 && S_i < 0.0){
+        double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature);
+        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1);
+        double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
+        *qi_tendency = qi_tendency_tmp;
     }
     else{
-        // double G_iv  = microphysics_g(LT, lam_fp, L_fp, temperature);
-        
-        double pv_sat = lookup(LT, temperature);
-        double G_iv = 1.0/(Rv*temperature/DVAPOR/pv_sat + L_IV/KT/temperature * (L_IV/Rv/temperature - 1.0));
-
-        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1);
-        double gamma = 1.0; // following same statement in rain evaporation.
-
-        double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
-
-        *qi_tendency = qi_tendency_tmp;
-        *ni_tendency = gamma/ice_mass * qi_tendency_tmp;
+        *qi_tendency = 0.0;
     }
     return;
 }
@@ -329,9 +306,6 @@ void sb_freezing_ice(double (*droplet_nu)(double,double), double density, double
         double liquid_mass, double rain_mass, double ql, double nl, double qr, double nr, 
         double* ql_tendency, double* qr_tendency, double* nr_tendency, double* qi_tendency, double* ni_tendency){
 
-    // ================================================
-    // ToDo: ToDo give a conditional settings of the threshold of freezing
-    // ================================================
     if(qr < SB_EPS || nr < SB_EPS || rain_mass < SB_EPS){
         // if liquid specific humidity is negligibly small, set source terms to zero
         *ql_tendency = 0.0;
@@ -423,6 +397,7 @@ void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double ice_mass, do
         double velocity_i, double nl, double ql, double ni, double qi,
         double sb_a_ice, double sb_b_ice, double sb_beta_ice,
         double* nl_tendency, double* qi_tendency){
+
     if(ql < SB_EPS || qi < SB_EPS || ni < SB_EPS){
         *qi_tendency = 0.0;
     }

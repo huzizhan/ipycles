@@ -72,8 +72,8 @@ def default_arctic():
     # Single-Ice parameters
 
     parameters["T_ICE"] = 235.0 # set to be the threshold for vapor nucli, deposition and freezing
-    parameters["ICE_MAX_MASS"] = 5.2e-7 #kg; DALES: 5.0e-6 kg
-    parameters["ICE_MIN_MASS"] = 2.6e-10 #kg
+    parameters["ICE_MAX_MASS"] = 1.0e-7 #kg; SB06 snow
+    parameters["ICE_MIN_MASS"] = 1.0e-12 #kg; SB06 cloud ice
     parameters["N_M92"] = 1e3 # m^{-3}
     parameters["A_M92"] = -0.639
     parameters["B_M92"] = 12.96
