@@ -96,11 +96,11 @@ double microphysics_homogenous_freezing_rate(double temperature){
         exp_var_tmp = 25.63;
     }
     else if(T_celsius <= -30.0){
-        exp_var_tmp = -243.4 - 14.75*T_celsius - 0.307*T_celsius*T_celsius - 0.00287*T_celsius*T_celsius*T_celsius - 1.02e-5*pow(T_celsius, 4.0);
+        exp_var_tmp = -243.4 - 14.75*T_celsius - 0.307*T_celsius*T_celsius - 0.00287*pow(T_celsius, 3.0) - 1.02e-5*pow(T_celsius, 4.0);
     }
     else{
-    }
         exp_var_tmp = -7.63 - 2.996*(T_celsius + 30.0);
+    }
 
     // J_i: cm ^-3 /s; is defined in Cotton & Feild, Equ 12
     double J_i = exp(exp_var_tmp); 
@@ -111,6 +111,7 @@ double microphysics_homogenous_freezing_rate(double temperature){
 
 // Seifert & Beheng 2006: Equ 44
 double microphysics_heterogenous_freezing_rate(double temperature){
+    // A_het and B_het are adopted from Pruppacher1997
     double A_het = 0.2; // kg^-1 s^-1
     double B_het = 0.65; // K^-1
     double t_3 = 273.15; // J
