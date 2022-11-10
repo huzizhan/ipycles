@@ -136,6 +136,30 @@ double sb_Dp(double Dm, double mu){
     return Dp;
 }
 
+// Seifert & Beheng 2006: Equ 41, 85-89
+double microphysics_ventilation_coefficient_ice(double Dm, double v_fall, double mass, double n, double sb_b_const, double sb_bete_const){
+    // Dm: mass weighted diameter;
+    // v_fall: mass weighted falling velocity of particle;
+    // mass: average mass of specific ice particle;
+    // n: n-th power of moment;
+    // N_re: the Reynolds number which is a function of mass N_re(mass);
+    // sb_b_const: diameter-mass constant b for particle, see definition in SB06;
+    // sb_bete_const: diameter-velocity constant β for particle, see definition in SB06;
+
+    double N_re = v_fall*Dm/KIN_VISC_AIR;
+    double mu_ = 3.0; // 1/mu_ice, and mu_ice =1/3
+    double nu  = 1.0;
+    double a_exponent = sb_b_const + n - 1.0; 
+    double b_var_tmp  = 1.5*sb_b_const + 0.5*sb_bete_const;
+    double b_exponent = b_var_tmp + n - 1.0; 
+    double var_const  = gamma((nu+1.0)*mu_)/gamma((nu+2.0)*mu_);
+
+    double a_vent_n = A_VI * gamma((nu+n+sb_b_const)*mu_)/gamma((nu+1)*mu_) * pow(var_const, a_exponent);
+    double b_vent_n = B_VI * gamma((nu+n+b_var_tmp)*mu_)/gamma((nu+1)*mu_) * pow(var_const, b_exponent);
+
+    double F_vn = a_vent_n + b_vent_n * NSC_3 * sqrt(N_re);
+    return F_vn;
+}
 // ===========<<< Function section of All related microphysics processes>> ============
 
 void sb_autoconversion_rain(double (*droplet_nu)(double,double), double density, 
@@ -251,8 +275,10 @@ void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr
 }
 
 void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
+    // S_i: supper saturation over ice, POSITIVE when supper saturated, NEGATIVE when under saturated;
+    // dt: time step;
+    // ni: number density of ice;
 
-    // double n_in = N_M92*exp(A_M92 + B_M92*S_i);
     if (S_i >= 0.0){
         double N_nc = 1.0e-2 * exp(0.6*(273.15 - fmax(temperature, 246.0))); // scheme from RR98;
         // double N_nc = 0.005 * exp(0.304*(273.15 - temperature)); // scheme from MS08(Coper62);
@@ -271,12 +297,21 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
 }
 
 void sb_deposition_ice(struct LookupStruct *LT,  double (*lam_fp)(double), double (*L_fp)(double, double),
-        double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
-        double qi, double ni, double* qi_tendency){
+        double temperature, double Dm_i, double S_i, double ice_mass, double velocity_ice,
+        double qi, double ni, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
+    // ========IN PUT ================
+    // Dm_i: mass-weighted diameter of ice;
+    // ice_mass: average mass of ice;
+    // S_i: supper saturation over ice , POSITIVE when supper saturated, NEGATIVE when under saturated;
+    // velocity_ice: falling velocity of ice;
+    // sb_b_const: diameter-mass constant b for ice;
+    // sb_bete_const: diameter-velocity constant β for ice;
+    // ========OUT PUT================
+    // qi_tendency: ∂qᵢ/∂t of deposition, based on Equ 42 in SB06
     
     if(qi > 1e-12 && ni > 1e-12 && S_i >= 0.0){
         double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature);
-        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1);
+        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, velocity_ice, ice_mass, 1, sb_b_ice, sb_beta_ice);
         double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
         *qi_tendency = qi_tendency_tmp;
     }
@@ -288,11 +323,20 @@ void sb_deposition_ice(struct LookupStruct *LT,  double (*lam_fp)(double), doubl
 
 void sb_sublimation_ice(struct LookupStruct *LT,  double (*lam_fp)(double), double (*L_fp)(double, double),
         double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
-        double qi, double ni, double* qi_tendency){
+        double qi, double ni, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
+    // ========IN PUT ================
+    // Dm_i: mass-weighted diameter of ice;
+    // ice_mass: average mass of ice;
+    // S_i: supper saturation over ice , POSITIVE when supper saturated, NEGATIVE when under saturated;
+    // velocity_ice: falling velocity of ice;
+    // sb_b_const: diameter-mass constant b for ice;
+    // sb_bete_const: diameter-velocity constant β for ice;
+    // ========OUT PUT================
+    // qi_tendency: ∂qᵢ/∂t of sublimation, based on Equ 42 in SB06
 
     if(qi > 1e-12 && ni > 1e-12 && S_i < 0.0){
         double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature);
-        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1);
+        double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1, sb_b_ice, sb_beta_ice);
         double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
         *qi_tendency = qi_tendency_tmp;
     }

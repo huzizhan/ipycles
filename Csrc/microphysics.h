@@ -58,34 +58,6 @@ double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperatur
     return saturation_ratio;
 }
 
-// Seifert & Beheng 2006: Equ 41, 85-89
-double microphysics_ventilation_coefficient_ice(double Dm, double v_fall, double mass, double n){
-    // Dm: mass weighted diameter;
-    // v_fall: mass weighted falling velocity;
-    // mass: average mass of specific ice particle;
-    // n: n-th power of moment;
-    // N_re: the Reynolds number which is a function of mass N_re(mass)
-
-    double N_re = v_fall*Dm/KIN_VISC_AIR;
-    // ================================================
-    // ToDo: find out the value of b_i and beta_i;
-    // ================================================
-    double b_i = 1.0;
-    double beta_i = 1.0;
-    double mu_ = 3.0; // 1/mu_ice, and mu_ice =1/3
-    double nu  = 1.0;
-    double a_exponent = b_i + n - 1.0; 
-    double b_var_tmp  = 1.5*b_i + 0.5*beta_i;
-    double b_exponent = b_var_tmp + n - 1.0; 
-    double var_const  = gamma((nu+1.0)*mu_)/gamma((nu+2.0)*mu_);
-
-    double a_vent_n = A_VI * gamma((nu+n+b_i)*mu_)/gamma((nu+1)*mu_) * pow(var_const, a_exponent);
-    double b_vent_n = B_VI * gamma((nu+n+b_var_tmp)*mu_)/gamma((nu+1)*mu_) * pow(var_const, b_exponent);
-
-    double F_vn = a_vent_n + b_vent_n * NSC_3 * sqrt(N_re);
-    return F_vn;
-}
-
 double microphysics_homogenous_freezing_rate(double temperature){
     double T_celsius = temperature - 273.15;
     double liquid_density_cc = 1e-6; // 1 kg/m³ = 1e6 kg/cm³

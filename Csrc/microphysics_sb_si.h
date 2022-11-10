@@ -235,9 +235,9 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
                     sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
-                            qi_tmp, ni_tmp, &qi_tendency_dep);   
+                            qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
                     sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
-                            qi_tmp, ni_tmp, &qi_tendency_sub);  
+                            qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
                     sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
                             &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
