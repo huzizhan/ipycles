@@ -84,7 +84,7 @@
         "cfl_limit": 0.5,
         "dt_initial": 1.0,
         "dt_max": 10.0,
-        "t_max": 1800.0,
+        "t_max": 10800.0,
         "ts_type": 3
     }
 }

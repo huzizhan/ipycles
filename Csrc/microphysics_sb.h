@@ -7,55 +7,7 @@
 #include "advection_interpolation.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
-// #include <cmath>
 #include <math.h>
-
-// #define MAX_ITER  15 //maximum substep loops in source term computation
-// #define RAIN_MAX_MASS  5.2e-7 //kg; DALES: 5.0e-6 kg
-// #define RAIN_MIN_MASS  2.6e-10 //kg
-// #define DROPLET_MIN_MASS 4.20e-15 // kg
-// #define DROPLET_MAX_MASS  2.6e-10 //1.0e-11  // kg
-// #define DENSITY_SB  1.225 // kg/m^3; a reference density used in Seifert & Beheng 2006, DALES
-// #define XSTAR  2.6e-10
-// #define KCC  10.58e9 // Constant in cloud-cloud kernel, m^3 kg^{-2} s^{-1}: Using Value in DALES; also, 9.44e9 (SB01, SS08), 4.44e9 (SB06)
-// #define KCR  5.25   // Constant in cloud-rain kernel, m^3 kg^{-1} s^{-1}: Using Value in DALES and SB06;  KCR = kr = 5.78 (SB01, SS08)
-// #define KRR  7.12   // Constant in rain-rain kernel,  m^3 kg^{-1} s^{-1}: Using Value in DALES and SB06; KRR = kr = 5.78 (SB01, SS08); KRR = 4.33 (S08)
-// #define KAPRR  60.7  // Raindrop typical mass (4.471*10^{-6} kg to the -1/3 power), kg^{-1/3}; = 0.0 (SB01, SS08)
-// #define KAPBR  2.3e3 // m^{-1} - Only used in SB06 break-up
-// #define D_EQ  0.9e-3 // equilibrium raindrop diameter, m, used for SB-breakup
-// #define D_EQ_MU  1.1e-3 // equilibrium raindrop diameter, m, used for SB-mu, opt=4
-// #define A_RAIN_SED  9.65    // m s^{-1}
-// #define B_RAIN_SED  9.796 // 10.3    # m s^{-1}
-// #define C_RAIN_SED  600.0   // m^{-1}
-// #define C_LIQUID_SED 702780.63036 //1.19e8 *(3.0/(4.0*pi*rho_liq))**(2.0/3.0)*np.exp(5.0*np.log(1.34)**2.0)
-// #define A_VENT_RAIN  0.78
-// #define B_VENT_RAIN  0.308
-// #define NSC_3  0.892112 //cbrt(0.71) // Schmidt number to the 1/3 power
-// #define KIN_VISC_AIR  1.4086e-5 //m^2/s kinematic viscosity of air
-// #define A_NU_SQ sqrt(A_RAIN_SED/KIN_VISC_AIR)
-// #define SB_EPS  1.0e-13 //small value
-// #define LIQUID_DM_PREFACTOR  1.0 
-// #define LIQUID_DM_EXPONENT  1.0 
-
-// // ===========<<< ventilation parameters >>> ============
-// #define A_VR  0.78 // constant ventilation coefficient for raindrops aᵥᵣ
-// #define A_VI  (0.78+0.86)/2 // constant ventilation coefficient for ice aᵥᵢ
-// #define B_VR  0.308 // constant ventilation coefficient for raindrops bᵥᵣ
-// #define B_VI  (0.28+0.308)/2 // constant ventilation coefficient for raindrops bᵥᵢ
-
-// // ===========<<< ice-particle parameters >>> ============
-// #define ICE_MAX_MASS  5.2e-7 //kg; DALES: 5.0e-6 kg
-// #define ICE_MIN_MASS  2.6e-10 //kg
-// #define N_M92  1e3 // m^{-3}
-// #define A_M92  -0.639
-// #define B_M92  12.96
-// #define X_ICE_NUC  1e-12 // kg
-// #define L_MELTING  0.333e6 // J/kg latent heat of melting
-// #define L_SUBLIMATION  2.834e6 // J/kg latent heat of sublimation
-// #define D_L0  1.5e-5 // 15μm 
-// #define D_L1  4e-5 // 40μm 
-// #define D_I0  1.5e-4 // 150μm 
-// #define SIGMA_ICE  0.2 // m/s
 
 // ===========<<< Reference about SB_Liquid microphysics scheme >>> ============
 // SB06: Seifert & Beheng 2006: A two-moment cloud microphysics parameterization for mixed-phase clouds. Part 1: Model description
@@ -296,7 +248,7 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
     return;
 }
 
-void sb_deposition_ice(struct LookupStruct *LT,  double (*lam_fp)(double), double (*L_fp)(double, double),
+void sb_deposition_ice(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
         double temperature, double Dm_i, double S_i, double ice_mass, double velocity_ice,
         double qi, double ni, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
     // ========IN PUT ================
@@ -623,8 +575,6 @@ void sb_autoconversion_rain_wrapper(const struct DimStruct *dims,  double (*drop
                 double ql_tmp = fmax(ql[ijk], 0.0);
                 double qr_tmp = fmax(qr[ijk], 0.0);
                 sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency[ijk], &qr_tendency[ijk]);
-
-
             }
         }
     }
@@ -652,7 +602,6 @@ void sb_accretion_rain_wrapper(const struct DimStruct *dims, double* restrict de
                 const double ql_tmp = fmax(ql[ijk], 0.0);
                 const double qr_tmp = fmax(qr[ijk], 0.0);
                 sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency[ijk]);
-
             }
         }
     }
@@ -689,7 +638,6 @@ void sb_selfcollection_breakup_rain_wrapper(const struct DimStruct *dims, double
 
                 //compute the source terms
                 sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm, &nr_tendency[ijk]);
-
             }
         }
     }
@@ -718,22 +666,20 @@ void sb_evaporation_rain_wrapper(const struct DimStruct *dims, struct LookupStru
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                const double qr_tmp = fmax(qr[ijk],0.0);
-                const double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
-                const double qv = qt[ijk] - ql[ijk];
-                const double sat_ratio = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
-                const double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
+                const double qr_tmp    = fmax(qr[ijk],0.0);
+                const double nr_tmp    = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                const double qv        = qt[ijk] - ql[ijk];
                 //obtain some parameters
+                const double sat_ratio = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
+                const double g_therm   = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
                 const double rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
-                const double Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
-                const double mu = rain_mu(density[k], qr_tmp, Dm);
-                const double Dp = sb_Dp(Dm, mu);
+                const double Dm        = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
+                const double mu        = rain_mu(density[k], qr_tmp, Dm);
+                const double Dp        = sb_Dp(Dm, mu);
                 //compute the source terms
                 sb_evaporation_rain( g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm, &nr_tendency[ijk], &qr_tendency[ijk]);
-
             }
         }
     }
     return;
 }
-

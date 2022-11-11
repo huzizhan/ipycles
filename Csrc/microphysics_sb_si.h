@@ -583,3 +583,245 @@ void sb_si_entropy_source_drag(const struct DimStruct *dims, double* restrict te
     }
     return;
 };
+
+// ===========<<< single ice output >>> ============
+
+void sb_nucleation_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double* restrict temperature, 
+                            double* restrict ni, double* restrict p0, double* restrict qt, double dt,
+                            double* restrict ni_tendency, double* restrict qi_tendency){
+
+    //Here we compute the source terms for nr and qr (number and mass of rain)
+    //Temporal substepping is used to help ensure boundedness of moments
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                const double ni_tmp = fmax(ni[ijk], 0.0);
+                const double sat_ratio = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
+                sb_nucleation_ice(temperature[ijk], sat_ratio, dt, ni_tmp, &qi_tendency[ijk], &ni_tendency[ijk]);
+            }
+        }
+    }
+    return;
+}
+
+void sb_deposition_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+            double* restrict temperature, double* restrict p0, double* restrict qt, double* restrict ni, 
+            double* restrict qi, double* restrict qi_tendency){
+
+    //Here we compute the source terms for nr and qr (number and mass of rain)
+    //Temporal substepping is used to help ensure boundedness of moments
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                //obtain some parameters of ice particle
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                const double qi_tmp       = fmax(qi[ijk],0.0);
+                const double ni_tmp       = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+                const double sat_ratio    = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
+                const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
+                const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
+                const double velocity_ice = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+
+                sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
+                        qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency[ijk]);   
+            }
+        }
+    }
+    return;
+}
+
+void sb_sublimation_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+            double* restrict temperature, double* restrict p0, double* restrict qt, double* restrict ni, 
+            double* restrict qi, double* restrict qi_tendency){
+
+    //Here we compute the source terms for nr and qr (number and mass of rain)
+    //Temporal substepping is used to help ensure boundedness of moments
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                const double qi_tmp = fmax(qi[ijk],0.0);
+                const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+
+                //obtain some parameters of ice particle
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                const double sat_ratio    = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
+                const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
+                const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
+                const double velocity_ice = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+
+                sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
+                        qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency[ijk]);   
+            }
+        }
+    }
+    return;
+}
+
+void sb_freezing_ice_wrapper(const struct DimStruct *dims, double (*droplet_nu)(double,double), const double ccn,
+            double* restrict temperature, double* restrict density, double* restrict ql, double* restrict qr, double* restrict nr,
+            double* restrict qi_tendency, double* restrict ni_tendency){
+
+    //Here we compute the source terms for nr and qr (number and mass of rain)
+    //Temporal substepping is used to help ensure boundedness of moments
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    double ql_tendency_tmp, nr_tendency_tmp, qr_tendency_tmp;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                const double nl     = ccn/density[k];
+                const double ql_tmp = fmax(ql[ijk],0.0);
+                const double qr_tmp = fmax(qr[ijk],0.0);
+                const double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+
+                //obtain average mass of cloud droplets
+                const double liquid_mass = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);
+                
+                //obtain average mass of rain droplets
+                const double rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
+
+                sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
+                        &ql_tendency_tmp, &qr_tendency_tmp, &nr_tendency_tmp, &ni_tendency[ijk], &qi_tendency[ijk]);
+            }
+        }
+    }
+    return;
+}
+
+void sb_melting_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+            double* restrict temperature, double* restrict qv, double* restrict qi, double* restrict ni,
+            double* restrict qi_tendency, double* restrict ni_tendency){
+
+    //Here we compute the source terms for nr and qr (number and mass of rain)
+    //Temporal substepping is used to help ensure boundedness of moments
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                double qi_tmp = fmax(qi[ijk], 0.0);
+                double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+
+                //obtain some parameters of cloud droplets
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                const double ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
+                const double Dm_i = sb_a_ice * pow(ice_mass, sb_b_ice);
+
+                sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv[ijk], ni_tmp, qi_tmp, 
+                        &ni_tendency[ijk], &qi_tendency[ijk]);
+            }
+        }
+    }
+    return;
+}
+
+void sb_accretion_cloud_ice_wrapper(const struct DimStruct *dims, const double ccn, double* restrict density,
+            double* restrict ql, double* restrict qi, double* restrict ni, double* restrict qi_tendency){
+
+    //Here we compute the source terms for nr and qr (number and mass of rain)
+    //Temporal substepping is used to help ensure boundedness of moments
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice, nl_tendency_tmp;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                const double nl     = ccn/density[k];
+                const double ql_tmp = fmax(ql[ijk],0.0);
+                const double qi_tmp = fmax(qi[ijk],0.0);
+                const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+                
+                //obtain some parameters of cloud droplets
+                const double liquid_mass     = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
+                const double Dm_l            = cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
+                const double velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[ijk]);
+
+                //obtain some parameters of ice particle
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
+                const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
+                const double velocity_ice = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+
+                sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
+                            sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_tmp, &qi_tendency[ijk]);
+            }
+        }
+    }
+    return;
+}
