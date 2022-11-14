@@ -74,8 +74,8 @@ cdef extern from "microphysics_sb_si.h":
                                     double (*L_fp)(double, double), double* p0, double* temperature,
                                     double* qt, double* qv, double* qr_tend, double* precip_rate, double* entropy_tendency)
     void sb_si_entropy_source_melt(Grid.DimStruct *dims, double* temperature, double* melt_rate, double* entropy_tendency)
-    void sb_nucleation_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double* temperature, double* ni, double* p0, double* qt,
-                                    double dt, double* ni_tendency, double* qi_tendency)nogil
+    void sb_nucleation_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double* temperature, double* ni, double* qi, double* p0, 
+                                    double* qt, double dt, double* ni_tendency, double* qi_tendency)nogil
     void sb_deposition_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                                     double* temperature, double* p0, double* qt, double* ni, double* qi, double* qi_tendency)nogil
     void sb_sublimation_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
@@ -439,8 +439,9 @@ cdef class Microphysics_SB_SI:
             double[:] ni_si_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
         
         # nucleation output of qi_si and ni_si;
-        sb_nucleation_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, &DV.values[t_shift], &PV.values[ni_si_shift],
-                                &Ref.p0_half[0], &PV.values[qt_shift], dt, &ni_si_tendency[0], &qi_si_tendency[0])
+        sb_nucleation_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, &DV.values[t_shift], &PV.values[ni_si_shift], 
+                                &PV.values[qi_si_shift], &Ref.p0_half[0], &PV.values[qt_shift], dt, 
+                                &ni_si_tendency[0], &qi_si_tendency[0])
         tmp = Pa.HorizontalMean(Gr, &ni_si_tendency[0])
         NS.write_profile('ni_si_nucleation', tmp[gw:-gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])

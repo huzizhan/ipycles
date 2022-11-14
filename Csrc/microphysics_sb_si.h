@@ -587,7 +587,7 @@ void sb_si_entropy_source_drag(const struct DimStruct *dims, double* restrict te
 // ===========<<< single ice output >>> ============
 
 void sb_nucleation_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double* restrict temperature, 
-                            double* restrict ni, double* restrict p0, double* restrict qt, double dt,
+                            double* restrict ni, double* restrict qi, double* restrict p0, double* restrict qt, double dt,
                             double* restrict ni_tendency, double* restrict qi_tendency){
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
@@ -608,7 +608,8 @@ void sb_nucleation_ice_wrapper(const struct DimStruct *dims, struct LookupStruct
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                const double ni_tmp = fmax(ni[ijk], 0.0);
+                const double qi_tmp = fmax(qi[ijk],0.0);
+                const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
                 const double sat_ratio = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
                 sb_nucleation_ice(temperature[ijk], sat_ratio, dt, ni_tmp, &qi_tendency[ijk], &ni_tendency[ijk]);
             }

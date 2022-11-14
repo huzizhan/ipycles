@@ -43,8 +43,8 @@
         "order": 5
     },
     "mpi": {
-        "nprocx": 1,
-        "nprocy": 1,
+        "nprocx": 4,
+        "nprocy": 4,
         "nprocz": 1
     },
     "output": {
