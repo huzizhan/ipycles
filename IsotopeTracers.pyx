@@ -403,7 +403,8 @@ cdef class IsotopeTracers_SBSI:
         PV.add_variable('nr_std', '','nr_std','Rain water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('nisi_std', '','nisi_std','Single Ice water std specific humidity','sym', 'scalar', Pa)
         
-        # sedimentation velocity of qt_iso(w_qt_iso) and qr_iso(w_qr_iso), which should be same as qt and qr, as DVs w_qt, w_qr 
+        # sedimentation velocity of qt_iso(w_qt_iso) and qr_iso(w_qr_iso),
+        # which should be same as qt, qr and qisi, as DVs w_qt, w_qr, w_qisi;
         try:
             self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
         except:
@@ -413,15 +414,23 @@ cdef class IsotopeTracers_SBSI:
             DV.add_variables('w_qt_iso', 'm/s', r'w_{qt_iso}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
             DV.add_variables('w_qt_std', 'm/s', r'w_{qt_iso}', 'cloud liquid water std sedimentation velocity', 'sym', Pa)
             NS.add_profile('qt_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
-        DV.add_variables('w_qr_iso', 'm/s', r'w_{qr_iso}', 'rain mass isotopic sedimentation veloctiy', 'sym', Pa)
-        DV.add_variables('w_qr_std', 'm/s', r'w_{qr_iso}', 'rain std mass sedimentation veloctiy', 'sym', Pa)
-        DV.add_variables('w_nr_std', 'm/s', r'w_{qr_iso}', 'rain std mass sedimentation veloctiy', 'sym', Pa)
+
+        DV.add_variables('w_qr_iso', 'm/s', r'w_{w_qr_iso}', 'rain mass isotopic sedimentation veloctiy', 'sym', Pa)
+        DV.add_variables('w_qisi_iso', 'm/s', r'w_{qr_iso}', 'single ice mass isotopic sedimentation veloctiy', 'sym', Pa)
+
+        DV.add_variables('w_qr_std', 'm/s', r'w_{w_qr_std}', 'rain std mass sedimentation veloctiy', 'sym', Pa)
+        DV.add_variables('w_nr_std', 'm/s', r'w_{w_nr_std}', 'rain std number sedimentation veloctiy', 'sym', Pa)
+        DV.add_variables('w_qrsi_std', 'm/s', r'w_{w_qrsi_std}', 'single ice std mass sedimentation veloctiy', 'sym', Pa)
+        DV.add_variables('w_nrsi_std', 'm/s', r'w_{w_qrsi_std}', 'single ice std mass sedimentation veloctiy', 'sym', Pa)
 
         NS.add_profile('qr_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer rain')
         NS.add_profile('qr_iso', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
+        NS.add_profile('qisi_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer of single ice')
+        NS.add_profile('qisi_iso', Gr, Pa, 'kg/kg', '', 'Finial result of single ice isotopic sepcific humidity')
 
         initialize_NS_base(NS, Gr, Pa)
         return
+
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, ThermodynamicsSA.ThermodynamicsSA Th_sa,
                  DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
         cdef:
@@ -436,29 +445,25 @@ cdef class IsotopeTracers_SBSI:
             Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
             Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
             Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
-            Py_ssize_t qr_std_shift = PV.get_varshift(Gr,'qr_std')
-            Py_ssize_t nr_std_shift = PV.get_varshift(Gr,'nr_std')
             Py_ssize_t qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
             Py_ssize_t qv_iso_shift = PV.get_varshift(Gr,'qv_iso')
             Py_ssize_t ql_iso_shift = PV.get_varshift(Gr,'ql_iso')
-            Py_ssize_t qr_iso_shift = PV.get_varshift(Gr,'qr_iso')
+
             double[:] qv_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qt_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] nr_tend_micro     = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] nr_tend_tmp       = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-            double[:] qr_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qt_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
+        # This equilibrium fractioantion processes only happened in cloud
+        # based on SBSI scheme, the formation of cloud ice in in microphysics component.
         iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
                 &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
                 &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift], 
