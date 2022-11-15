@@ -270,14 +270,14 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
                     sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
-                    sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
-                            &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
+                    // sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
+                    //         &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
                     // sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
                     //         sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
                     sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
-                    sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
+                    // sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
 
                     //find the maximum substep time
                     dt_ = dt - time_added;
@@ -288,10 +288,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     // qi_tendency_melt and ni_tendency_melt are all POSITIVE
                     qi_tendency_tmp = qi_tendency_nuc + qi_tendency_frez + qi_tendency_acc + qi_tendency_dep + qi_tendency_berg + qi_tendency_sub - qi_tendency_melt;
                     ni_tendency_tmp = ni_tendency_nuc + ni_tendency_frez + ni_tendency_berg - ni_tendency_melt;
-
                     nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evap + ni_tendency_melt - nr_tendency_frez;
                     qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evap + qi_tendency_melt - qr_tendency_frez;
-
                     ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_acc;
 
                     //Factor of 1.05 is ad-hoc
@@ -412,13 +410,13 @@ void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restric
 
                 sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                 double ice_mass = microphysics_mean_mass(ni[ijk], qi[ijk], ICE_MIN_MASS, ICE_MAX_MASS);
-                sb_alpha_ice = 160.0; // just tmp settings for single ice falling velocity computation.
-                // sb_alpha_ice = get_sb_alpha_from_sifi(sifi_av, sb_a_ice, sifi_bv, density[k]);
-                //
+                // sb_alpha_ice = 160.0; // just tmp settings for single ice falling velocity computation.
+                sb_alpha_ice = (sifi_av*pow(sb_a_ice, sifi_bv)) / sqrt(DENSITY_SB/density[k]);
+                
                 double ni_vel_tmp = sb_alpha_ice * gamma(6.0 + 3.0*sb_beta_ice)/gamma(6.0) * pow(gamma(6.0)/gamma(9.0), sb_beta_ice) * pow(ice_mass, sb_beta_ice);
                 double qi_vel_tmp = sb_alpha_ice * gamma(9.0 + 3.0*sb_beta_ice)/gamma(9.0) * pow(gamma(6.0)/gamma(9.0), sb_beta_ice) * pow(ice_mass, sb_beta_ice);
-                ni_velocity[ijk] = -fmin(fmax( ni_vel_tmp, 0.0),10.0);
-                qi_velocity[ijk] = -fmin(fmax( qi_vel_tmp, 0.0),10.0);
+                ni_velocity[ijk] = -fmin(fmax(ni_vel_tmp, 0.0),10.0);
+                qi_velocity[ijk] = -fmin(fmax(qi_vel_tmp, 0.0),10.0);
             }
         }
     }

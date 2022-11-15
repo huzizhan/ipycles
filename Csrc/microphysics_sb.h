@@ -235,9 +235,20 @@ void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr
 }
 
 void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
+
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
     // S_i: supper saturation over ice, POSITIVE when supper saturated, NEGATIVE when under saturated;
     // dt: time step;
     // ni: number density of ice;
+    // temperature: air temperature of this cell;
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // ni_tendency: number density tendency of nucleation;
+    // qi_tendency: mixing ratio tendency of nucleation;
+    //-------------------------------------------------------------
 
     if (S_i >= 0.0){
         double N_nc = 1.0e-2 * exp(0.6*(273.15 - fmax(temperature, 246.0))); // scheme from RR98;
@@ -247,15 +258,8 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
         if (N_nc > ni){
             // double dt_tmp = fmin(dt, 1.0e-3);
             double ni_tend_tmp = (N_nc - ni)/dt;
-            *ni_tendency = fmax(ni_tend_tmp, 0.0);
-            qi_tendency_tmp = X_ICE_NUC*ni_tend_tmp;
-
-            if(qi_tendency_tmp > 1e-5){
-                *qi_tendency = 0.0;
-            }
-            else{
-                *qi_tendency = fmax(qi_tendency_tmp, 0.0);
-            }
+            *ni_tendency = ni_tend_tmp;
+            *qi_tendency = X_ICE_NUC*ni_tend_tmp;
         } 
     }
     else{
@@ -268,15 +272,20 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
 void sb_deposition_ice(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
         double temperature, double Dm_i, double S_i, double ice_mass, double velocity_ice,
         double qi, double ni, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
-    // ========IN PUT ================
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
     // Dm_i: mass-weighted diameter of ice;
     // ice_mass: average mass of ice;
     // S_i: supper saturation over ice , POSITIVE when supper saturated, NEGATIVE when under saturated;
     // velocity_ice: falling velocity of ice;
     // sb_b_const: diameter-mass constant b for ice;
     // sb_bete_const: diameter-velocity constant β for ice;
-    // ========OUT PUT================
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
     // qi_tendency: ∂qᵢ/∂t of deposition, based on Equ 42 in SB06
+    //-------------------------------------------------------------
     
     if(qi > 1e-12 && ni > 1e-12 && S_i >= 0.0){
         double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature);
