@@ -6,7 +6,6 @@
 #include "advection_interpolation.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
-// #include <cmath>
 #include <math.h>
 
 #define C1_AM 4e-3
@@ -58,6 +57,7 @@ double power_law_parameters_bv_SI(double bm, double ba){
 
 void sb_si_get_ice_parameters_SI(double Ri, double temperature, double ice_mass, 
         double* sb_a_ice, double* sb_b_ice, double* sb_alpha_ice, double* sb_beta_ice){
+
     double am = power_law_parameters_am_SI(Ri, temperature);
     double bm = power_law_parameters_bm_SI(Ri, temperature);
     double aa = power_law_parameters_am_SI(Ri, temperature);
@@ -77,13 +77,13 @@ void sb_si_get_ice_parameters_SI(double Ri, double temperature, double ice_mass,
 // another scheme used in Zhao etc. 2017, SIFI 
 // SIFI scheme is mostly based on MG08 scheme
 double power_law_parameters_am_SIFI(void){
-    return pi/6*DENSITY_SNOW;
+    return pi/6.0*DENSITY_SNOW;
 }
 double power_law_parameters_bm_SIFI(void){
     return 3.0;
 }
 double power_law_parameters_aa_SIFI(void){
-    return pi/4;
+    return pi/4.0;
 }
 double power_law_parameters_ba_SIFI(void){
     return 2.0;
@@ -96,20 +96,51 @@ double power_law_parameters_bv_SIFI(void){
 }
 
 void sb_si_get_ice_parameters_SIFI(double* sb_a_ice, double* sb_b_ice, 
-        double* sb_alpha_ice, double* sb_beta_ice){
+        double* sifi_av, double* sifi_bv, double* sb_beta_ice){
+    //-------------------------------------------------------------
+    // Output parameters
+    //-------------------------------------------------------------
+    // sb_a_ice: the diameter-mass parameter "a" of ice(single ice) in SB06;
+    // sb_b_ice: the diameter-mass parameter "b" of ice(single ice) in SB06;
+    // sifi_av: the velocity-diameter parameter "aᵥ" in Zhao17;
+    // sifi_bv: the velocity-diameter parameter "bᵥ" in Zhao17;
+    // sb_beta_ice: the velocity-mass parameter "β" in SB06;
+    //-------------------------------------------------------------
+    
     double am = power_law_parameters_am_SIFI();
     double bm = power_law_parameters_bm_SIFI();
     double av = power_law_parameters_av_SIFI();
     double bv = power_law_parameters_bv_SIFI();
 
     double ice_dm_exponent = 1.0/bm;
-    double ice_dm_prefactor = pow(1.0/am, ice_dm_exponent);
+    double ice_dm_prefactor = 1.0/pow(am, ice_dm_exponent);
 
     *sb_a_ice = ice_dm_prefactor;
     *sb_b_ice = ice_dm_exponent;
-    *sb_alpha_ice = av*pow(am, bv);
-    *sb_beta_ice = bm*bv;
+    *sb_beta_ice = ice_dm_exponent*bv;
+    *sifi_av = av;
+    *sifi_bv = bv;
     return;
+}
+
+
+double get_sb_alpha_from_sifi(const double sifi_av, const double sb_a, const double sifi_bv, const double density){
+
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // sifi_av: the velocity-diameter parameter "aᵥ" in Zhao17
+    // sifi_bv: the velocity-diameter parameter "bᵥ" in Zhao17;
+    // sb_a: the diameter-mass parameter "a" in SB06
+    // density: air density
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // sb_alphe: the velocity-mass parameter "α" in SB06
+    //-------------------------------------------------------------
+    // referece relationship α(ρ₀/ρ)^γ = aᵥa^bᵥ
+    double sb_alpha = sifi_av*pow(sb_a, sifi_bv)/sqrt(DENSITY_SB/density);
+    return sb_alpha;
 }
 
 void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
@@ -127,7 +158,6 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
     double nr_tendency_au, nr_tendency_scbk, nr_tendency_evap, nr_tendency_frez;
     double qr_tendency_au, qr_tendency_ac, qr_tendency_evap, qr_tendency_frez;
     // single ice tendency definition
-    double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice, ice_mass;
     double qi_tendency_tmp, ni_tendency_tmp;
     double ni_tendency_nuc, ni_tendency_frez, ni_tendency_berg, ni_tendency_melt;
     double qi_tendency_nuc, qi_tendency_frez, qi_tendency_acc, qi_tendency_dep, qi_tendency_berg, qi_tendency_melt, qi_tendency_sub;
@@ -171,7 +201,9 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
 
                 double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
 
-                
+                // define single ice parameters
+                double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, sifi_av, sifi_bv, sb_beta_ice, ice_mass;
+
                 precip_rate[ijk] = 0.0;
                 evap_rate[ijk] = 0.0;
                 melt_rate[ijk] = 0.0;
@@ -213,8 +245,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     //obtain some parameters of cloud droplets
                     liquid_mass = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
                     Dm_l =  cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
-                    velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[ijk]);
                     
+                    velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[ijk]);
                     //obtain some parameters of rain droplets
                     rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS); //average mass of rain droplet
                     Dm_r      = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi); // mass weighted diameter of rain droplets
@@ -227,9 +259,9 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     // ================================================
                     double Ri;
                     ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                    sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                    sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
-                    velocity_ice  = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+                    velocity_ice  = sifi_av * pow(Dm_i, sifi_bv);
   
                     //compute the source terms
                     sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
@@ -241,8 +273,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
                             &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
-                    sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
+                    // sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
+                    //         sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
                     sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
                     sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
@@ -345,8 +377,21 @@ void sb_si_qt_source_formation(const struct DimStruct *dims, double* restrict qi
     return;
 }
 
-void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restrict ni, double* restrict qi,
+void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restrict ni, double* restrict qi, double* restrict density,
         double* restrict ni_velocity, double* restrict qi_velocity){
+
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // ni: number density of ice(single ice)
+    // qi: mixing ratio of ice(single ice)
+    // density: ρ the density of air
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // ni_velocity: ni sedimentation velocity, or named w_ni as DV 
+    // qi_velocity: qi sedimentation velocity, or named w_ni as DV
+    //-------------------------------------------------------------
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -363,15 +408,17 @@ void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restric
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin-1; k<kmax+1; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice;
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice, sifi_av, sifi_bv;
+
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                 double ice_mass = microphysics_mean_mass(ni[ijk], qi[ijk], ICE_MIN_MASS, ICE_MAX_MASS);
-                double vel_tmp_1 = gamma(6.0)/gamma(9.0);
-                double ni_vel_tmp = sb_alpha_ice * gamma(6.0 + 3.0*sb_beta_ice)/gamma(6.0) * pow(vel_tmp_1, sb_beta_ice) * pow(ice_mass, sb_beta_ice);
-                double qi_vel_tmp = sb_alpha_ice * gamma(9.0 + 3.0*sb_beta_ice)/gamma(9.0) * pow(vel_tmp_1, sb_beta_ice) * pow(ice_mass, sb_beta_ice);
+                sb_alpha_ice = 160.0; // just tmp settings for single ice falling velocity computation.
+                // sb_alpha_ice = get_sb_alpha_from_sifi(sifi_av, sb_a_ice, sifi_bv, density[k]);
+                //
+                double ni_vel_tmp = sb_alpha_ice * gamma(6.0 + 3.0*sb_beta_ice)/gamma(6.0) * pow(gamma(6.0)/gamma(9.0), sb_beta_ice) * pow(ice_mass, sb_beta_ice);
+                double qi_vel_tmp = sb_alpha_ice * gamma(9.0 + 3.0*sb_beta_ice)/gamma(9.0) * pow(gamma(6.0)/gamma(9.0), sb_beta_ice) * pow(ice_mass, sb_beta_ice);
                 ni_velocity[ijk] = -fmin(fmax( ni_vel_tmp, 0.0),10.0);
                 qi_velocity[ijk] = -fmin(fmax( qi_vel_tmp, 0.0),10.0);
-
             }
         }
     }
@@ -633,7 +680,7 @@ void sb_deposition_ice_wrapper(const struct DimStruct *dims, struct LookupStruct
     const ssize_t imax = dims->nlg[0]-dims->gw;
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice;
+    double sb_a_ice, sb_b_ice, sifi_av, sifi_bv, sb_beta_ice;
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -643,13 +690,13 @@ void sb_deposition_ice_wrapper(const struct DimStruct *dims, struct LookupStruct
                 const ssize_t ijk = ishift + jshift + k;
 
                 //obtain some parameters of ice particle
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                 const double qi_tmp       = fmax(qi[ijk],0.0);
                 const double ni_tmp       = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
                 const double sat_ratio    = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
                 const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
                 const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
-                const double velocity_ice = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+                const double velocity_ice = sifi_av * pow(Dm_i, sifi_bv);
 
                 sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
                         qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency[ijk]);   
@@ -674,7 +721,7 @@ void sb_sublimation_ice_wrapper(const struct DimStruct *dims, struct LookupStruc
     const ssize_t imax = dims->nlg[0]-dims->gw;
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice;
+    double sb_a_ice, sb_b_ice, sifi_av, sifi_bv, sb_beta_ice;
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -686,11 +733,11 @@ void sb_sublimation_ice_wrapper(const struct DimStruct *dims, struct LookupStruc
                 const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
 
                 //obtain some parameters of ice particle
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                 const double sat_ratio    = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
                 const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
                 const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
-                const double velocity_ice = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+                const double velocity_ice = sifi_av * pow(Dm_i, sifi_bv);
 
                 sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
                         qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency[ijk]);   
@@ -757,7 +804,7 @@ void sb_melting_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *L
     const ssize_t imax = dims->nlg[0]-dims->gw;
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice;
+    double sb_a_ice, sb_b_ice, sifi_av, sifi_bv, sb_beta_ice;
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -769,9 +816,9 @@ void sb_melting_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *L
                 double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
 
                 //obtain some parameters of cloud droplets
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                 const double ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                const double Dm_i = sb_a_ice * pow(ice_mass, sb_b_ice);
+                const double Dm_i = sifi_av * pow(ice_mass, sifi_bv);
 
                 sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv[ijk], ni_tmp, qi_tmp, 
                         &ni_tendency[ijk], &qi_tendency[ijk]);
@@ -795,7 +842,7 @@ void sb_accretion_cloud_ice_wrapper(const struct DimStruct *dims, const double c
     const ssize_t imax = dims->nlg[0]-dims->gw;
     const ssize_t jmax = dims->nlg[1]-dims->gw;
     const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice, nl_tendency_tmp;
+    double sb_a_ice, sb_b_ice, sifi_av, sifi_bv, sb_beta_ice, nl_tendency_tmp;
 
     for(ssize_t i=imin; i<imax; i++){
         const ssize_t ishift = i * istride;
@@ -814,10 +861,10 @@ void sb_accretion_cloud_ice_wrapper(const struct DimStruct *dims, const double c
                 const double velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[ijk]);
 
                 //obtain some parameters of ice particle
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                 const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
                 const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
-                const double velocity_ice = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+                const double velocity_ice = sifi_av * pow(Dm_i, sifi_bv);
 
                 sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
                             sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_tmp, &qi_tendency[ijk]);
