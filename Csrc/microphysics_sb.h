@@ -7,6 +7,7 @@
 #include "advection_interpolation.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
+#include <cmath>
 #include <math.h>
 
 // ===========<<< Reference about SB_Liquid microphysics scheme >>> ============
@@ -86,6 +87,12 @@ double sb_Dp(double Dm, double mu){
     // Here tgamma(mu+1.0)/tgamma(mu + 4.0) is same as 1/(mu + 3.0)*(mu+2.0)*(mu+1.0) in equ (5)
     double Dp = Dm * cbrt(tgamma(mu + 1.0) / tgamma(mu + 4.0));
     return Dp;
+}
+
+double single_micro_Fn(double diameter, double velocity){
+    double re = diameter*velocity/KIN_VISC_AIR;
+    double f_vent = 0.78 + 0.308*NSC_3*sqrt(re);
+    return f_vent;
 }
 
 // Seifert & Beheng 2006: Equ 41, 85-89
