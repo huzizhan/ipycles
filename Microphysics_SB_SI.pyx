@@ -4,8 +4,8 @@
 #cython: initializedcheck=False
 #cython: cdivision=True
 
-cimport numpy as np
-import numpy as np
+cimport numpy as np 
+import numpy as np 
 cimport Lookup
 cimport ParallelMPI
 cimport Grid
@@ -60,7 +60,8 @@ cdef extern from "microphysics_sb_si.h":
                                     double* ni_si_tendency_micro, double* qi_si_tendency_micro, double* ni_si_tendency, double* qi_si_tendency,
                                     double* precip_rate, double* evap_rate, double* melt_rate) nogil
     void sb_si_qt_source_formation(Grid.DimStruct *dims, double* qi_si_tendency, double* qr_tendency, double* qt_tendency)nogil
-    void sb_sedimentation_velocity_ice(Grid.DimStruct *dims, double* ni_si, double* qi_si, double* ni_si_velocity, double* qi_si_velocity) nogil
+    void sb_sedimentation_velocity_ice(Grid.DimStruct *dims, double* ni_si, double* qi_si, double* density, double* ni_si_velocity, 
+                                    double* qi_si_velocity) nogil
     void sb_si_entropy_source_heating_rain(Grid.DimStruct *dims, double* T, double* Twet, double* qr,
                                     double* w_qr, double* w,  double* entropy_tendency) nogil
     void sb_si_entropy_source_heating_snow(Grid.DimStruct *dims, double* T, double* Twet, double* qi_si,
@@ -74,6 +75,17 @@ cdef extern from "microphysics_sb_si.h":
                                     double (*L_fp)(double, double), double* p0, double* temperature,
                                     double* qt, double* qv, double* qr_tend, double* precip_rate, double* entropy_tendency)
     void sb_si_entropy_source_melt(Grid.DimStruct *dims, double* temperature, double* melt_rate, double* entropy_tendency)
+    void sb_nucleation_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double* temperature, double* ni, double* qi, double* p0, 
+                                    double* qt, double dt, double* ni_tendency, double* qi_tendency)nogil
+    void sb_deposition_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                                    double* temperature, double* p0, double* qt, double* ni, double* qi, double* qi_tendency)nogil
+    void sb_sublimation_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                                    double* temperature, double* p0, double* qt, double* ni, double* qi, double* qi_tendency)nogil
+    void sb_freezing_ice_wrapper(Grid.DimStruct *dims, double (*droplet_nu)(double,double), double ccn, double* temperature, double* density,
+                                    double* ql, double* qr, double* nr, double* qi_tendency, double* ni_tendency)nogil
+    void sb_melting_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                                    double* temperature, double* qv, double* qi, double* ni, double* qi_tendency, double* ni_tendency)nogil
+    void sb_accretion_cloud_ice_wrapper(Grid.DimStruct *dims, double ccn, double* density, double* ql, double* qi, double* ni, double* qi_tendency)nogil
 
 cdef class Microphysics_SB_SI:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -183,15 +195,12 @@ cdef class Microphysics_SB_SI:
         # add wet bulb temperature 
         DV.add_variables('temperature_wb', 'K', r'T_{wb}','wet bulb temperature','sym', Pa) 
         
-        # add statistical output for the class 
+        # add statistical output for the class
+        # output for rain variables: qr and nr
         NS.add_profile('qr_sedimentation_flux', Gr, Pa) 
         NS.add_profile('nr_sedimentation_flux', Gr, Pa) 
         NS.add_profile('qr_autoconversion', Gr, Pa) 
         NS.add_profile('nr_autoconversion', Gr, Pa) 
-        NS.add_profile('qi_si_sedimentation_flux', Gr, Pa) 
-        NS.add_profile('ni_si_sedimentation_flux', Gr, Pa)
-        NS.add_profile('qi_si_autoconversion', Gr, Pa)
-        NS.add_profile('ni_si_autoconversion', Gr, Pa)
         NS.add_profile('s_autoconversion', Gr, Pa)
         NS.add_profile('nr_selfcollection', Gr, Pa)
         NS.add_profile('qr_accretion', Gr, Pa)
@@ -201,6 +210,19 @@ cdef class Microphysics_SB_SI:
         NS.add_profile('s_evaporation', Gr,Pa)
         NS.add_profile('s_precip_heating', Gr, Pa)
         NS.add_profile('s_precip_drag', Gr, Pa)
+        # output for rain variables: qi_si and ni_si
+        NS.add_profile('qi_si_sedimentation_flux', Gr, Pa) 
+        NS.add_profile('ni_si_sedimentation_flux', Gr, Pa) 
+        NS.add_profile('qi_si_nucleation', Gr, Pa) 
+        NS.add_profile('ni_si_nucleation', Gr, Pa) 
+        NS.add_profile('qi_si_deposition', Gr, Pa) 
+        NS.add_profile('qi_si_sublimation', Gr, Pa) 
+        NS.add_profile('qi_si_freezing', Gr, Pa) 
+        NS.add_profile('ni_si_freezing', Gr, Pa) 
+        NS.add_profile('qi_si_melting', Gr, Pa) 
+        NS.add_profile('ni_si_melting', Gr, Pa) 
+        NS.add_profile('qi_si_accretion_cloud_ice', Gr, Pa) 
+        
         return
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
@@ -239,7 +261,8 @@ cdef class Microphysics_SB_SI:
         # sedimentation processes of rain and single_ice: w_qr and w_qi_si
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
                                        &DV.values[wnr_shift], &DV.values[wqr_shift])
-        sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[ni_si_shift], &PV.values[qi_si_shift], &DV.values[wni_si_shift], &DV.values[wqi_si_shift])
+        sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[ni_si_shift], &PV.values[qi_si_shift], &Ref.rho0_half[0], 
+                                       &DV.values[wni_si_shift], &DV.values[wqi_si_shift])
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
@@ -281,110 +304,187 @@ cdef class Microphysics_SB_SI:
         return
     
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
-                   NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
-    #     cdef:
-    #         Py_ssize_t i, j, k, ijk
-    #         Py_ssize_t gw = Gr.dims.gw
-    #         Py_ssize_t imax = Gr.dims.nlg[0]
-    #         Py_ssize_t jmax = Gr.dims.nlg[1]
-    #         Py_ssize_t kmax = Gr.dims.nlg[2]
-    #         Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
-    #         Py_ssize_t jstride = Gr.dims.nlg[2]
-    #         Py_ssize_t ishift, jshift
-    #
-    #         Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature') Py_ssize_t tw_shift = DV.get_varshift(Gr, 'temperature_wb') Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv') Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql') Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr') Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr') Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt') Py_ssize_t w_shift = PV.get_varshift(Gr, 'w') double[:] qr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c') double[:] nr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c') double[:] tmp
-    #         double[:] dummy =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-    #         Py_ssize_t wqr_shift = DV.get_varshift(Gr, 'w_qr')
-    #         Py_ssize_t wnr_shift = DV.get_varshift(Gr, 'w_nr')
-    #         Py_ssize_t wqt_shift
-    #
-    #     cdef double[:] s_src =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-    #     if self.cloud_sedimentation:
-    #         wqt_shift = DV.get_varshift(Gr,'w_qt')
-    #
-    #         compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqt_shift], &DV.values[ql_shift], &dummy[0], 2, self.order)
-    #         tmp = Pa.HorizontalMean(Gr, &dummy[0])
-    #         NS.write_profile('qt_sedimentation_flux', tmp[gw:-gw], Pa)
-    #
-    #         compute_qt_sedimentation_s_source(&Gr.dims, &Ref.p0_half[0], &Ref.rho0_half[0], &dummy[0],
-    #                                 &PV.values[qt_shift], &DV.values[qv_shift],&DV.values[t_shift], &s_src[0], self.Lambda_fp,
-    #                                 self.L_fp, Gr.dims.dx[2], 2)
-    #         tmp = Pa.HorizontalMean(Gr, &s_src[0])
-    #         NS.write_profile('s_qt_sedimentation_source', tmp[gw:-gw], Pa)
-    #
-    #     #compute sedimentation flux only of nr
-    #     compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wnr_shift], &PV.values[nr_shift], &dummy[0], 2, self.order)
-    #     tmp = Pa.HorizontalMean(Gr, &dummy[0])
-    #     NS.write_profile('nr_sedimentation_flux', tmp[gw:-gw], Pa)
-    #
-    #     #compute sedimentation flux only of qr
-    #     compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqr_shift], &PV.values[qr_shift], &dummy[0], 2, self.order)
-    #     tmp = Pa.HorizontalMean(Gr, &dummy[0])
-    #     NS.write_profile('qr_sedimentation_flux', tmp[gw:-gw], Pa)
-    #
-    #     #note we can re-use nr_tendency and qr_tendency because they are overwritten in each function
-    #     #must have a zero array to pass as entropy tendency and need to send a dummy variable for qt tendency
-    #
-    #     # Autoconversion tendencies of qr, nr, s
-    #     sb_autoconversion_rain_wrapper(&Gr.dims,  self.compute_droplet_nu, &Ref.rho0_half[0], self.ccn,
-    #                                    &DV.values[ql_shift], &PV.values[qr_shift], &nr_tendency[0], &qr_tendency[0])
-    #     tmp = Pa.HorizontalMean(Gr, &nr_tendency[0])
-    #     NS.write_profile('nr_autoconversion', tmp[gw:-gw], Pa)
-    #     tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
-    #     NS.write_profile('qr_autoconversion', tmp[gw:-gw], Pa)
-    #     cdef double[:] s_auto =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-    #     sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-    #                               &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
-    #                               &qr_tendency[0], &s_auto[0])
-    #
-    #     tmp = Pa.HorizontalMean(Gr, &s_auto[0])
-    #     NS.write_profile('s_autoconversion', tmp[gw:-gw], Pa)
-    #
-    #
-    #     # Accretion tendencies of qr, s
-    #     sb_accretion_rain_wrapper(&Gr.dims, &Ref.rho0_half[0], &DV.values[ql_shift], &PV.values[qr_shift], &qr_tendency[0])
-    #     tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
-    #     NS.write_profile('qr_accretion', tmp[gw:-gw], Pa)
-    #     cdef double[:] s_accr =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-    #     sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-    #                               &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
-    #                               &qr_tendency[0], &s_accr[0])
-    #     tmp = Pa.HorizontalMean(Gr, &s_accr[0])
-    #     NS.write_profile('s_accretion', tmp[gw:-gw], Pa)
-    #
-    #     # Self-collection and breakup tendencies (lumped) of nr
-    #     sb_selfcollection_breakup_rain_wrapper(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0],
-    #                                            &PV.values[nr_shift], &PV.values[qr_shift], &nr_tendency[0])
-    #     tmp = Pa.HorizontalMean(Gr, &nr_tendency[0])
-    #     NS.write_profile('nr_selfcollection', tmp[gw:-gw], Pa)
-    #
-    #     # Evaporation tendencies of qr, nr, s
-    #     sb_evaporation_rain_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp,
-    #                                 self.compute_rain_shape_parameter, &Ref.rho0_half[0], &Ref.p0_half[0],
-    #                                 &DV.values[t_shift], &PV.values[qt_shift], &DV.values[ql_shift],
-    #                                 &PV.values[nr_shift], &PV.values[qr_shift], &nr_tendency[0], &qr_tendency[0])
-    #
-    #     tmp = Pa.HorizontalMean(Gr, &nr_tendency[0])
-    #     NS.write_profile('nr_evaporation', tmp[gw:-gw], Pa)
-    #     tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
-    #     NS.write_profile('qr_evaporation', tmp[gw:-gw], Pa)
-    #     cdef double[:] s_evp =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-    #     sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-    #                               &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
-    #                               &qr_tendency[0], &s_evp[0])
-    #     tmp = Pa.HorizontalMean(Gr, &s_evp[0])
-    #     NS.write_profile('s_evaporation', tmp[gw:-gw], Pa)
-    #
-    #
-    #     cdef double[:] s_heat =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-    #     sb_entropy_source_heating(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
-    #                               &DV.values[wqr_shift],  &PV.values[w_shift], &s_heat[0])
-    #     tmp = Pa.HorizontalMean(Gr, &s_heat[0])
-    #     NS.write_profile('s_precip_heating', tmp[gw:-gw], Pa)
-    #
-    #     cdef double[:] s_drag =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-    #     sb_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift], &s_drag[0])
-    #     tmp = Pa.HorizontalMean(Gr, &s_drag[0])
-    #     NS.write_profile('s_precip_drag', tmp[gw:-gw], Pa)
+                   NetCDFIO_Stats NS, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+        cdef:
+            Py_ssize_t i, j, k, ijk
+            Py_ssize_t gw = Gr.dims.gw
+            Py_ssize_t imax = Gr.dims.nlg[0]
+            Py_ssize_t jmax = Gr.dims.nlg[1]
+            Py_ssize_t kmax = Gr.dims.nlg[2]
+            Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
+            Py_ssize_t jstride = Gr.dims.nlg[2]
+            Py_ssize_t ishift, jshift
+
+            Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
+            Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
+            Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
+            Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
+            Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
+            Py_ssize_t ni_si_shift = PV.get_varshift(Gr, 'ni_si')
+            Py_ssize_t qi_si_shift = PV.get_varshift(Gr, 'qi_si')
+            Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
+            Py_ssize_t w_shift = PV.get_varshift(Gr, 'w')
+            double dt = TS.dt
+            double[:] dummy =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            Py_ssize_t wqr_shift = DV.get_varshift(Gr, 'w_qr')
+            Py_ssize_t wnr_shift = DV.get_varshift(Gr, 'w_nr')
+            Py_ssize_t wqi_si_shift = DV.get_varshift(Gr, 'w_qi_si')
+            Py_ssize_t wni_si_shift = DV.get_varshift(Gr, 'w_ni_si')
+            Py_ssize_t wqt_shift
+            double[:] qr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
+
+        cdef double[:] s_src =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        if self.cloud_sedimentation:
+            wqt_shift = DV.get_varshift(Gr,'w_qt')
+
+            compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqt_shift], &DV.values[ql_shift], &dummy[0], 2, self.order)
+            tmp = Pa.HorizontalMean(Gr, &dummy[0])
+            NS.write_profile('qt_sedimentation_flux', tmp[gw:-gw], Pa)
+
+            compute_qt_sedimentation_s_source(&Gr.dims, &Ref.p0_half[0], &Ref.rho0_half[0], &dummy[0],
+                                    &PV.values[qt_shift], &DV.values[qv_shift],&DV.values[t_shift], &s_src[0], self.Lambda_fp,
+                                    self.L_fp, Gr.dims.dx[2], 2)
+            tmp = Pa.HorizontalMean(Gr, &s_src[0])
+            NS.write_profile('s_qt_sedimentation_source', tmp[gw:-gw], Pa)
+
+        #compute sedimentation flux only of nr
+        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wnr_shift], &PV.values[nr_shift], &dummy[0], 2, self.order)
+        tmp = Pa.HorizontalMean(Gr, &dummy[0])
+        NS.write_profile('nr_sedimentation_flux', tmp[gw:-gw], Pa)
+        
+        #compute sedimentation flux only of qr
+        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqr_shift], &PV.values[qr_shift], &dummy[0], 2, self.order)
+        tmp = Pa.HorizontalMean(Gr, &dummy[0])
+        NS.write_profile('qr_sedimentation_flux', tmp[gw:-gw], Pa)
+        
+        #compute sedimentation flux only of ni_si
+        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wni_si_shift], &PV.values[ni_si_shift], &dummy[0], 2, self.order)
+        tmp = Pa.HorizontalMean(Gr, &dummy[0])
+        NS.write_profile('ni_si_sedimentation_flux', tmp[gw:-gw], Pa)
+
+        #compute sedimentation flux only of qi_si
+        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqi_si_shift], &PV.values[qi_si_shift], &dummy[0], 2, self.order)
+        tmp = Pa.HorizontalMean(Gr, &dummy[0])
+        NS.write_profile('qi_si_sedimentation_flux', tmp[gw:-gw], Pa)
+        
+        #note we can re-use nr_tendency and qr_tendency because they are overwritten in each function
+        #must have a zero array to pass as entropy tendency and need to send a dummy variable for qt tendency
+
+        # Autoconversion tendencies of qr, nr, s
+        # comment the entropy source computation for temp purpose;
+        sb_autoconversion_rain_wrapper(&Gr.dims,  self.compute_droplet_nu, &Ref.rho0_half[0], self.ccn,
+                                       &DV.values[ql_shift], &PV.values[qr_shift], &nr_tendency[0], &qr_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &nr_tendency[0])
+        NS.write_profile('nr_autoconversion', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
+        NS.write_profile('qr_autoconversion', tmp[gw:-gw], Pa)
+        # cdef double[:] s_auto = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        # sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+        #                           &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
+        #                           &qr_tendency[0], &s_auto[0])
+        #
+        # tmp = Pa.HorizontalMean(Gr, &s_auto[0])
+        # NS.write_profile('s_autoconversion', tmp[gw:-gw], Pa)
+
+
+        # Accretion tendencies of qr, s
+        # comment the entropy source computation for temp purpose;
+        sb_accretion_rain_wrapper(&Gr.dims, &Ref.rho0_half[0], &DV.values[ql_shift], &PV.values[qr_shift], &qr_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
+        NS.write_profile('qr_accretion', tmp[gw:-gw], Pa)
+        # cdef double[:] s_accr = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        # sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+        #                           &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
+        #                           &qr_tendency[0], &s_accr[0])
+        # tmp = Pa.HorizontalMean(Gr, &s_accr[0])
+        # NS.write_profile('s_accretion', tmp[gw:-gw], Pa)
+
+        # Self-collection and breakup tendencies (lumped) of nr
+        sb_selfcollection_breakup_rain_wrapper(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0],
+                                               &PV.values[nr_shift], &PV.values[qr_shift], &nr_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &nr_tendency[0])
+        NS.write_profile('nr_selfcollection', tmp[gw:-gw], Pa)
+
+        # Evaporation tendencies of qr, nr, s
+        # comment the entropy source computation for temp purpose;
+        sb_evaporation_rain_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp,
+                                    self.compute_rain_shape_parameter, &Ref.rho0_half[0], &Ref.p0_half[0],
+                                    &DV.values[t_shift], &PV.values[qt_shift], &DV.values[ql_shift],
+                                    &PV.values[nr_shift], &PV.values[qr_shift], &nr_tendency[0], &qr_tendency[0])
+
+        tmp = Pa.HorizontalMean(Gr, &nr_tendency[0])
+        NS.write_profile('nr_evaporation', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qr_tendency[0])
+        NS.write_profile('qr_evaporation', tmp[gw:-gw], Pa)
+        # cdef double[:] s_evp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        # sb_entropy_source_formation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
+        #                           &DV.values[t_shift], &DV.values[tw_shift],&PV.values[qt_shift], &DV.values[qv_shift],
+        #                           &qr_tendency[0], &s_evp[0])
+        # tmp = Pa.HorizontalMean(Gr, &s_evp[0])
+        # NS.write_profile('s_evaporation', tmp[gw:-gw], Pa)
+
+        # cdef double[:] s_heat = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        # sb_entropy_source_heating(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
+        #                           &DV.values[wqr_shift],  &PV.values[w_shift], &s_heat[0])
+        # tmp = Pa.HorizontalMean(Gr, &s_heat[0])
+        # NS.write_profile('s_precip_heating', tmp[gw:-gw], Pa)
+
+        # cdef double[:] s_drag = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        # sb_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift], &s_drag[0])
+        # tmp = Pa.HorizontalMean(Gr, &s_drag[0])
+        # NS.write_profile('s_precip_drag', tmp[gw:-gw], Pa)
+
+        # ================single_ice output section =================
+        cdef:
+            double[:] qi_si_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ni_si_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
+        
+        # nucleation output of qi_si and ni_si;
+        sb_nucleation_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, &DV.values[t_shift], &PV.values[ni_si_shift], 
+                                &PV.values[qi_si_shift], &Ref.p0_half[0], &PV.values[qt_shift], dt, 
+                                &ni_si_tendency[0], &qi_si_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &ni_si_tendency[0])
+        NS.write_profile('ni_si_nucleation', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
+        NS.write_profile('qi_si_nucleation', tmp[gw:-gw], Pa)
+
+        # deposition of qi_si
+        sb_deposition_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &DV.values[t_shift], 
+                                &Ref.p0_half[0], &PV.values[qt_shift], &PV.values[ni_si_shift], &PV.values[qi_si_shift], 
+                                &qi_si_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
+        NS.write_profile('qi_si_deposition', tmp[gw:-gw], Pa)
+
+        # sublimation of qi_si
+        sb_sublimation_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &DV.values[t_shift], 
+                                &Ref.p0_half[0], &PV.values[qt_shift], &PV.values[ni_si_shift], &PV.values[qi_si_shift], 
+                                &qi_si_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
+        NS.write_profile('qi_si_sublimation', tmp[gw:-gw], Pa)
+
+        # freezing of qi_si and ni_si
+        sb_freezing_ice_wrapper(&Gr.dims, self.compute_droplet_nu, self.ccn, &DV.values[t_shift], &Ref.rho0[0], 
+                                &DV.values[ql_shift], &PV.values[qr_shift], &PV.values[nr_shift],
+                                &qi_si_tendency[0], &ni_si_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &ni_si_tendency[0])
+        NS.write_profile('ni_si_freezing', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
+        NS.write_profile('qi_si_freezing', tmp[gw:-gw], Pa)
+        
+        # accretion of cloud ice on qi_si;
+        sb_accretion_cloud_ice_wrapper(&Gr.dims, self.ccn, &Ref.rho0[0], &DV.values[ql_shift], &PV.values[qi_si_shift], 
+                                &PV.values[ni_si_shift], &qi_si_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
+        NS.write_profile('qi_si_accretion_cloud_ice', tmp[gw:-gw], Pa)
+
+        # melting effect on qi_si and ni_si;
+        sb_melting_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &DV.values[t_shift], 
+                                &DV.values[qv_shift], &PV.values[qi_si_shift], &PV.values[ni_si_shift], &qi_si_tendency[0],
+                                &ni_si_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &ni_si_tendency[0])
+        NS.write_profile('ni_si_melting', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
+        NS.write_profile('qi_si_melting', tmp[gw:-gw], Pa)
 
         return
