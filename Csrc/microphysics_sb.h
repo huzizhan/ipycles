@@ -368,9 +368,9 @@ void sb_freezing_ice(double (*droplet_nu)(double,double), double density, double
         qr_het = 20 * qr * rain_mass * J_het;
         nr_het = nr * rain_mass * J_het;
         
-        *ql_tendency = -ql_hom;
-        *qr_tendency = -qr_het;
-        *nr_tendency = -nr_het;
+        *ql_tendency = ql_hom;
+        *qr_tendency = qr_het;
+        *nr_tendency = nr_het;
         *qi_tendency = ql_hom + qr_het;
         *ni_tendency = nl_hom + nr_het;
     }

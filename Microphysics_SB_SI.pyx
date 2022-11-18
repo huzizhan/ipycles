@@ -20,16 +20,16 @@ include 'parameters.pxi'
 
 cdef extern from "microphysics.h":
     void microphysics_stokes_sedimentation_velocity(Grid.DimStruct *dims, double* density, double ccn, double*  ql, 
-                                                    double*  qt_velocity) nogil
+            double*  qt_velocity) nogil
     void microphysics_wetbulb_temperature(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double* p0, double* s,
-                                          double* qt,  double* T, double* Twet )nogil
+            double* qt,  double* T, double* Twet )nogil
 
 cdef extern from "scalar_advection.h":
     void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double *rho0_half, double *velocity, 
-                                    double *scalar, double* flux, int d, int scheme) nogil
+            double *scalar, double* flux, int d, int scheme) nogil
     void compute_qt_sedimentation_s_source(Grid.DimStruct *dims, double *p0_half,  double* rho0_half, double *flux,
-                                           double* qt, double* qv, double* T, double* tendency, double (*lam_fp)(double),
-                                           double (*L_fp)(double, double), double dx, ssize_t d)nogil
+            double* qt, double* qv, double* T, double* tendency, double (*lam_fp)(double),
+            double (*L_fp)(double, double), double dx, ssize_t d)nogil
 
 cdef extern from "microphysics_sb.h":
     double sb_rain_shape_parameter_0(double density, double qr, double Dm) nogil
@@ -41,51 +41,62 @@ cdef extern from "microphysics_sb.h":
     double sb_droplet_nu_2(double density, double ql) nogil
     void sb_sedimentation_velocity_liquid(Grid.DimStruct *dims, double*  density, double ccn, double* ql, double* qt_velocity)nogil
     void sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
-                                    double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity) nogil
+            double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity) nogil
     void sb_autoconversion_rain_wrapper(Grid.DimStruct *dims,  double (*droplet_nu)(double,double), double* density,
-                                    double ccn, double* ql, double* qr, double*  nr_tendency, double* qr_tendency) nogil
+            double ccn, double* ql, double* qr, double*  nr_tendency, double* qr_tendency) nogil
     void sb_accretion_rain_wrapper(Grid.DimStruct *dims, double* density, double*  ql, double* qr, double* qr_tendency)nogil
     void sb_selfcollection_breakup_rain_wrapper(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
-                                    double* density, double* nr, double* qr, double*  nr_tendency)nogil
+            double* density, double* nr, double* qr, double*  nr_tendency)nogil
     void sb_evaporation_rain_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                                    double (*rain_mu)(double,double,double),  double* density, double* p0,  double* temperature,  double* qt,
-                                    double* ql, double* nr, double* qr, double* nr_tendency, double* qr_tendency)nogil
+            double (*rain_mu)(double,double,double),  double* density, double* p0,  double* temperature,  double* qt,
+            double* ql, double* nr, double* qr, double* nr_tendency, double* qr_tendency)nogil
 
 cdef extern from "microphysics_sb_si.h":
     void sb_si_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                                    double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-                                    double* density, double* p0, double* temperature,  double* qt, double ccn,
-                                    double* ql, double* nr, double* qr, double* qi_si, double* ni_si, double dt, 
-                                    double* nr_tendency_micro, double* qr_tendency_micro, double* nr_tendency, double* qr_tendency, 
-                                    double* ni_si_tendency_micro, double* qi_si_tendency_micro, double* ni_si_tendency, double* qi_si_tendency,
-                                    double* precip_rate, double* evap_rate, double* melt_rate) nogil
-    void sb_si_qt_source_formation(Grid.DimStruct *dims, double* qi_si_tendency, double* qr_tendency, double* qt_tendency)nogil
-    void sb_sedimentation_velocity_ice(Grid.DimStruct *dims, double* ni_si, double* qi_si, double* density, double* ni_si_velocity, 
-                                    double* qi_si_velocity) nogil
+            double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+            double* density, double* p0, double* temperature,  double* qt, double ccn,
+            double* ql, double* nr, double* qr, double* qisi, double* nisi, double dt, 
+            double* nr_tendency_micro, double* qr_tendency_micro, double* nr_tendency, double* qr_tendency, 
+            double* nisi_tendency_micro, double* qisi_tendency_micro, double* nisi_tendency, double* qisi_tendency,
+            double* precip_rate, double* evap_rate, double* melt_rate) nogil
+    void sb_si_qt_source_formation(Grid.DimStruct *dims, double* qisi_tendency, double* qr_tendency, double* qt_tendency)nogil
+    void sb_sedimentation_velocity_ice(Grid.DimStruct *dims, double* nisi, double* qisi, double* density, double* nisi_velocity, 
+            double* qisi_velocity) nogil
     void sb_si_entropy_source_heating_rain(Grid.DimStruct *dims, double* T, double* Twet, double* qr,
-                                    double* w_qr, double* w,  double* entropy_tendency) nogil
-    void sb_si_entropy_source_heating_snow(Grid.DimStruct *dims, double* T, double* Twet, double* qi_si,
-                                    double* w_qs, double* w,  double* entropy_tendency) nogil
+            double* w_qr, double* w,  double* entropy_tendency) nogil
+    void sb_si_entropy_source_heating_snow(Grid.DimStruct *dims, double* T, double* Twet, double* qisi,
+            double* w_qs, double* w,  double* entropy_tendency) nogil
     void sb_si_entropy_source_drag(Grid.DimStruct *dims, double* T, double* qprec, double* w_qprec,
-                                    double* entropy_tendency) nogil
+            double* entropy_tendency) nogil
     void sb_si_entropy_source_evaporation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
-                                    double (*L_fp)(double, double), double* p0, double* temperature,
-                                    double* Twet, double* qt, double* qv, double* qr_tend, double* evap_rate, double* entropy_tendency)
+            double (*L_fp)(double, double), double* p0, double* temperature,
+            double* Twet, double* qt, double* qv, double* qr_tend, double* evap_rate, double* entropy_tendency)
     void sb_si_entropy_source_precipitation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double),
-                                    double (*L_fp)(double, double), double* p0, double* temperature,
-                                    double* qt, double* qv, double* qr_tend, double* precip_rate, double* entropy_tendency)
+            double (*L_fp)(double, double), double* p0, double* temperature,
+            double* qt, double* qv, double* qr_tend, double* precip_rate, double* entropy_tendency)
     void sb_si_entropy_source_melt(Grid.DimStruct *dims, double* temperature, double* melt_rate, double* entropy_tendency)
     void sb_nucleation_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double* temperature, double* ni, double* qi, double* p0, 
-                                    double* qt, double dt, double* ni_tendency, double* qi_tendency)nogil
+            double* qt, double dt, double* ni_tendency, double* qi_tendency)nogil
     void sb_deposition_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                                    double* temperature, double* p0, double* qt, double* ni, double* qi, double* qi_tendency)nogil
+            double* temperature, double* p0, double* qt, double* ni, double* qi, double* qi_tendency)nogil
     void sb_sublimation_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                                    double* temperature, double* p0, double* qt, double* ni, double* qi, double* qi_tendency)nogil
+            double* temperature, double* p0, double* qt, double* ni, double* qi, double* qi_tendency)nogil
     void sb_freezing_ice_wrapper(Grid.DimStruct *dims, double (*droplet_nu)(double,double), double ccn, double* temperature, double* density,
-                                    double* ql, double* qr, double* nr, double* qi_tendency, double* ni_tendency)nogil
+            double* ql, double* qr, double* nr, double* qi_tendency, double* ni_tendency)nogil
     void sb_melting_ice_wrapper(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                                    double* temperature, double* qv, double* qi, double* ni, double* qi_tendency, double* ni_tendency)nogil
+            double* temperature, double* qv, double* qi, double* ni, double* qi_tendency, double* ni_tendency)nogil
     void sb_accretion_cloud_ice_wrapper(Grid.DimStruct *dims, double ccn, double* density, double* ql, double* qi, double* ni, double* qi_tendency)nogil
+
+cdef extern from "isotope.h":
+    void tracer_sb_si_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+            double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+            double* density, double* p0, double* temperature,  double* qt, double ccn,
+            double* ql, double* nr, double* qr, double* qisi, double* nisi, double dt, double* ql_std,
+            double* nr_tendency_micro, double* qr_tendency_micro, double* nr_tendency, double* qr_tendency, 
+            double* nisi_tendency_micro, double* qisi_tendency_micro, double* nisi_tendency, double* qisi_tendency,
+            double* precip_rate, double* evap_rate, double* melt_rate, double* qt_iso, double* ql_iso, double* qr_iso, 
+            double* qisi_iso, double* qr_iso_tendency, double* qisi_iso_tendency, 
+            double* qr_iso_tend_micro, double* qisi_iso_tend_micro) nogil
 
 cdef class Microphysics_SB_SI:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -180,14 +191,14 @@ cdef class Microphysics_SB_SI:
         PV.add_variable('nr', '1/kg', r'n_r', 'rain droplet number concentration','sym','scalar',Pa)
         PV.add_variable('qr', 'kg/kg', r'q_r', 'rain water specific humidity','sym','scalar',Pa)
 
-        PV.add_variable('ni_si', '1/kg', r'n_i', 'total ice droplet number concentration','sym','scalar',Pa)
-        PV.add_variable('qi_si', 'kg/kg', r'q_i', 'total ice water specific humidity','sym','scalar',Pa)
+        PV.add_variable('nisi', '1/kg', r'n_i', 'total ice droplet number concentration','sym','scalar',Pa)
+        PV.add_variable('qisi', 'kg/kg', r'q_i', 'total ice water specific humidity','sym','scalar',Pa)
 
         # add sedimentation velocities as diagnostic variables
         DV.add_variables('w_qr', 'm/s', r'w_{qr}', 'rain mass sedimentation veloctiy', 'sym', Pa)
         DV.add_variables('w_nr', 'm/s', r'w_{nr}', 'rain number sedimentation velocity', 'sym', Pa)
-        DV.add_variables('w_qi_si', 'm/s', r'w_{qi_si}', 'total ice mass sedimentation veloctiy', 'sym', Pa)
-        DV.add_variables('w_ni_si', 'm/s', r'w_{ni_si}', 'total ice number sedimentation velocity', 'sym', Pa)
+        DV.add_variables('w_qisi', 'm/s', r'w_{qisi}', 'total ice mass sedimentation veloctiy', 'sym', Pa)
+        DV.add_variables('w_nisi', 'm/s', r'w_{nisi}', 'total ice number sedimentation velocity', 'sym', Pa)
         if self.cloud_sedimentation:
             DV.add_variables('w_qt', 'm/s', r'w_ql', 'cloud liquid water sedimentation velocity', 'sym', Pa)
             NS.add_profile('qt_sedimentation_flux', Gr, Pa)
@@ -210,18 +221,18 @@ cdef class Microphysics_SB_SI:
         NS.add_profile('s_evaporation', Gr,Pa)
         NS.add_profile('s_precip_heating', Gr, Pa)
         NS.add_profile('s_precip_drag', Gr, Pa)
-        # output for rain variables: qi_si and ni_si
-        NS.add_profile('qi_si_sedimentation_flux', Gr, Pa) 
-        NS.add_profile('ni_si_sedimentation_flux', Gr, Pa) 
-        NS.add_profile('qi_si_nucleation', Gr, Pa) 
-        NS.add_profile('ni_si_nucleation', Gr, Pa) 
-        NS.add_profile('qi_si_deposition', Gr, Pa) 
-        NS.add_profile('qi_si_sublimation', Gr, Pa) 
-        NS.add_profile('qi_si_freezing', Gr, Pa) 
-        NS.add_profile('ni_si_freezing', Gr, Pa) 
-        NS.add_profile('qi_si_melting', Gr, Pa) 
-        NS.add_profile('ni_si_melting', Gr, Pa) 
-        NS.add_profile('qi_si_accretion_cloud_ice', Gr, Pa) 
+        # output for rain variables: qisi and nisi
+        NS.add_profile('qisi_sedimentation_flux', Gr, Pa) 
+        NS.add_profile('nisi_sedimentation_flux', Gr, Pa) 
+        NS.add_profile('qisi_nucleation', Gr, Pa) 
+        NS.add_profile('nisi_nucleation', Gr, Pa) 
+        NS.add_profile('qisi_deposition', Gr, Pa) 
+        NS.add_profile('qisi_sublimation', Gr, Pa) 
+        NS.add_profile('qisi_freezing', Gr, Pa) 
+        NS.add_profile('nisi_freezing', Gr, Pa) 
+        NS.add_profile('qisi_melting', Gr, Pa) 
+        NS.add_profile('nisi_melting', Gr, Pa) 
+        NS.add_profile('qisi_accretion_cloud_ice', Gr, Pa) 
         
         return
 
@@ -234,35 +245,36 @@ cdef class Microphysics_SB_SI:
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
             Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
-            Py_ssize_t ni_si_shift = PV.get_varshift(Gr, 'ni_si')
-            Py_ssize_t qi_si_shift = PV.get_varshift(Gr, 'qi_si')
+            Py_ssize_t nisi_shift = PV.get_varshift(Gr, 'nisi')
+            Py_ssize_t qisi_shift = PV.get_varshift(Gr, 'qisi')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             Py_ssize_t w_shift = PV.get_varshift(Gr, 'w')
             double dt = TS.dt
             Py_ssize_t wqr_shift = DV.get_varshift(Gr, 'w_qr')
             Py_ssize_t wnr_shift = DV.get_varshift(Gr, 'w_nr')
-            Py_ssize_t wqi_si_shift = DV.get_varshift(Gr, 'w_qi_si')
-            Py_ssize_t wni_si_shift = DV.get_varshift(Gr, 'w_ni_si')
+            Py_ssize_t wqisi_shift = DV.get_varshift(Gr, 'w_qisi')
+            Py_ssize_t wnisi_shift = DV.get_varshift(Gr, 'w_nisi')
             Py_ssize_t wqt_shift
             double[:] qr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] qi_si_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ni_si_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qisi_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nisi_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         
         sb_si_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
-                                self.compute_rain_shape_parameter, self.compute_droplet_nu, 
-                                &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, 
-                                &DV.values[ql_shift], &PV.values[nr_shift], &PV.values[qr_shift], &PV.values[qi_si_shift], &PV.values[ni_si_shift], dt,   
-                                &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
-                                &ni_si_tend_micro[0], &qi_si_tend_micro[0], &PV.tendencies[ni_si_shift], &PV.tendencies[qi_si_shift],
-                                &self.precip_rate[0], &self.evap_rate[0], &self.melt_rate[0])
-        sb_si_qt_source_formation(&Gr.dims, &qi_si_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[qt_shift])
+            self.compute_rain_shape_parameter, self.compute_droplet_nu, 
+            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, 
+            &DV.values[ql_shift], &PV.values[nr_shift], &PV.values[qr_shift], &PV.values[qisi_shift], &PV.values[nisi_shift], dt,   
+            &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
+            &nisi_tend_micro[0], &qisi_tend_micro[0], &PV.tendencies[nisi_shift], &PV.tendencies[qisi_shift],
+            &self.precip_rate[0], &self.evap_rate[0], &self.melt_rate[0])
 
-        # sedimentation processes of rain and single_ice: w_qr and w_qi_si
+        sb_si_qt_source_formation(&Gr.dims, &qisi_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[qt_shift])
+
+        # sedimentation processes of rain and single_ice: w_qr and w_qisi
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
                                        &DV.values[wnr_shift], &DV.values[wqr_shift])
-        sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[ni_si_shift], &PV.values[qi_si_shift], &Ref.rho0_half[0], 
-                                       &DV.values[wni_si_shift], &DV.values[wqi_si_shift])
+        sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_shift], &PV.values[qisi_shift], &Ref.rho0_half[0], 
+                                       &DV.values[wnisi_shift], &DV.values[wqisi_shift])
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
@@ -270,6 +282,84 @@ cdef class Microphysics_SB_SI:
                 microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+
+        # tracer micro-source formation
+        cdef:
+            # std-tracers indexes defination
+            Py_ssize_t ql_std_shift
+            Py_ssize_t qr_std_shift
+            Py_ssize_t qisi_std_shift
+            Py_ssize_t nisi_std_shift
+            Py_ssize_t nr_std_shift
+            Py_ssize_t qt_std_shift
+            Py_ssize_t wqr_std_shift
+            Py_ssize_t wnr_std_shift
+            Py_ssize_t wqisi_std_shift
+            double[:] wnisi_std_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qisi_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nisi_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+            # iso-tracers indexes defination
+            Py_ssize_t ql_iso_shift
+            Py_ssize_t qv_iso_shift
+            Py_ssize_t qr_iso_shift
+            Py_ssize_t qt_iso_shift
+            Py_ssize_t wqt_iso_shift
+            Py_ssize_t wqr_iso_shift
+            Py_ssize_t wqisi_iso_shift
+            double[:] wnr_iso_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] wnisi_iso_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qisi_iso_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        if self.isotope_tracers:
+            qr_std_shift  = PV.get_varshift(Gr, 'qr_std')
+            nr_std_shift  = PV.get_varshift(Gr, 'nr_std')
+            ql_std_shift  = PV.get_varshift(Gr, 'ql_std')
+            qt_std_shift  = PV.get_varshift(Gr, 'qt_std')
+            wqr_std_shift = DV.get_varshift(Gr, 'w_qr_std')
+            wnr_std_shift = DV.get_varshift(Gr, 'w_nr_std')
+            qisi_std_shift = PV.get_varshift(Gr, 'qisi_std')
+            nisi_std_shift = PV.get_varshift(Gr, 'nisi_std')
+            wqisi_std_shift = DV.get_varshift(Gr, 'w_qisi_std')
+            ql_iso_shift  = PV.get_varshift(Gr,'ql_iso')
+            qv_iso_shift  = PV.get_varshift(Gr,'qv_iso')
+            qr_iso_shift  = PV.get_varshift(Gr, 'qr_iso')
+            qt_iso_shift  = PV.get_varshift(Gr, 'qt_iso')
+            qisi_iso_shift  = PV.get_varshift(Gr, 'qisi_iso')
+            wqr_iso_shift = DV.get_varshift(Gr, 'w_qr_iso')
+            wqisi_iso_shift = DV.get_varshift(Gr, 'w_qisi_iso')
+
+            tracer_sb_si_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
+                self.compute_rain_shape_parameter, self.compute_droplet_nu, 
+                &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, 
+                &DV.values[ql_shift], &PV.values[nr_std_shift], &PV.values[qr_std_shift], &PV.values[qisi_std_shift], 
+                &PV.values[nisi_std_shift], dt, &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], 
+                &PV.tendencies[qr_std_shift], &PV.values[ql_std_shift], &nisi_std_tend_micro[0], &qisi_std_tend_micro[0], &PV.tendencies[nisi_std_shift], 
+                &PV.tendencies[qisi_std_shift], &self.precip_rate[0], &self.evap_rate[0], &self.melt_rate[0],
+                &PV.values[qt_iso_shift], &PV.values[ql_iso_shift], &PV.values[qr_iso_shift], &PV.values[qisi_iso_shift],
+                &PV.tendencies[qr_iso_shift], &PV.tendencies[qisi_iso_shift], &qr_iso_tend_micro[0], &qisi_iso_tend_micro[0])
+
+            sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift],
+                &PV.values[qr_shift], &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
+            sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_shift], &PV.values[qisi_shift], &Ref.rho0_half[0], 
+                &wnisi_iso_tmp[0], &DV.values[wqisi_iso_shift])
+
+            if self.cloud_sedimentation:
+                wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
+                wqt_iso_shift = DV.get_varshift(Gr, 'w_qt_iso')
+
+                if self.stokes_sedimentation:
+                    microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+                    microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_shift])
+                else:
+                    sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+                    sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_shift])
+
+            sb_si_qt_source_formation(&Gr.dims, &qisi_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[qt_std_shift]);
+            sb_si_qt_source_formation(&Gr.dims, &qisi_iso_tend_micro[0], &qr_iso_tend_micro[0], &PV.tendencies[qt_iso_shift]);
 
         # entropy source for microphysics processes
         cdef:
@@ -292,13 +382,13 @@ cdef class Microphysics_SB_SI:
         sb_si_entropy_source_heating_rain(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
                                   &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
 
-        sb_si_entropy_source_heating_snow(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qi_si_shift],
-                                  &DV.values[wqi_si_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
+        sb_si_entropy_source_heating_snow(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qisi_shift],
+                                  &DV.values[wqisi_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
         # entropy from rain drag
         sb_si_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift],
                             &PV.tendencies[s_shift])
         # entropy from ice drag
-        sb_si_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qi_si_shift], &DV.values[wqi_si_shift],
+        sb_si_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qisi_shift], &DV.values[wqisi_shift],
                             &PV.tendencies[s_shift])
 
         return
@@ -320,16 +410,16 @@ cdef class Microphysics_SB_SI:
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
             Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
-            Py_ssize_t ni_si_shift = PV.get_varshift(Gr, 'ni_si')
-            Py_ssize_t qi_si_shift = PV.get_varshift(Gr, 'qi_si')
+            Py_ssize_t nisi_shift = PV.get_varshift(Gr, 'nisi')
+            Py_ssize_t qisi_shift = PV.get_varshift(Gr, 'qisi')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             Py_ssize_t w_shift = PV.get_varshift(Gr, 'w')
             double dt = TS.dt
             double[:] dummy =  np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             Py_ssize_t wqr_shift = DV.get_varshift(Gr, 'w_qr')
             Py_ssize_t wnr_shift = DV.get_varshift(Gr, 'w_nr')
-            Py_ssize_t wqi_si_shift = DV.get_varshift(Gr, 'w_qi_si')
-            Py_ssize_t wni_si_shift = DV.get_varshift(Gr, 'w_ni_si')
+            Py_ssize_t wqisi_shift = DV.get_varshift(Gr, 'w_qisi')
+            Py_ssize_t wnisi_shift = DV.get_varshift(Gr, 'w_nisi')
             Py_ssize_t wqt_shift
             double[:] qr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
@@ -358,15 +448,15 @@ cdef class Microphysics_SB_SI:
         tmp = Pa.HorizontalMean(Gr, &dummy[0])
         NS.write_profile('qr_sedimentation_flux', tmp[gw:-gw], Pa)
         
-        #compute sedimentation flux only of ni_si
-        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wni_si_shift], &PV.values[ni_si_shift], &dummy[0], 2, self.order)
+        #compute sedimentation flux only of nisi
+        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wnisi_shift], &PV.values[nisi_shift], &dummy[0], 2, self.order)
         tmp = Pa.HorizontalMean(Gr, &dummy[0])
-        NS.write_profile('ni_si_sedimentation_flux', tmp[gw:-gw], Pa)
+        NS.write_profile('nisi_sedimentation_flux', tmp[gw:-gw], Pa)
 
-        #compute sedimentation flux only of qi_si
-        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqi_si_shift], &PV.values[qi_si_shift], &dummy[0], 2, self.order)
+        #compute sedimentation flux only of qisi
+        compute_advective_fluxes_a(&Gr.dims, &Ref.rho0[0], &Ref.rho0_half[0], &DV.values[wqisi_shift], &PV.values[qisi_shift], &dummy[0], 2, self.order)
         tmp = Pa.HorizontalMean(Gr, &dummy[0])
-        NS.write_profile('qi_si_sedimentation_flux', tmp[gw:-gw], Pa)
+        NS.write_profile('qisi_sedimentation_flux', tmp[gw:-gw], Pa)
         
         #note we can re-use nr_tendency and qr_tendency because they are overwritten in each function
         #must have a zero array to pass as entropy tendency and need to send a dummy variable for qt tendency
@@ -437,54 +527,54 @@ cdef class Microphysics_SB_SI:
 
         # ================single_ice output section =================
         cdef:
-            double[:] qi_si_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ni_si_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qisi_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nisi_tendency = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
         
-        # nucleation output of qi_si and ni_si;
-        sb_nucleation_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, &DV.values[t_shift], &PV.values[ni_si_shift], 
-                                &PV.values[qi_si_shift], &Ref.p0_half[0], &PV.values[qt_shift], dt, 
-                                &ni_si_tendency[0], &qi_si_tendency[0])
-        tmp = Pa.HorizontalMean(Gr, &ni_si_tendency[0])
-        NS.write_profile('ni_si_nucleation', tmp[gw:-gw], Pa)
-        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
-        NS.write_profile('qi_si_nucleation', tmp[gw:-gw], Pa)
+        # nucleation output of qisi and nisi;
+        sb_nucleation_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, &DV.values[t_shift], &PV.values[nisi_shift], 
+                                &PV.values[qisi_shift], &Ref.p0_half[0], &PV.values[qt_shift], dt, 
+                                &nisi_tendency[0], &qisi_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &nisi_tendency[0])
+        NS.write_profile('nisi_nucleation', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qisi_tendency[0])
+        NS.write_profile('qisi_nucleation', tmp[gw:-gw], Pa)
 
-        # deposition of qi_si
+        # deposition of qisi
         sb_deposition_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &DV.values[t_shift], 
-                                &Ref.p0_half[0], &PV.values[qt_shift], &PV.values[ni_si_shift], &PV.values[qi_si_shift], 
-                                &qi_si_tendency[0])
-        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
-        NS.write_profile('qi_si_deposition', tmp[gw:-gw], Pa)
+                                &Ref.p0_half[0], &PV.values[qt_shift], &PV.values[nisi_shift], &PV.values[qisi_shift], 
+                                &qisi_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &qisi_tendency[0])
+        NS.write_profile('qisi_deposition', tmp[gw:-gw], Pa)
 
-        # sublimation of qi_si
+        # sublimation of qisi
         sb_sublimation_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &DV.values[t_shift], 
-                                &Ref.p0_half[0], &PV.values[qt_shift], &PV.values[ni_si_shift], &PV.values[qi_si_shift], 
-                                &qi_si_tendency[0])
-        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
-        NS.write_profile('qi_si_sublimation', tmp[gw:-gw], Pa)
+                                &Ref.p0_half[0], &PV.values[qt_shift], &PV.values[nisi_shift], &PV.values[qisi_shift], 
+                                &qisi_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &qisi_tendency[0])
+        NS.write_profile('qisi_sublimation', tmp[gw:-gw], Pa)
 
-        # freezing of qi_si and ni_si
+        # freezing of qisi and nisi
         sb_freezing_ice_wrapper(&Gr.dims, self.compute_droplet_nu, self.ccn, &DV.values[t_shift], &Ref.rho0[0], 
                                 &DV.values[ql_shift], &PV.values[qr_shift], &PV.values[nr_shift],
-                                &qi_si_tendency[0], &ni_si_tendency[0])
-        tmp = Pa.HorizontalMean(Gr, &ni_si_tendency[0])
-        NS.write_profile('ni_si_freezing', tmp[gw:-gw], Pa)
-        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
-        NS.write_profile('qi_si_freezing', tmp[gw:-gw], Pa)
+                                &qisi_tendency[0], &nisi_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &nisi_tendency[0])
+        NS.write_profile('nisi_freezing', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qisi_tendency[0])
+        NS.write_profile('qisi_freezing', tmp[gw:-gw], Pa)
         
-        # accretion of cloud ice on qi_si;
-        sb_accretion_cloud_ice_wrapper(&Gr.dims, self.ccn, &Ref.rho0[0], &DV.values[ql_shift], &PV.values[qi_si_shift], 
-                                &PV.values[ni_si_shift], &qi_si_tendency[0])
-        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
-        NS.write_profile('qi_si_accretion_cloud_ice', tmp[gw:-gw], Pa)
+        # accretion of cloud ice on qisi;
+        sb_accretion_cloud_ice_wrapper(&Gr.dims, self.ccn, &Ref.rho0[0], &DV.values[ql_shift], &PV.values[qisi_shift], 
+                                &PV.values[nisi_shift], &qisi_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &qisi_tendency[0])
+        NS.write_profile('qisi_accretion_cloud_ice', tmp[gw:-gw], Pa)
 
-        # melting effect on qi_si and ni_si;
+        # melting effect on qisi and nisi;
         sb_melting_ice_wrapper(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &DV.values[t_shift], 
-                                &DV.values[qv_shift], &PV.values[qi_si_shift], &PV.values[ni_si_shift], &qi_si_tendency[0],
-                                &ni_si_tendency[0])
-        tmp = Pa.HorizontalMean(Gr, &ni_si_tendency[0])
-        NS.write_profile('ni_si_melting', tmp[gw:-gw], Pa)
-        tmp = Pa.HorizontalMean(Gr, &qi_si_tendency[0])
-        NS.write_profile('qi_si_melting', tmp[gw:-gw], Pa)
+                                &DV.values[qv_shift], &PV.values[qisi_shift], &PV.values[nisi_shift], &qisi_tendency[0],
+                                &nisi_tendency[0])
+        tmp = Pa.HorizontalMean(Gr, &nisi_tendency[0])
+        NS.write_profile('nisi_melting', tmp[gw:-gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qisi_tendency[0])
+        NS.write_profile('qisi_melting', tmp[gw:-gw], Pa)
 
         return

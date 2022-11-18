@@ -601,7 +601,6 @@ void sb_si_entropy_source_heating_snow(const struct DimStruct *dims, double* res
         }
     }
     return;
-
 };
 
 void sb_si_entropy_source_drag(const struct DimStruct *dims, double* restrict temperature,  double* restrict qprec,

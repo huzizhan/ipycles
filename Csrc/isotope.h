@@ -1,13 +1,15 @@
 #pragma once
 #include "parameters.h"
 #include "isotope_functions.h"
-#include <math.h>
 #include "thermodynamics_sa.h"
-#include "microphysics_sb.h"
 #include "microphysics.h"
+#include "microphysics_sb.h"
+#include "microphysics_sb_si.h"
+#include "microphysics_sb_liquid.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
 #include "microphysics_arctic_1m.h"
+#include <math.h>
 // #define SB_EPS 1.0e-13
 
 void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, double* restrict t,
@@ -228,7 +230,7 @@ void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT
                     alpha_eq_O18 = equilibrium_fractionation_factor_H2O18_liquid(temperature[ijk]);
                     alpha_s_ice = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
                     alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
-                    alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
+                    // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
 
                     qv_std_tmp  = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
                     qv_iso_tmp  = eq_frac_function(qt_iso[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
@@ -512,7 +514,7 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
 void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
                              double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
-                             double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt,
+                             double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt, double* restrict ql_std,
                              double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency, 
                              double* restrict ni_tendency_micro, double* restrict qi_tendency_micro, double* restrict ni_tendency, double* restrict qi_tendency, 
                              double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate, 
@@ -521,6 +523,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
 
     // Here all rain and ice related variables are std_tracers;
     // while qr_iso* and qi_iso* means isotope tracers.
+    // all qi related variables are single ice variables.
     // Here we compute the source terms for nr, qr & ni, qr(number and mass of rain)
     // Temporal substepping is used to help ensure boundedness of moments
     double rain_mass, Dm_r, mu, Dp, nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp, ql_tendency_frez, nl_tendency_acc;
@@ -529,14 +532,14 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
     double qr_tendency_au, qr_tendency_ac, qr_tendency_evap, qr_tendency_frez;
     double sat_ratio;
     // single ice tendency definition
-    double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, sb_alpha_ice, sb_beta_ice, ice_mass;
     double qi_tendency_tmp, ni_tendency_tmp;
     double ni_tendency_nuc, ni_tendency_frez, ni_tendency_berg, ni_tendency_melt;
     double qi_tendency_nuc, qi_tendency_frez, qi_tendency_acc, qi_tendency_dep, qi_tendency_berg, qi_tendency_melt, qi_tendency_sub;
     // isotope tracers tendency definition
-    double qv_iso_tendency_tmp, ql_iso_tendency_tmp;
-    double qr_iso_tendency_tmp, qr_iso_tendency_auto, qr_iso_tendency_acc, qr_iso_tendency_evap;
+    double qv_iso_tendency_tmp, ql_iso_tendency_tmp, ql_iso_tendency_frez;
+    double qr_iso_tendency_tmp, qr_iso_tendency_auto, qr_iso_tendency_acc, qr_iso_tendency_evap, qr_iso_tendency_frez;
     double qi_iso_tendency_tmp, qi_iso_tendency_nuc, qi_iso_tendency_frez, qi_iso_tendency_dep, qi_iso_tendency_sub, qi_iso_tendency_melt, qi_iso_tendency_acc;
+    double R_qt, R_qv, R_ql, R_qr, R_qi;
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -563,6 +566,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                 double qt_tmp = qt[ijk];
                 double nl     = ccn/density[k];
                 double ql_tmp = fmax(ql[ijk],0.0);
+                double ql_std_tmp  = fmax(ql_std[ijk],0.0);
                 // holding nl fixed since it doesn't change between timesteps
                 
                 // get qr and nr values before the computation system begin
@@ -574,11 +578,12 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                 double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
 
                 double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
+                double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, sifi_av, sifi_bv, sb_beta_ice, ice_mass;
                 
                 // Get isotpe tracer values before the computation system begin
                 double qt_iso_tmp = qt_iso[ijk];
-                double qv_iso_tmp = qv_iso[ijk];
                 double ql_iso_tmp = fmax(ql_iso[ijk], 0.0);
+                double qv_iso_tmp = qt_iso_tmp - ql_iso_tmp;
                 double qr_iso_tmp = fmax(qr_iso[ijk], 0.0);
                 double qi_iso_tmp = fmax(qi_iso[ijk], 0.0);
                 
@@ -637,9 +642,9 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     // ================================================
                     double Ri;
                     ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                    sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sb_alpha_ice, &sb_beta_ice);
+                    sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
-                    velocity_ice  = sb_alpha_ice * pow(ice_mass, sb_beta_ice);
+                    velocity_ice  = sifi_av * pow(Dm_i, sifi_bv);
   
                     //compute the source terms
                     sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
@@ -660,13 +665,16 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     //find the maximum substep time
                     dt_ = dt - time_added;
 
-                    // check the source term magnitudes
+                    // double check the source term magnitudes
                     // qi_tendency_sub is POSITIVE, qi_tendency_dep is POSITIVE;
                     // qr_tendency_evap is NEGATIVE;
                     // qi_tendency_melt and ni_tendency_melt are all POSITIVE
                     qi_tendency_tmp = qi_tendency_nuc + qi_tendency_frez + qi_tendency_acc + qi_tendency_dep + qi_tendency_berg + qi_tendency_sub - qi_tendency_melt;
                     ni_tendency_tmp = ni_tendency_nuc + ni_tendency_frez + ni_tendency_berg - ni_tendency_melt;
 
+                    // double check the source term magnitude:
+                    // qr_tendency_frez is POSITIVE
+                    // ql_tendency_frez is POSITIVE
                     nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evap + ni_tendency_melt - nr_tendency_frez;
                     qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evap + qi_tendency_melt - qr_tendency_frez;
 
@@ -676,10 +684,12 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     // set all variables with initial values as 0.0 before loop start;
                     qv_iso_tendency_tmp  = 0.0;
                     ql_iso_tendency_tmp  = 0.0;
+                    ql_iso_tendency_frez = 0.0;
                     qr_iso_tendency_tmp  = 0.0;
                     qr_iso_tendency_auto = 0.0;
                     qr_iso_tendency_acc  = 0.0;
                     qr_iso_tendency_evap = 0.0;
+                    qr_iso_tendency_frez = 0.0;
                     qi_iso_tendency_tmp  = 0.0;
                     qi_iso_tendency_nuc  = 0.0;
                     qi_iso_tendency_frez = 0.0;
@@ -687,18 +697,45 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     qi_iso_tendency_sub  = 0.0;
                     qi_iso_tendency_melt = 0.0;
                     qi_iso_tendency_acc  = 0.0;
+
+                    R_ql = 0.0;
+                    if(ql_std_tmp > SB_EPS && ql_iso_tmp > SB_EPS){
+                        R_ql = ql_iso_tmp/ql_std_tmp;
+                    }
+
+                    R_qi = 0.0;
+                    if(qi_tmp > SB_EPS && qi_iso_tmp > SB_EPS){
+                        R_qi = qi_iso_tmp/qi_tmp;
+                    }
+
+                    R_qr = 0.0;
+                    if(qr_tmp > 1.0e-15 && qr_iso_tmp > 1.0e-15){
+                        R_qr = qr_iso_tmp/qr_tmp;
+                    }
                     
                     // iso_tendencies calculations
-                    sb_iso_ice_nucleation();
-                    sb_iso_rain_autoconversion(ql_tmp, ql_iso_tmp, qr_tendency_au, &qr_iso_auto_tendency);
-                    sb_iso_ice_freezing();
-                    sb_iso_rain_accretion(ql_tmp, ql_iso_tmp, qr_tendency_ac, &qr_iso_accre_tendency);
-                    sb_iso_ice_accretion_cloud();
-                    double g_therm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio, DVAPOR, KT);
-                    sb_iso_ice_deposition();
-                    sb_iso_ice_sublimation();
-                    sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm, &qr_iso_evap_tendency);
-                    sb_iso_ice_melting();
+                    double alpha_s_ice = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
+                    double alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
+                    // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
+                    sb_iso_ice_nucleation(qi_tendency_acc, alpha_s_ice, &qi_iso_tendency_acc);
+                    sb_iso_rain_autoconversion(ql_tmp, ql_iso_tmp, qr_tendency_au, &qr_iso_tendency_auto);
+                    sb_iso_ice_freezing(ql_tendency_frez, qr_tendency_frez, R_ql, R_qr, &qr_iso_tendency_frez, 
+                            &ql_iso_tendency_frez, &qi_iso_tendency_frez);
+                    sb_iso_rain_accretion(ql_tmp, ql_iso_tmp, qr_tendency_ac, &qr_iso_tendency_acc);
+                    sb_iso_ice_accretion_cloud(qi_tendency_acc, R_qi, &qi_iso_tendency_acc);
+                    double g_therm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp,
+                            qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio, DVAPOR, KT);
+                    double F_ratio = 0.998;
+                    sb_iso_ice_deposition(alpha_k_ice, alpha_s_ice, qi_tendency_dep, F_ratio, &qi_iso_tendency_dep);
+                    sb_iso_ice_sublimation(qi_tendency_sub, R_qi, &qi_iso_tendency_sub);
+                    sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm_r, &qr_iso_tendency_evap);
+                    sb_iso_ice_melting(qi_tendency_melt, R_qi, &qi_iso_tendency_melt);
+                    
+                    // iso_tendencies add
+                    qi_iso_tendency_tmp = qi_iso_tendency_nuc + qi_iso_tendency_frez + qi_iso_tendency_dep + qi_iso_tendency_acc - qi_iso_tendency_sub - qi_iso_tendency_melt;
+                    qr_iso_tendency_tmp = qr_iso_tendency_auto + qr_iso_tendency_acc + qr_iso_tendency_evap - qr_iso_tendency_frez;
+                    ql_iso_tendency_tmp = -qr_iso_tendency_auto - qr_iso_tendency_acc - ql_iso_tendency_frez; 
+                    qv_iso_tendency_tmp = -qi_iso_tendency_dep - qr_iso_tendency_evap + qi_iso_tendency_sub;
 
                     //Factor of 1.05 is ad-hoc
                     rate = 1.05 * ql_tendency_tmp * dt_ /(- fmax(ql_tmp,SB_EPS));
@@ -715,6 +752,9 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     // precip_rate, evap_rate and melting_rate are calculated for entropy balance formula equations;
                     // precip_tmp is NEGATIVE if rain/snow forms (+precip_tmp is to remove qt via precip formation);
                     // evap_tmp is NEGATIVE if rain/snow evaporate/sublimate (-evap_tmp is to add qt via evap/subl);
+                    // ================================================
+                    // ToDo: Need Double Check the computation of precip_rate and evap_rate, be careful about the MAGNITUDE
+                    // ================================================
                     double precip_tmp = - qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_nuc - qi_tendency_acc - qi_tendency_dep;
                     double evap_tmp   = qr_tendency_evap - qi_tendency_sub;
                     
@@ -737,6 +777,17 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     ni_tmp = fmax(ni_tmp,0.0);
                     ql_tmp = fmax(ql_tmp,0.0);
                     qt_tmp = ql_tmp + qv_tmp;
+
+                    // isotope tracers Intergrate forward in time
+                    qi_iso_tmp += qi_iso_tendency_tmp * dt_;
+                    qr_iso_tmp += qr_iso_tendency_tmp * dt_;
+                    ql_iso_tmp += ql_iso_tendency_tmp * dt_;
+                    qv_iso_tmp += qv_iso_tendency_tmp * dt_;
+                    
+                    qi_iso_tmp = fmax(qi_iso_tmp, 0.0);
+                    qr_iso_tmp = fmax(qr_iso_tmp, 0.0);
+                    ql_iso_tmp = fmax(ql_iso_tmp, 0.0);
+                    
                     time_added += dt_ ;
                 }while(time_added < dt);
 
@@ -752,6 +803,12 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                 precip_rate[ijk] = precip_rate[ijk]/dt;
                 evap_rate[ijk] = evap_rate[ijk]/dt;
                 melt_rate[ijk] = melt_rate[ijk]/dt;
+                
+                // Isotope Tracer output
+                qr_iso_tendency_micro[ijk]  = (qr_iso_tmp - qr_iso[ijk])/dt;
+                qr_iso_tendency[ijk]       += qr_iso_tendency_micro[ijk];
+                qi_iso_tendency_micro[ijk]  = (qi_iso_tmp - qi_iso[ijk])/dt;
+                qi_iso_tendency[ijk]       += qi_iso_tendency_micro[ijk];
             }
         }
     }

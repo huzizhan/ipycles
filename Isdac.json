@@ -25,14 +25,18 @@
         "dy": 50.0,
         "dz": 10.0,
         "gw": 3,
-        "nx": 16.0,
-        "ny": 16.0,
+        "nx": 8.0,
+        "ny": 8.0,
         "nz": 250
+    },
+    "isotopetracers": {
+        "scheme": "SBSI",
+        "use_tracers": true
     },
     "meta": {
         "casename": "Isdac",
         "simname": "Isdac",
-        "uuid": "df9d444b-9113-4716-bb66-60e2bf579afb"
+        "uuid": "2d5bdc1c-b82b-4b82-b215-024316044e4f"
     },
     "microphysics": {
         "n0_ice": 10000000.0,
@@ -43,8 +47,8 @@
         "order": 5
     },
     "mpi": {
-        "nprocx": 4,
-        "nprocy": 4,
+        "nprocx": 1,
+        "nprocy": 1,
         "nprocz": 1
     },
     "output": {
@@ -84,7 +88,7 @@
         "cfl_limit": 0.5,
         "dt_initial": 1.0,
         "dt_max": 10.0,
-        "t_max": 10800.0,
+        "t_max": 360.0,
         "ts_type": 3
     }
 }

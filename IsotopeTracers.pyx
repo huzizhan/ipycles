@@ -56,6 +56,8 @@ def IsotopeTracersFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
             return IsotopeTracers_SB_Liquid(namelist)
         elif iso_scheme == 'Arctic_1M':
             return IsotopeTracers_Arctic_1M(namelist, LH, Par)
+        elif iso_scheme == "SBSI":
+            return IsotopeTracers_SBSI(namelist)
     except:
         return IsotopeTracersNone()
 
@@ -402,9 +404,16 @@ cdef class IsotopeTracers_SBSI:
         PV.add_variable('qisi_std', 'kg/kg','ql_std','Rain water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('nr_std', '','nr_std','Rain water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('nisi_std', '','nisi_std','Single Ice water std specific humidity','sym', 'scalar', Pa)
-        
+
+        # following velocity calculation of rain and single-ice 
         # sedimentation velocity of qt_iso(w_qt_iso) and qr_iso(w_qr_iso),
         # which should be same as qt, qr and qisi, as DVs w_qt, w_qr, w_qisi;
+        DV.add_variables('w_qr_std', 'unit', r'w_qr_std','declaration', 'sym', Pa)
+        DV.add_variables('w_nr_std', 'unit', r'w_nr_std','declaration', 'sym', Pa)
+        DV.add_variables('w_qisi_std', 'unit', r'w_qisi_std','declaration', 'sym', Pa)
+        DV.add_variables('w_nisi_std', 'unit', r'w_nisi_std','declaration', 'sym', Pa)
+        DV.add_variables('w_qr_iso', 'unit', r'w_qrain_iso','declaration', 'sym', Pa)
+        DV.add_variables('w_qisi_iso', 'unit', r'w_qsnow_iso','declaration', 'sym', Pa)
         try:
             self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
         except:
@@ -414,6 +423,7 @@ cdef class IsotopeTracers_SBSI:
             DV.add_variables('w_qt_iso', 'm/s', r'w_{qt_iso}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
             DV.add_variables('w_qt_std', 'm/s', r'w_{qt_iso}', 'cloud liquid water std sedimentation velocity', 'sym', Pa)
             NS.add_profile('qt_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
+            NS.add_profile('qt_iso_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
 
         DV.add_variables('w_qr_iso', 'm/s', r'w_{w_qr_iso}', 'rain mass isotopic sedimentation veloctiy', 'sym', Pa)
         DV.add_variables('w_qisi_iso', 'm/s', r'w_{qr_iso}', 'single ice mass isotopic sedimentation veloctiy', 'sym', Pa)

@@ -61,7 +61,7 @@ static inline double iso_vapor_diffusivity(const double temperature, const doubl
     return vapor_diff;
 };
 
-// <<<<< SB_Warm Scheme >>>>>
+// ===========<<<  SB_Warm Scheme  >>> ============
 
 double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature, double dvap, double kt){
     double lam = lam_fp(temperature);
@@ -147,11 +147,12 @@ double Dm, double* qr_iso_tendency){
         *qr_iso_tendency = 0.0;
     }
     else{
-        gamma = 0.7; // gamma = 0.7 is used by DALES ; alternative expression gamma= d_eq/Dm * exp(-0.2*mudouble vapor_H2O18_diff, vapor_HDO16_diff; 2double vapor_H2O18_diff, vapor_HDO16_diff;) is used by S08;
+        gamma = 0.7;
+        // gamma = 0.7 is used by DALES ; alternative expression gamma= d_eq/Dm
+        // * exp(-0.2*mudouble vapor_H2O18_diff, vapor_HDO16_diff; 2double
+        // vapor_H2O18_diff, vapor_HDO16_diff;) is used by S08;
         phi_v = 1.0 - (0.5  * bova * pow(1.0 +  cdp, -mupow) + 0.125 * bova * bova * pow(1.0 + 2.0*cdp, -mupow)
                       + 0.0625 * bova * bova * bova * pow(1.0 +3.0*cdp, -mupow) + 0.0390625 * bova * bova * bova * bova * pow(1.0 + 4.0*cdp, -mupow));
-
-
         dpfv  = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
 
         qr_tendency_tmp  = 2.0 * pi * g_therm_iso * nr * dpfv;
@@ -412,3 +413,100 @@ void arc1m_iso_evap_snow(struct LookupStruct *LT, double (*lam_fp)(double), doub
     }
     return;
 }
+
+// ===========<<< Single Ice microphysics scheme coupling with Isotope processes >>> ============
+void sb_iso_ice_nucleation(const double qi_tendency_nuc, const double alpha_s_ice, double* qi_iso_tendency_nuc){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_tendency_nuc: single ice tendency during nucleation
+    // alpha_s_ice: equilibrium fractionation factor between vapor and ice
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_iso_tendency_nuc: single ice isotope content tendency due to nucleation;
+    //-------------------------------------------------------------
+    *qi_iso_tendency_nuc = alpha_s_ice*qi_tendency_nuc;
+    return;
+};
+
+void sb_iso_ice_freezing(const double ql_tendency_frz, const double qr_tendency_frz, const double R_ql, const double R_qr,
+        double* qr_iso_tendency_frz, double* ql_iso_tendency_frz, double* qi_iso_tendency_frz){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // ql_tendency_frz: ql tendency during freezing, calculated from sb_freezing_ice section, POSITIVE
+    // qr_tendency_frz: qr tendency during freezing, calculated from sb_freezing_ice section, POSITIVE
+    // R_ql: isotope ratio of ql;
+    // R_qr: isotope ratio of qr;
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_iso_tendency_frz: single ice isotope content tendency due to freezing
+    //-------------------------------------------------------------
+    *qr_iso_tendency_frz = qr_tendency_frz * R_qr;
+    *ql_iso_tendency_frz = ql_tendency_frz * R_ql;
+    *qi_iso_tendency_frz = ql_tendency_frz*R_ql + qr_tendency_frz*R_qr;
+    return;
+};
+void sb_iso_ice_accretion_cloud(const double qi_tendency_acc, const double R_qi, double* qi_iso_tendency_acc){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_tendency_acc: single ice tendency during cloud liquid accretion
+    // R_ql: isotope ratio of single ice;
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_iso_tendency_acc: single ice isotope content tendency due to cloud liquid accretion
+    //-------------------------------------------------------------
+    *qi_iso_tendency_acc = qi_tendency_acc*R_qi;
+    return;
+};
+
+void sb_iso_ice_melting(const double qi_tendency_mlt, const double R_qi, double* qi_iso_tendency_mlt){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_tendency_mlt: single ice tendency during melting
+    // R_ql: isotope ratio of single ice;
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_iso_tendency_mlt: single ice isotope content tendency due to melting
+    //-------------------------------------------------------------
+    *qi_iso_tendency_mlt = qi_tendency_mlt*R_qi;
+    return;
+};
+
+void sb_iso_ice_sublimation(const double qi_tendency_sub, const double R_qi, double* qi_iso_tendency_sub){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_tendency_sub: single ice tendency during melting
+    // R_ql: isotope ratio of single ice;
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_iso_tendency_sub: single ice isotope content tendency due to melting
+    //-------------------------------------------------------------
+    *qi_iso_tendency_sub = qi_tendency_sub*R_qi;
+    return;
+};
+void sb_iso_ice_deposition(const double alpha_k_ice, const double alpha_s_ice, 
+        const double qi_tendency_dep, const double F_ratio, double* qi_iso_tendency_dep){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // alpha_k_ice: kinetic fractionation factor between vapor and ice in supper-saturation 
+    // alpha_s_ice: equilibrium fractionation factor between vapor and ice
+    // qi_tendency_dep: single ice tendency during deposition
+    // F_ratio: ventilation factor ratio, between light and heavy water isotopes
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // qi_iso_tendency_dep: single ice isotope content tendency due to deposition
+    //-------------------------------------------------------------
+
+    *qi_iso_tendency_dep = qi_tendency_dep*alpha_s_ice*alpha_k_ice * F_ratio;
+};
