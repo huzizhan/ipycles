@@ -645,7 +645,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
                     velocity_ice  = sifi_av * pow(Dm_i, sifi_bv);
-  
+
                     //compute the source terms
                     sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);

@@ -413,7 +413,9 @@ cdef class IsotopeTracers_SBSI:
         DV.add_variables('w_qisi_std', 'unit', r'w_qisi_std','declaration', 'sym', Pa)
         DV.add_variables('w_nisi_std', 'unit', r'w_nisi_std','declaration', 'sym', Pa)
         DV.add_variables('w_qr_iso', 'unit', r'w_qrain_iso','declaration', 'sym', Pa)
+        DV.add_variables('w_nr_iso', 'unit', r'w_nr_iso','declaration', 'sym', Pa)
         DV.add_variables('w_qisi_iso', 'unit', r'w_qsnow_iso','declaration', 'sym', Pa)
+        DV.add_variables('w_nisi_iso', 'unit', r'w_nisi_iso','declaration', 'sym', Pa)
         try:
             self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
         except:
