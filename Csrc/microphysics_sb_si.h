@@ -144,12 +144,12 @@ double get_sb_alpha_from_sifi(const double sifi_av, const double sb_a, const dou
 }
 
 void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-                             double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
-                             double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt,
-                             double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency, 
-                             double* restrict ni_tendency_micro, double* restrict qi_tendency_micro, double* restrict ni_tendency, double* restrict qi_tendency, 
-                             double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate){
+         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+         double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
+         double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt,
+         double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency, 
+         double* restrict ni_tendency_micro, double* restrict qi_tendency_micro, double* restrict ni_tendency, double* restrict qi_tendency, 
+         double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate){
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
     //Temporal substepping is used to help ensure boundedness of moments
@@ -245,8 +245,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     //obtain some parameters of cloud droplets
                     liquid_mass = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
                     Dm_l =  cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
-                    
                     velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[ijk]);
+
                     //obtain some parameters of rain droplets
                     rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS); //average mass of rain droplet
                     Dm_r      = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi); // mass weighted diameter of rain droplets
@@ -262,7 +262,7 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
                     velocity_ice  = sifi_av * pow(Dm_i, sifi_bv);
-  
+
                     //compute the source terms
                     sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
@@ -277,7 +277,7 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                             sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
                     sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
-                    // sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
+                    sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
 
                     //find the maximum substep time
                     dt_ = dt - time_added;

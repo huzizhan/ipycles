@@ -427,14 +427,6 @@ cdef class IsotopeTracers_SBSI:
             NS.add_profile('qt_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
             NS.add_profile('qt_iso_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
 
-        DV.add_variables('w_qr_iso', 'm/s', r'w_{w_qr_iso}', 'rain mass isotopic sedimentation veloctiy', 'sym', Pa)
-        DV.add_variables('w_qisi_iso', 'm/s', r'w_{qr_iso}', 'single ice mass isotopic sedimentation veloctiy', 'sym', Pa)
-
-        DV.add_variables('w_qr_std', 'm/s', r'w_{w_qr_std}', 'rain std mass sedimentation veloctiy', 'sym', Pa)
-        DV.add_variables('w_nr_std', 'm/s', r'w_{w_nr_std}', 'rain std number sedimentation veloctiy', 'sym', Pa)
-        DV.add_variables('w_qrsi_std', 'm/s', r'w_{w_qrsi_std}', 'single ice std mass sedimentation veloctiy', 'sym', Pa)
-        DV.add_variables('w_nrsi_std', 'm/s', r'w_{w_qrsi_std}', 'single ice std mass sedimentation veloctiy', 'sym', Pa)
-
         NS.add_profile('qr_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer rain')
         NS.add_profile('qr_iso', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
         NS.add_profile('qisi_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer of single ice')
