@@ -346,7 +346,7 @@ void sb_freezing_ice(double (*droplet_nu)(double,double), double density, double
         double liquid_mass, double rain_mass, double ql, double nl, double qr, double nr, 
         double* ql_tendency, double* qr_tendency, double* nr_tendency, double* qi_tendency, double* ni_tendency){
 
-    if(qr < SB_EPS || nr < SB_EPS){
+    if(qr < SB_EPS || nr < SB_EPS || ql < SB_EPS){
         // if liquid specific humidity is negligibly small, set source terms to zero
         *ql_tendency = 0.0;
         *qr_tendency = 0.0;

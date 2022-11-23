@@ -711,22 +711,24 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     }
                     
                     // iso_tendencies calculations
-                    double alpha_s_ice = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
-                    double alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
                     // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
-                    sb_iso_ice_nucleation(qi_tendency_acc, alpha_s_ice, &qi_iso_tendency_acc);
                     sb_iso_rain_autoconversion(ql_tmp, ql_iso_tmp, qr_tendency_au, &qr_iso_tendency_auto);
-                    sb_iso_ice_freezing(ql_tendency_frez, qr_tendency_frez, R_ql, R_qr, &qr_iso_tendency_frez, 
-                            &ql_iso_tendency_frez, &qi_iso_tendency_frez);
                     sb_iso_rain_accretion(ql_tmp, ql_iso_tmp, qr_tendency_ac, &qr_iso_tendency_acc);
-                    sb_iso_ice_accretion_cloud(qi_tendency_acc, R_qi, &qi_iso_tendency_acc);
                     double g_therm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp,
                             qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio, DVAPOR, KT);
-                    double F_ratio = 0.998;
-                    sb_iso_ice_deposition(alpha_k_ice, alpha_s_ice, qi_tendency_dep, F_ratio, &qi_iso_tendency_dep);
-                    sb_iso_ice_sublimation(qi_tendency_sub, R_qi, &qi_iso_tendency_sub);
                     sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm_r, &qr_iso_tendency_evap);
-                    sb_iso_ice_melting(qi_tendency_melt, R_qi, &qi_iso_tendency_melt);
+
+                    double alpha_s_ice = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
+                    double alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
+                    double F_ratio = 0.998;
+                    sb_iso_ice_nucleation(qi_tendency_nuc, alpha_s_ice, &qi_iso_tendency_nuc);
+                    sb_iso_ice_freezing(ql_tmp, qr_tmp, nr_tmp, ql_tendency_frez, qr_tendency_frez, R_ql, R_qr,
+                            &qr_iso_tendency_frez, &ql_iso_tendency_frez, &qi_iso_tendency_frez);
+                    sb_iso_ice_accretion_cloud(ql_tmp, qi_tmp, ni_tmp, qi_tendency_acc, R_qi, &qi_iso_tendency_acc);
+                    sb_iso_ice_deposition(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, alpha_k_ice, alpha_s_ice, 
+                            qi_tendency_dep, F_ratio, &qi_iso_tendency_dep);
+                    // sb_iso_ice_sublimation(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, qi_tendency_sub, R_qi, &qi_iso_tendency_sub);
+                    // sb_iso_ice_melting(qi_tendency_melt, R_qi, &qi_iso_tendency_melt);
 
                     // iso_tendencies add
                     qi_iso_tendency_tmp = qi_iso_tendency_nuc + qi_iso_tendency_frez + qi_iso_tendency_dep + qi_iso_tendency_acc - qi_iso_tendency_sub - qi_iso_tendency_melt;
