@@ -3,7 +3,9 @@ iPyCLES project is a Large Eddy Simulation model (PyCLES) coupled with stable wa
 ## Installation of ipycles in Linux and wsl2: (tested with ubuntu, Debian and Centos):
 Important system environments needed to be installed:
 
-`$ sudo apt-get install gcc gfortran-8 csh`
+`$ sudo apt-get install gcc gfortran-8 csh` for Debian based distributions
+or 
+`$ sudo yum install gcc csh` for Centos based distributions: like Fedora, Alamlinux, etc.
 
 Here the **gfortran version** should be lower than 9 (the lastest version until May, 2021), or some files can't be compiled.
 
@@ -28,6 +30,10 @@ Complie ipycles by doing following steps:
 2. `$ python generate_paramters.py`
 
 3. `$ CC=mpicc python setup.py build_ext --inplace`
+
+Besides, if there is no **openmpi** environemnt, you can also try to install 'mpich-mpicc' using conda like:
+`$ conda install -c conda-forge mpich-mpicc`
+and then run though the complie processes above 
 
  More details about installation in defferent platforms and erros can be found : [install.rst](https://github.com/huzizhan/ipycles/blob/master/docs/source/install.rst)
 ## Run test cases
