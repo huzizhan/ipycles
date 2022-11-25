@@ -36,8 +36,8 @@
 #define C_RAIN_SED 600.0
 #define A_NU_SQ 827.6940145956895
 #define T_ICE 235.0
-#define ICE_MAX_MASS 1.0e-07
-#define ICE_MIN_MASS 1.0e-12
+#define ICE_MAX_MASS 1e-07
+#define ICE_MIN_MASS 1e-12
 #define N_M92 1000.0
 #define A_M92 -0.639
 #define B_M92 12.96
