@@ -452,8 +452,8 @@ void sb_iso_ice_freezing(const double ql, const double qr, const double nr, cons
     }
     return;
 };
-void sb_iso_ice_accretion_cloud(const double ql, const double qi, const double ni, const double qi_tendency_acc, 
-        const double R_qi, double* qi_iso_tendency_acc){
+void sb_iso_ice_accretion_cloud(const double ql, const double qi, const double ni, const double qi_iso, 
+        const double qi_tendency_acc, double* qi_iso_tendency_acc){
     //-------------------------------------------------------------
     // INPUT VARIABLES
     //-------------------------------------------------------------
@@ -464,13 +464,15 @@ void sb_iso_ice_accretion_cloud(const double ql, const double qi, const double n
     //-------------------------------------------------------------
     // qi_iso_tendency_acc: single ice isotope content tendency due to cloud liquid accretion
     //-------------------------------------------------------------
-    if (ql > SB_EPS && qi > SB_EPS && ni > SB_EPS){
+    if (ql > SB_EPS && qi > SB_EPS && ni > SB_EPS && qi_iso > SB_EPS){
+        double R_qi = qi_iso/qi;
         *qi_iso_tendency_acc = qi_tendency_acc*R_qi;
     }
     return;
 };
 
-void sb_iso_ice_melting(const double qi_tendency_mlt, const double R_qi, double* qi_iso_tendency_mlt){
+void sb_iso_ice_melting(const double qi, const double qi_iso, const double qi_tendency_mlt, 
+        double* qi_iso_tendency_mlt){
     //-------------------------------------------------------------
     // INPUT VARIABLES
     //-------------------------------------------------------------
@@ -481,12 +483,15 @@ void sb_iso_ice_melting(const double qi_tendency_mlt, const double R_qi, double*
     //-------------------------------------------------------------
     // qi_iso_tendency_mlt: single ice isotope content tendency due to melting
     //-------------------------------------------------------------
-    *qi_iso_tendency_mlt = qi_tendency_mlt*R_qi;
+    if (qi > 1e-12 && qi_iso > 1e-12 && qi_tendency_mlt > 0.0){
+        double R_qi = qi_iso/qi;
+        *qi_iso_tendency_mlt = qi_tendency_mlt*R_qi;
+    }
     return;
 };
 
 void sb_iso_ice_sublimation(const double qi, const double ni, const double qi_iso, const double S_i,
-        const double qi_tendency_sub, const double R_qi, double* qi_iso_tendency_sub){
+        const double qi_tendency_sub, double* qi_iso_tendency_sub){
     //-------------------------------------------------------------
     // INPUT VARIABLES
     //-------------------------------------------------------------
@@ -497,7 +502,8 @@ void sb_iso_ice_sublimation(const double qi, const double ni, const double qi_is
     //-------------------------------------------------------------
     // qi_iso_tendency_sub: single ice isotope content tendency due to melting
     //-------------------------------------------------------------
-    if(qi > 1e-12 && ni > 1e-12 && S_i < 0.0){
+    if(qi > 1e-12 && ni > 1e-12 && qi_iso > 1e-12 && qi_tendency_sub < 0.0){
+        double R_qi = qi_iso/qi;
         *qi_iso_tendency_sub = qi_tendency_sub*R_qi;
     }
     return;

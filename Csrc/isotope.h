@@ -724,17 +724,18 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     sb_iso_ice_nucleation(qi_tendency_nuc, alpha_s_ice, &qi_iso_tendency_nuc);
                     sb_iso_ice_freezing(ql_tmp, qr_tmp, nr_tmp, ql_tendency_frez, qr_tendency_frez, R_ql, R_qr,
                             &qr_iso_tendency_frez, &ql_iso_tendency_frez, &qi_iso_tendency_frez);
-                    sb_iso_ice_accretion_cloud(ql_tmp, qi_tmp, ni_tmp, qi_tendency_acc, R_qi, &qi_iso_tendency_acc);
+                    sb_iso_ice_accretion_cloud(ql_tmp, qi_tmp, ni_tmp, qi_iso_tmp, qi_tendency_acc, &qi_iso_tendency_acc);
                     sb_iso_ice_deposition(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, alpha_k_ice, alpha_s_ice, 
                             qi_tendency_dep, F_ratio, &qi_iso_tendency_dep);
-                    // sb_iso_ice_sublimation(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, qi_tendency_sub, R_qi, &qi_iso_tendency_sub);
+                    sb_iso_ice_sublimation(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, qi_tendency_sub, &qi_iso_tendency_sub);
                     // sb_iso_ice_melting(qi_tendency_melt, R_qi, &qi_iso_tendency_melt);
 
                     // iso_tendencies add
-                    qi_iso_tendency_tmp = qi_iso_tendency_nuc + qi_iso_tendency_frez + qi_iso_tendency_dep + qi_iso_tendency_acc - qi_iso_tendency_sub - qi_iso_tendency_melt;
+                    // qi_iso_tendency_sub is NEGATIVE because qi_tendency_sub is NEGATIVE
+                    qi_iso_tendency_tmp = qi_iso_tendency_nuc + qi_iso_tendency_frez + qi_iso_tendency_dep + qi_iso_tendency_acc + qi_iso_tendency_sub - qi_iso_tendency_melt;
                     qr_iso_tendency_tmp = qr_iso_tendency_auto + qr_iso_tendency_acc + qr_iso_tendency_evap - qr_iso_tendency_frez;
                     ql_iso_tendency_tmp = -qr_iso_tendency_auto - qr_iso_tendency_acc - ql_iso_tendency_frez; 
-                    qv_iso_tendency_tmp = -qi_iso_tendency_dep - qr_iso_tendency_evap + qi_iso_tendency_sub;
+                    qv_iso_tendency_tmp = -qi_iso_tendency_dep - qr_iso_tendency_evap - qi_iso_tendency_sub;
 
                     //Factor of 1.05 is ad-hoc
                     

@@ -47,8 +47,8 @@
         "order": 5
     },
     "mpi": {
-        "nprocx": 1,
-        "nprocy": 1,
+        "nprocx": 3,
+        "nprocy": 3,
         "nprocz": 1
     },
     "output": {
@@ -88,7 +88,7 @@
         "cfl_limit": 0.5,
         "dt_initial": 1.0,
         "dt_max": 10.0,
-        "t_max": 360.0,
+        "t_max": 900.0,
         "ts_type": 3
     }
 }
