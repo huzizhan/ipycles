@@ -435,30 +435,26 @@ void microphysics_sb_collision_parameters(double sb_a_ice, double sb_b_ice, doub
 
 void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double velocity_l, 
         double ice_mass, double Dm_i, double velocity_i, double nl, double ql, double ni, double qi,
-        double sb_a_ice, double sb_b_ice, double sb_beta_ice,
-        double* nl_tendency, double* qi_tendency){
+        double sb_a_ice, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
 
-    if(ql < SB_EPS || qi < SB_EPS || ni < SB_EPS){
-        *qi_tendency = 0.0;
-    }
-    else{
-        double delta_il, delta_l, vartheta_l, vartheta_il;
+    if(ql > SB_EPS && qi > SB_EPS && ni > SB_EPS){
+        // double delta_il, delta_l, vartheta_l, vartheta_il;
         double E_il = microphysics_sb_E_il(Dm_l, Dm_i);
         double n = 1.0; // 1-th moments 
-        microphysics_sb_collision_parameters(sb_a_ice, sb_b_ice, sb_beta_ice, n, &delta_il, &delta_l, &vartheta_l, &vartheta_il);
+        // microphysics_sb_collision_parameters(sb_a_ice, sb_b_ice, sb_beta_ice, n, &delta_il, &delta_l, &vartheta_l, &vartheta_il);
 
-        double qi_tendency_tmp, nl_tendency_tmp;
+        // double qi_var_1 = 1.0*Dm_i*Dm_i + delta_il*Dm_l*Dm_i + delta_l*Dm_l*Dm_l;
+        // double delta_l     = gamma(11.0/3.0)/gamma(2.0) * pow(gamma(2.0)/gamma(3.0), 5.0/3.0);
+        double delta_l     = 1.26376421920;
+        double qi_var_1 = 1.0*Dm_i*Dm_i + delta_l*Dm_l*Dm_l;
+        // double qi_var_2 = 1.0*velocity_i*velocity_i - vartheta_il*velocity_i*velocity_l + vartheta_l*velocity_l*velocity_l + SIGMA_ICE;
+        double qi_var_2 = 1.0;
 
-        double qi_var_1 = 1.0*Dm_i*Dm_i + delta_il*Dm_l*Dm_i + delta_l*Dm_l*Dm_l;
-        double qi_var_2 = 1.0*velocity_i*velocity_i - vartheta_il*velocity_i*velocity_l + vartheta_l*velocity_l*velocity_l + SIGMA_ICE;
-        double nl_var_1 = Dm_i*Dm_i + Dm_l*Dm_i + Dm_l*Dm_l;
-        double nl_var_2 = velocity_i*velocity_i - velocity_i*velocity_l + velocity_l*velocity_l + SIGMA_ICE;
-
-        qi_tendency_tmp = pi/4 * E_il * ni * ql * qi_var_1 * sqrt(qi_var_2);
-        nl_tendency_tmp = -pi/4 * E_il * ni * ql * nl_var_1 * sqrt(nl_var_2);
-        
+        double qi_tendency_tmp = pi/4 * E_il * ni * ql * qi_var_1;
         *qi_tendency = qi_tendency_tmp;
-        *nl_tendency = nl_tendency_tmp;
+    }
+    else{
+        *qi_tendency = 0.0;
     }
     return;
 }

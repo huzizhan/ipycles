@@ -526,7 +526,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
     // all qi related variables are single ice variables.
     // Here we compute the source terms for nr, qr & ni, qr(number and mass of rain)
     // Temporal substepping is used to help ensure boundedness of moments
-    double rain_mass, Dm_r, mu, Dp, nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp, ql_tendency_frez, nl_tendency_acc;
+    double rain_mass, Dm_r, mu, Dp, nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp, ql_tendency_frez;
     double liquid_mass, Dm_l, velocity_liquid;
     double nr_tendency_au, nr_tendency_scbk, nr_tendency_evap, nr_tendency_frez;
     double qr_tendency_au, qr_tendency_ac, qr_tendency_evap, qr_tendency_frez;
@@ -657,7 +657,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                             &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
                     sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &nl_tendency_acc, &qi_tendency_acc);
+                            sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc);
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
                     sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
                     sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
