@@ -29,10 +29,14 @@
         "ny": 8.0,
         "nz": 250
     },
+    "isotopetracers": {
+        "scheme": "SBSI",
+        "use_tracers": true
+    },
     "meta": {
         "casename": "Isdac",
         "simname": "Isdac",
-        "uuid": "193733e2-ac12-4c65-9808-215bf755aada"
+        "uuid": "859d4747-2472-4152-9d39-ee3cc9100642"
     },
     "microphysics": {
         "n0_ice": 10000000.0,
@@ -44,7 +48,7 @@
     },
     "mpi": {
         "nprocx": 4,
-        "nprocy": 3,
+        "nprocy": 4,
         "nprocz": 1
     },
     "output": {
@@ -84,7 +88,7 @@
         "cfl_limit": 0.5,
         "dt_initial": 1.0,
         "dt_max": 10.0,
-        "t_max": 1000.0,
+        "t_max": 1800.0,
         "ts_type": 3
     }
 }

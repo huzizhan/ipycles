@@ -851,8 +851,8 @@ def Isdac():
 
     namelist["grid"] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64/4
-    namelist['grid']['ny'] = 64/4
+    namelist['grid']['nx'] = 64/8
+    namelist['grid']['ny'] = 64/8
     namelist['grid']['nz'] = 250
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 50.0
@@ -877,9 +877,9 @@ def Isdac():
     namelist['microphysics']['phase_partitioning'] = 'liquid_only'
     namelist['microphysics']['n0_ice'] = 1.0e7
 
-    # namelist['isotopetracers'] = {}
-    # namelist['isotopetracers']['use_tracers'] = True
-    # namelist['isotopetracers']['scheme'] = 'SBSI'
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'SBSI'
     
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'

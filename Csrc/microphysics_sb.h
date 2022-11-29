@@ -130,10 +130,10 @@ double microphysics_ventilation_coefficient_ice(double Dm, double v_fall, double
     double a_exponent = sb_b_const + n - 1.0; 
     double b_var_tmp  = 1.5*sb_b_const + 0.5*sb_bete_const;
     double b_exponent = b_var_tmp + n - 1.0; 
-    double var_const  = gamma((nu+1.0)*mu_)/gamma((nu+2.0)*mu_);
+    double var_const  = tgamma((nu+1.0)*mu_)/tgamma((nu+2.0)*mu_);
 
-    double a_vent_n = A_VI * gamma((nu+n+sb_b_const)*mu_)/gamma((nu+1)*mu_) * pow(var_const, a_exponent);
-    double b_vent_n = B_VI * gamma((nu+n+b_var_tmp)*mu_)/gamma((nu+1)*mu_) * pow(var_const, b_exponent);
+    double a_vent_n = A_VI * tgamma((nu+n+sb_b_const)*mu_)/tgamma((nu+1)*mu_) * pow(var_const, a_exponent);
+    double b_vent_n = B_VI * tgamma((nu+n+b_var_tmp)*mu_)/tgamma((nu+1)*mu_) * pow(var_const, b_exponent);
 
     double F_vn = a_vent_n + b_vent_n * NSC_3 * sqrt(N_re);
     return F_vn;
@@ -409,16 +409,16 @@ void microphysics_sb_collision_parameters(double sb_a_ice, double sb_b_ice, doub
     double ice_mu_        = 3.0; // 1/mu_ice, and mu_ice =1/3.0
     double liquid_mu_     = 1.0; // liquid_mu_ = 1.0
     double nu             = 1.0; // both ice and cloud droplets
-    double var_ice_1      = gamma(6.0); // Γ((nu+1)/ice_mu)
-    double var_ice_2      = gamma(9.0); // Γ((nu+2)/ice_mu)
+    double var_ice_1      = tgamma(6.0); // Γ((nu+1)/ice_mu)
+    double var_ice_2      = tgamma(9.0); // Γ((nu+2)/ice_mu)
     double var_ice_3      = var_ice_1/var_ice_2;
     double var_ice_4      = (2.0*sb_b_ice + nu + 1.0 + k) * ice_mu_;
     double var_ice_5      = (sb_b_ice + nu + 1.0 +k) * ice_mu_;
     double var_ice_6      = (sb_beta_ice + sb_b_ice + nu + 1.0 + k) * ice_mu_;
     double var_ice_7      = (sb_b_ice + nu + 1.0 + k) * ice_mu_;
 
-    double var_liquid_1   = gamma(2.0); // Γ((nu+1)/liquid_mu)
-    double var_liquid_2   = gamma(3.0); // Γ((nu+2)/liquid_mu)
+    double var_liquid_1   = tgamma(2.0); // Γ((nu+1)/liquid_mu)
+    double var_liquid_2   = tgamma(3.0); // Γ((nu+2)/liquid_mu)
     double var_liquid_3   = var_liquid_1/var_liquid_2;
     double var_liquid_4   = 8.0 + 3.0*k; // (2*sb_b_liquid + nu + 1.0 + k)*ice_mu_
     double sb_b_liquid    = 1.0/3.0;
@@ -426,11 +426,11 @@ void microphysics_sb_collision_parameters(double sb_a_ice, double sb_b_ice, doub
     double var_liquid_5   = 7.0 + 3.0*k; // (sb_b_liquid + nu + 1.0 + k)*ice_mu_
     double var_liquid_6   = 12.0 + 3.0*k; // (2*sb_beta_liquid + 2*sb_b_liquid + nu + 1.0 + k)*ice_mu_
    
-    *delta_l     = gamma(11.0/3.0)/gamma(2.0) * pow(gamma(2.0)/gamma(3.0), 5.0/3.0);
-    *delta_li    = 2.0 * gamma(var_ice_5)/var_ice_1 * gamma(7.0)/var_liquid_1 * pow(var_ice_3, (sb_b_ice+k)) * cbrt(var_liquid_3);
+    *delta_l     = tgamma(11.0/3.0)/tgamma(2.0) * pow(tgamma(2.0)/tgamma(3.0), 5.0/3.0);
+    *delta_li    = 2.0 * tgamma(var_ice_5)/var_ice_1 * tgamma(7.0)/var_liquid_1 * pow(var_ice_3, (sb_b_ice+k)) * cbrt(var_liquid_3);
     
-    *vartheta_l  = gamma(var_liquid_6)/gamma(var_liquid_4)*pow(gamma(2.0)/gamma(3.0), 4.0/3.0);
-    *vartheta_li = 2.0 * gamma(var_ice_6)/gamma(var_ice_7) * gamma(9.0)/gamma(7.0) * pow(gamma(6.0)/gamma(9.0), sb_beta_ice) * pow(gamma(2.0)/gamma(3.0), sb_beta_liquid);
+    *vartheta_l  = tgamma(var_liquid_6)/tgamma(var_liquid_4)*pow(tgamma(2.0)/tgamma(3.0), 4.0/3.0);
+    *vartheta_li = 2.0 * tgamma(var_ice_6)/tgamma(var_ice_7) * tgamma(9.0)/tgamma(7.0) * pow(tgamma(6.0)/tgamma(9.0), sb_beta_ice) * pow(tgamma(2.0)/tgamma(3.0), sb_beta_liquid);
 }
 
 void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double velocity_l, 
@@ -438,17 +438,13 @@ void sb_accretion_cloud_ice(double liquid_mass, double Dm_l, double velocity_l,
         double sb_a_ice, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
 
     if(ql > SB_EPS && qi > SB_EPS && ni > SB_EPS){
-        // double delta_il, delta_l, vartheta_l, vartheta_il;
+        double delta_il, delta_l, vartheta_l, vartheta_il;
         double E_il = microphysics_sb_E_il(Dm_l, Dm_i);
         double n = 1.0; // 1-th moments 
-        // microphysics_sb_collision_parameters(sb_a_ice, sb_b_ice, sb_beta_ice, n, &delta_il, &delta_l, &vartheta_l, &vartheta_il);
+        microphysics_sb_collision_parameters(sb_a_ice, sb_b_ice, sb_beta_ice, n, &delta_il, &delta_l, &vartheta_l, &vartheta_il);
 
-        // double qi_var_1 = 1.0*Dm_i*Dm_i + delta_il*Dm_l*Dm_i + delta_l*Dm_l*Dm_l;
-        // double delta_l     = gamma(11.0/3.0)/gamma(2.0) * pow(gamma(2.0)/gamma(3.0), 5.0/3.0);
-        double delta_l     = 1.26376421920;
-        double qi_var_1 = 1.0*Dm_i*Dm_i + delta_l*Dm_l*Dm_l;
-        // double qi_var_2 = 1.0*velocity_i*velocity_i - vartheta_il*velocity_i*velocity_l + vartheta_l*velocity_l*velocity_l + SIGMA_ICE;
-        double qi_var_2 = 1.0;
+        double qi_var_1 = 1.0*Dm_i*Dm_i + delta_il*Dm_l*Dm_i + delta_l*Dm_l*Dm_l;
+        double qi_var_2 = 1.0*velocity_i*velocity_i - vartheta_il*velocity_i*velocity_l + vartheta_l*velocity_l*velocity_l + SIGMA_ICE;
 
         double qi_tendency_tmp = pi/4 * E_il * ni * ql * qi_var_1;
         *qi_tendency = qi_tendency_tmp;
