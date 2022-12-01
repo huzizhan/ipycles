@@ -269,12 +269,11 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
     //-------------------------------------------------------------
 
     if (S_i >= 0.0){
-        double N_nc = 1.0e-2 * exp(0.6*(273.15 - fmax(temperature, 246.0))); // scheme from RR98;
+        // double N_nc = 1.0e-2 * exp(0.6*(273.15 - fmax(temperature, 246.0))); // scheme from RR98;
         // double N_nc = 0.005 * exp(0.304*(273.15 - temperature)); // scheme from MS08(Coper62);
         // double N_nc = exp(-2.8 + 0.262*(273.15 - temperature)); // scheme from MY92;
-        double qi_tendency_tmp;
+        double N_nc = 1.0e3 * exp(-0.639 + 12.96*S_i); // scheme adopted from SB06, Equ 36;
         if (N_nc > ni){
-            // double dt_tmp = fmin(dt, 1.0e-3);
             double ni_tend_tmp = (N_nc - ni)/dt;
             *ni_tendency = ni_tend_tmp;
             *qi_tendency = X_ICE_NUC*ni_tend_tmp;

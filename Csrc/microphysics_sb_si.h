@@ -410,7 +410,6 @@ void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restric
 
                 sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &sifi_av, &sifi_bv, &sb_beta_ice);
                 double ice_mass = microphysics_mean_mass(ni[ijk], qi[ijk], ICE_MIN_MASS, ICE_MAX_MASS);
-                // sb_alpha_ice = 160.0; // just tmp settings for single ice falling velocity computation.
                 sb_alpha_ice = (sifi_av*pow(sb_a_ice, sifi_bv)) / sqrt(DENSITY_SB/density[k]);
                 
                 double ni_vel_tmp = sb_alpha_ice * tgamma(6.0 + 3.0*sb_beta_ice)/tgamma(6.0) * pow(tgamma(6.0)/tgamma(9.0), sb_beta_ice) * pow(ice_mass, sb_beta_ice);
