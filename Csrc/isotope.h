@@ -647,20 +647,22 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     velocity_ice  = sifi_av * pow(Dm_i, sifi_bv);
 
                     //compute the source terms
-                    sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
+                    sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
+                    sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
+                    sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
+
+                    sb_nucleation_ice(temperature[ijk], sat_ratio, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
+                    sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, 
+                            nr_tmp, &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &qi_tendency_frez, &ni_tendency_frez);
+                    sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, 
+                            ni_tmp, qi_tmp, sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc);
                     sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
                     sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
-                    sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
-                            &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &ni_tendency_frez, &qi_tendency_frez);
-                    sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
-                    sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc);
-                    sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
-                    sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
-                    sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
+                    sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, 
+                            &ni_tendency_melt, &qi_tendency_melt);
 
                     // double check the source term magnitudes
                     // qi_tendency_sub is POSITIVE, qi_tendency_dep is POSITIVE;
@@ -694,21 +696,6 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     qi_iso_tendency_sub  = 0.0;
                     qi_iso_tendency_melt = 0.0;
                     qi_iso_tendency_acc  = 0.0;
-
-                    R_ql = 0.0;
-                    if(ql_std_tmp > SB_EPS && ql_iso_tmp > SB_EPS){
-                        R_ql = ql_iso_tmp/ql_std_tmp;
-                    }
-
-                    R_qi = 0.0;
-                    if(qi_tmp > SB_EPS && qi_iso_tmp > SB_EPS){
-                        R_qi = qi_iso_tmp/qi_tmp;
-                    }
-
-                    R_qr = 0.0;
-                    if(qr_tmp > 1.0e-15 && qr_iso_tmp > 1.0e-15){
-                        R_qr = qr_iso_tmp/qr_tmp;
-                    }
                     
                     // iso_tendencies calculations
                     // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
@@ -722,7 +709,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     double alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
                     double F_ratio = 0.998;
                     sb_iso_ice_nucleation(qi_tendency_nuc, alpha_s_ice, &qi_iso_tendency_nuc);
-                    sb_iso_ice_freezing(ql_tmp, qr_tmp, nr_tmp, ql_tendency_frez, qr_tendency_frez, R_ql, R_qr,
+                    sb_iso_ice_freezing(ql_tmp, qr_tmp, nr_tmp, ql_iso_tmp, qr_iso_tmp, ql_tendency_frez, qr_tendency_frez,
                             &qr_iso_tendency_frez, &ql_iso_tendency_frez, &qi_iso_tendency_frez);
                     sb_iso_ice_accretion_cloud(ql_tmp, qi_tmp, ni_tmp, qi_iso_tmp, qi_tendency_acc, &qi_iso_tendency_acc);
                     sb_iso_ice_deposition(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, alpha_k_ice, alpha_s_ice, 

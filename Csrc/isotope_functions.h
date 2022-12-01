@@ -430,25 +430,28 @@ void sb_iso_ice_nucleation(const double qi_tendency_nuc, const double alpha_s_ic
     return;
 };
 
-void sb_iso_ice_freezing(const double ql, const double qr, const double nr, const double ql_tendency_frz, 
-        const double qr_tendency_frz, const double R_ql, const double R_qr,
+void sb_iso_ice_freezing(const double ql, const double qr, const double nr, const double ql_iso,
+        const double qr_iso, const double ql_tendency_frz, const double qr_tendency_frz, 
         double* qr_iso_tendency_frz, double* ql_iso_tendency_frz, double* qi_iso_tendency_frz){
     //-------------------------------------------------------------
     // INPUT VARIABLES
     //-------------------------------------------------------------
     // ql_tendency_frz: ql tendency during freezing, calculated from sb_freezing_ice section, POSITIVE
     // qr_tendency_frz: qr tendency during freezing, calculated from sb_freezing_ice section, POSITIVE
-    // R_ql: isotope ratio of ql;
-    // R_qr: isotope ratio of qr;
     //-------------------------------------------------------------
     // OUTPUT VARIABLES
     //-------------------------------------------------------------
     // qi_iso_tendency_frz: single ice isotope content tendency due to freezing
     //-------------------------------------------------------------
-    if(qr > SB_EPS && nr > SB_EPS && ql > SB_EPS){
+    if(qr_tendency_frz > 0.0 && qr_iso > SB_EPS){
+        double R_qr = qr_iso/qr;
         *qr_iso_tendency_frz = qr_tendency_frz * R_qr;
+        *qi_iso_tendency_frz += qr_tendency_frz*R_qr;
+    }
+    if(ql_tendency_frz > 0.0 && ql_iso > SB_EPS){
+        double R_ql = ql_iso/ql;
         *ql_iso_tendency_frz = ql_tendency_frz * R_ql;
-        *qi_iso_tendency_frz = ql_tendency_frz*R_ql + qr_tendency_frz*R_qr;
+        *qi_iso_tendency_frz += ql_tendency_frz*R_ql;
     }
     return;
 };
