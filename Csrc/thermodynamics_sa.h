@@ -22,7 +22,8 @@ void eos_c(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(dou
     double pv_1 = pv_c(p0,qt,qt );
     double pd_1 = p0 - pv_1;
     double T_1 = temperature_no_ql(pd_1,pv_1,s,qt);
-    double pv_star_1 = lookup(LT, T_1);
+    // double pv_star_1 = lookup(LT, T_1);
+    double pv_star_1 = saturation_vapor_pressure_water(T_1);
     double qv_star_1 = qv_star_c(p0,qt,pv_star_1);
 
     /// If not saturated
@@ -42,7 +43,8 @@ void eos_c(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(dou
         double sigma_2;
         double lam_2;
         do{
-            double pv_star_2 = lookup(LT, T_2);
+            // double pv_star_2 = lookup(LT, T_2);
+            double pv_star_2 = saturation_vapor_pressure_water(T_2);
             qv_star_2 = qv_star_c(p0,qt,pv_star_2);
             double pv_2 = pv_c(p0,qt,qv_star_2);
             double pd_2 = p0 - pv_2;
@@ -164,7 +166,8 @@ void bvf_sa(struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(do
                 if(qv[ijk]<qt[ijk]){
                     //moist saturated
                     double Lv=L_fp(T[ijk],lam_fp(T[ijk]));
-                    double pv_star = lookup(LT,T[ijk]);
+                    // double pv_star = lookup(LT,T[ijk]);
+                    double pv_star = saturation_vapor_pressure_water(T[ijk]);
                     double rsl = eps_v*pv_star/(p0[k]-pv_star);
                     double gamma_w = g/cpd*(1.0/(1.0-qt[ijk]))*(1.0+Lv*rsl/(Rd*T[ijk]))/(cpm_c(qt[ijk])/cpd + Lv*Lv*(eps_v+rsl)*rsl/(cpd*Rd*T[ijk]*T[ijk]));
                     double dTdz=(interp_2(T[ijk],T[ijk+1])-interp_2(T[ijk-1],T[ijk]))*dzi;

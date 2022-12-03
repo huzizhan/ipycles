@@ -13,7 +13,8 @@ cimport ReferenceState
 cimport DiagnosticVariables
 cimport PrognosticVariables
 from Thermodynamics cimport LatentHeat, ClausiusClapeyron
-from thermodynamic_functions cimport thetas_c, theta_c, thetali_c
+# from thermodynamic_functions cimport thetas_c, theta_c, thetali_c
+from thermodynamic_functions cimport thetas_c, theta_c, thetali_c, qv_star_c, saturation_vapor_pressure_water, saturation_vapor_pressure_ice
 import cython
 from NetCDFIO cimport NetCDFIO_Stats, NetCDFIO_Fields
 from libc.math cimport fmax, fmin
@@ -130,6 +131,12 @@ cdef class ThermodynamicsSA:
         NS.add_ts('cloud_base', Gr, Pa)
         NS.add_ts('lwp', Gr, Pa)
 
+        NS.add_profile('pv_star_lookup', Gr, Pa, '', '')
+        NS.add_profile('pv_star_water', Gr, Pa, '', '')
+        NS.add_profile('pv_star_ice', Gr, Pa, '', '')
+        NS.add_profile('RH_lookup', Gr, Pa, 'unit', '', 'supper_saturation_ratio')
+        NS.add_profile('RH_water', Gr, Pa, 'unit', '', 'supper_saturation_ratio')
+        NS.add_profile('RH_ice', Gr, Pa, 'unit', '', 'supper_saturation_ratio')
 
         return
 
@@ -271,9 +278,60 @@ cdef class ThermodynamicsSA:
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             double[:] data = np.empty((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] tmp
+        
+# -------test 
+        cdef:
+            double pv_star_lookup_tmp
+            double pv_star_water_tmp
+            double pv_star_ice_tmp
+            double qv_star_lookup_tmp
+            double qv_star_water_tmp
+            double qv_star_ice_tmp
+            double [:] pv_star_lookup = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
+            double [:] pv_star_water = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
+            double [:] pv_star_ice = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
+            double [:] RH_lookup = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
+            double [:] RH_water = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
+            double [:] RH_ice = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
+            Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
+        
+        with nogil:
+            count = 0
+            for i in range(imin, imax):
+                ishift = i * istride
+                for j in range(jmin, jmax):
+                    jshift = j * jstride
+                    for k in range(kmin, kmax):
+                        ijk = ishift + jshift + k
+                        pv_star_lookup_tmp = self.CC.LT.fast_lookup(DV.values[t_shift + ijk])
+                        qv_star_lookup_tmp = qv_star_c(RS.p0_half[k], PV.values[qt_shift], pv_star_lookup_tmp)
+                        pv_star_lookup[ijk] = pv_star_lookup_tmp
+                        RH_lookup[ijk] = PV.values[qt_shift]/qv_star_lookup_tmp
 
+                        pv_star_water_tmp = saturation_vapor_pressure_water(DV.values[t_shift + ijk])
+                        qv_star_water_tmp = qv_star_c(RS.p0_half[k], PV.values[qt_shift], pv_star_water_tmp)
+                        pv_star_water[ijk] = pv_star_water_tmp
+                        RH_water[ijk] = PV.values[qt_shift]/qv_star_water_tmp
 
+                        pv_star_ice_tmp = saturation_vapor_pressure_ice(DV.values[t_shift + ijk])
+                        qv_star_ice_tmp = qv_star_c(RS.p0_half[k], PV.values[qt_shift], pv_star_ice_tmp)
+                        pv_star_ice[ijk] = pv_star_ice_tmp
+                        RH_ice[ijk] = PV.values[qt_shift]/qv_star_ice_tmp
 
+        tmp = Pa.HorizontalMean(Gr, &pv_star_lookup[0])
+        NS.write_profile('pv_star_lookup', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &pv_star_water[0])
+        NS.write_profile('pv_star_water', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &pv_star_ice[0])
+        NS.write_profile('pv_star_ice', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+
+        tmp = Pa.HorizontalMean(Gr, &RH_lookup[0])
+        NS.write_profile('RH_lookup', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &RH_water[0])
+        NS.write_profile('RH_water', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &RH_ice[0])
+        NS.write_profile('RH_ice', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
         # Ouput profiles of thetas
         with nogil:
             count = 0
@@ -314,8 +372,8 @@ cdef class ThermodynamicsSA:
 
 
         #Output profiles of theta (dry potential temperature)
-        cdef:
-            Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
+        # cdef:
+        #     Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
 
         with nogil:
             count = 0
