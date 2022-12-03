@@ -473,8 +473,10 @@ void sb_entropy_source_formation(const struct DimStruct *dims, struct LookupStru
                 const double L_fp_T = L_fp(T[ijk],lam_T);
                 const double lam_Tw = lam_fp(Twet[ijk]);
                 const double L_fp_Tw = L_fp(Twet[ijk],lam_Tw);
-                const double pv_star_T = lookup(LT, T[ijk]);
-                const double pv_star_Tw = lookup(LT,Twet[ijk]);
+                // const double pv_star_T = lookup(LT, T[ijk]);
+                const double pv_star_T = saturation_vapor_pressure_water(T[ijk]);
+                // const double pv_star_Tw = lookup(LT,Twet[ijk]);
+                const double pv_star_Tw = saturation_vapor_pressure_water(Twet[ijk]);
                 const double pv = pv_c(p0[k], qt[ijk], qv[ijk]);
                 const double pd = p0[k] - pv;
                 const double sd_T = sd_c(pd, T[ijk]);
