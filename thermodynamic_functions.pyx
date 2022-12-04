@@ -40,3 +40,12 @@ cpdef inline double alpha(const double p0, const double T, const double qt, cons
 
 cpdef inline double qv_star(const double p0, const double qt, const double pv) nogil:
     return qv_star_c(p0, qt, pv)
+
+cpdef inline double pv_star_water_function(const double temperature) nogil:
+    return saturation_vapor_pressure_water(temperature)
+
+cpdef inline double pv_star_water_simple_function(const double temperature) nogil:
+    return saturation_vapor_pressure_water_simple(temperature)
+
+cpdef inline double pv_star_ice_function(const double temperature) nogil:
+    return saturation_vapor_pressure_ice(temperature)

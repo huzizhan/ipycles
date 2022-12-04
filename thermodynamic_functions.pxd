@@ -14,3 +14,6 @@ cdef extern from "thermodynamic_functions.h":
     double buoyancy_c(const double alpha0, const double alpha) nogil
     double alpha_c(const double p0, const double T, const double qt, const double qv) nogil
     double qv_star_c(const double p0, const double qt, const double pv) nogil
+    double saturation_vapor_pressure_water(const double temperature) nogil
+    double saturation_vapor_pressure_water_simple(const double temperature) nogil
+    double saturation_vapor_pressure_ice(const double temperature) nogil

@@ -62,6 +62,7 @@ elif (platform.machine()  == 'x86_64') and ('LD_LIBRARY_PATH' in os.environ):
     # Comment the above two lines and uncomment below to use Fram@Caltech)
     #netcdf_include = '/share/apps/software/rhel6/software/netCDF/4.4.0-foss-2016a/include'
     #netcdf_lib = '/share/apps/software/rhel6/software/netCDF/4.4.0-foss-2016a/lib'
+    # f_compiler = 'x86_64-conda_cos6-linux-gnu-gfortran'
     f_compiler = 'gfortran'
 
 else:
@@ -78,6 +79,11 @@ else:
         extra_objects=['./RRTMG/rrtmg_build/rrtmg_combined.o']
         netcdf_include = get_netcdf_include()
         netcdf_lib = os.path.join(get_netcdf_prefix(), 'lib')
+        # Now gfortran compiler can't higher then 8, so the f_compiler for compling RRTMG component 
+        # need to be chang for the right version. Here we recommand using conda to install the gfortran compiler, 
+        # by running `conda install gfortran_linux-64` and the compiler named as 
+        # x86_64-conda_cos6-linux-gnu-gfortran
+        # f_compiler = 'x86_64-conda_cos6-linux-gnu-gfortran'
         f_compiler = 'gfortran'
 
     else: 

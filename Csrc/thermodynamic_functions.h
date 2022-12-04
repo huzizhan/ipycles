@@ -66,3 +66,30 @@ static inline double alpha_c(double p0, double T, double  qt, double qv){
     //specific volume, equation 44 in Pressel, 2015
     return (Rd * T)/p0 * (1.0 - qt + eps_vi * qv);
 }
+
+static inline double saturation_vapor_pressure_water(double temperature){
+    // define variables for vapor-liquid saturation vapor
+    const double e_s0 = 611.655; // Pa
+    const double T_0 = 273.16; // K, temperature at triple-point
+    const double L_0 = 2.501e6; // J kg^-1 
+    const double cpl_cpv = 2180; // J kg^-1 K^-1
+
+    double L = L_0 - cpl_cpv*(temperature - T_0);
+    return e_s0*pow(T_0/temperature, cpl_cpv/Rv) * exp(L_0/Rv/T_0 - L/Rv/temperature);
+}
+static inline double saturation_vapor_pressure_water_simple(double temperature){
+    const double e_s0 = 611.655; // Pa
+    const double T_0 = 273.16; // K, temperature at triple-point
+    const double L_0 = 2.501e6; // J kg^-1 
+    return e_s0 * exp(L_0/Rv/T_0 - L_0/Rv/temperature);
+}
+static inline double saturation_vapor_pressure_ice(double temperature){
+    // define variables for vapor-ice saturation vapor;
+    const double e_i0 = 611.655; // Pa
+    const double T_0 = 273.16; // K, temperature at triple-point
+    const double cpi_cpv = 212; // J kg^-1 K^-1
+    const double L_s0 = 2.834e6; // J kg^-1
+    double L_s = L_s0 - cpi_cpv*(temperature - T_0);
+    return e_i0 * pow(T_0/temperature, cpi_cpv/Rv) * exp(L_s0/Rv/T_0 - L_s/Rv/temperature);
+}
+
