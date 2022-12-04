@@ -38,13 +38,25 @@ double pv_star_ice_c(const double temperature){
     return es0 * exp(a3i * (temperature - t0)/(temperature - a4i));
 };
 
-double microphysics_g_arctic(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+double microphysics_g_arctic_rain(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double temperature, double dvap, double kt){
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
-    double pv_sat = lookup(LT, temperature);
+    // double pv_sat = lookup(LT, temperature);
+    double pv_sat_l = saturation_vapor_pressure_water(temperature);
     /*Straka 2009 (6.13)*/
-    double g_therm = 1.0/(Rv*temperature/dvap/pv_sat + L/kt/temperature * (L/Rv/temperature - 1.0));
+    double g_therm = 1.0/(Rv*temperature/dvap/pv_sat_l + L/kt/temperature * (L/Rv/temperature - 1.0));
+    return g_therm;
+};
+
+double microphysics_g_arctic_snow(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                             double temperature, double dvap, double kt){
+    double lam = lam_fp(temperature);
+    double L = L_fp(temperature,lam);
+    // double pv_sat = lookup(LT, temperature);
+    double pv_sat_i = saturation_vapor_pressure_ice(temperature);
+    /*Straka 2009 (6.13)*/
+    double g_therm = 1.0/(Rv*temperature/dvap/pv_sat_i + L/kt/temperature * (L/Rv/temperature - 1.0));
     return g_therm;
 };
 
@@ -218,7 +230,8 @@ void autoconversion_snow(struct LookupStruct *LT, double (*lam_fp)(double), doub
                          double density, const double p0, double temperature, double qt,
                          double qi, double ni, double* qsnow_tendency){
     /* Harrington 1995 snow autoconversion model */
-    double pv_star = lookup(LT, temperature);
+    // double pv_star = lookup(LT, temperature);
+    double pv_star = saturation_vapor_pressure_ice(temperature);
     //double pv_star = pv_star_ice_c(temperature);
     double qv_star = qv_star_c(p0, qt, pv_star);
     //double satratio = qt_/qv_star;
@@ -232,7 +245,7 @@ void autoconversion_snow(struct LookupStruct *LT, double (*lam_fp)(double), doub
     if( qi > 1.0e-10 && satratio > 1.0){
         //gtherm = 1.0e-7/(2.2*temperature/pv_star + 220.0/temperature);
         //gtherm = 1.0 / ( (Rv*temperature/vapor_diff/pv_star) + (8.028e12/therm_cond/Rv/(temperature*temperature)) );
-        gtherm = microphysics_g_arctic(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
+        gtherm = microphysics_g_arctic_snow(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
         psi = 4.0*pi*(satratio - 1.0)*gtherm;
         *qsnow_tendency = (psi*ni*exp(-ice_lam*db_ice)
                            *(db_ice*db_ice/3.0 + (1.0+ice_lam*db_ice)/(ice_lam*ice_lam))/density);
@@ -245,7 +258,8 @@ void evaporation_rain(struct LookupStruct *LT, double (*lam_fp)(double), double 
                       double density, const double p0, double temperature,
                       double qt, double qrain, double nrain, double* qrain_tendency){
     double beta = 2.0;
-    double pv_star = lookup(LT, temperature);
+    // double pv_star = lookup(LT, temperature);
+    double pv_star = saturation_vapor_pressure_water(temperature);
     double qv_star = qv_star_c(p0, qt, pv_star);
     double satratio = qt/qv_star;
     double vapor_diff = vapor_diffusivity(temperature, p0);
@@ -261,7 +275,7 @@ void evaporation_rain(struct LookupStruct *LT, double (*lam_fp)(double), double 
         vent = 0.78 + 0.27*sqrt(re);
         //gtherm = 1.0e-7/(2.2*temperature/pv_star + 220.0/temperature);
         //gtherm = 1.0 / ( (Rv*temperature/vapor_diff/pv_star) + (8.028e12/therm_cond/Rv/(temperature*temperature)) );
-        gtherm = microphysics_g_arctic(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
+        gtherm = microphysics_g_arctic_rain(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
         *qrain_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm*nrain/(rain_lam*rain_lam)/density;
     }
 
@@ -272,7 +286,8 @@ void evaporation_snow(struct LookupStruct *LT, double (*lam_fp)(double), double 
                         double density, double p0, double temperature, double qt,
                         double qsnow, double nsnow, double* qsnow_tendency){
     double beta = 3.0;
-    double pv_star = lookup(LT, temperature);
+    // double pv_star = lookup(LT, temperature);
+    double pv_star = saturation_vapor_pressure_ice(temperature);
     //double pv_star = pv_star_ice_c(temperature);
     double qv_star = qv_star_c(p0, qt, pv_star);
     double satratio = qt/qv_star;
@@ -289,7 +304,7 @@ void evaporation_snow(struct LookupStruct *LT, double (*lam_fp)(double), double 
     //double gtherm = 1.0 / ( (Rv*temperature/vapor_diff/pv_star) + (8.028e12/therm_cond/Rv/(temperature*temperature)) );
 
     if( qsnow > 1.0e-15 ){
-        double gtherm = microphysics_g_arctic(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
+        double gtherm = microphysics_g_arctic_snow(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
         *qsnow_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm*nsnow/(snow_lam*snow_lam)/density;
     }
 
