@@ -52,9 +52,25 @@ double microphysics_g_vi(struct LookupStruct *LT, double (*lam_fp)(double), doub
     return G_iv;
 }
 
-double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperature, double  p0, double qt){
+double microphysics_saturation_ratio_liq(struct LookupStruct *LT,  double temperature, double  p0, double qt){
     // double pv_sat = lookup(LT, temperature);
-    double pv_sat = saturation_vapor_pressure_water(temperature);
+    double pv_sat_liq = saturation_vapor_pressure_water(temperature);
+    double qv_sat = qv_star_c(p0, qt, pv_sat_liq);
+    double saturation_ratio = qt/qv_sat - 1.0;
+    return saturation_ratio;
+}
+
+double microphysics_saturation_ratio_ice(struct LookupStruct *LT,  double temperature, double  p0, double qt){
+    // double pv_sat = lookup(LT, temperature);
+    double pv_sat_ice = saturation_vapor_pressure_ice(temperature);
+    double qv_sat = qv_star_c(p0, qt, pv_sat_ice);
+    double saturation_ratio = qt/qv_sat - 1.0;
+    return saturation_ratio;
+}
+
+double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperature, double  p0, double qt){
+    double pv_sat = lookup(LT, temperature);
+    // double pv_sat = saturation_vapor_pressure_water(temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat);
     double saturation_ratio = qt/qv_sat - 1.0;
     return saturation_ratio;
