@@ -589,9 +589,6 @@ cdef extern:
              double *tauaer  ,double *ssaaer  ,double *asmaer  ,double *ecaer   ,
              double *swuflx  ,double *swdflx  ,double *swhr    ,double *swuflxc ,double *swdflxc ,double *swhrc)
 
-
-
-
 cdef class RadiationRRTM(RadiationBase):
 
     def __init__(self, namelist, LatentHeat LH, ParallelMPI.ParallelMPI Pa):
@@ -1029,12 +1026,10 @@ cdef class RadiationRRTM(RadiationBase):
                 self.update_RRTM(Gr, Ref, PV, DV, Sur, Pa)
                 self.next_radiation_calculate = (TS.t//self.radiation_frequency + 1.0) * self.radiation_frequency
 
-
         cdef:
             Py_ssize_t imin = Gr.dims.gw
             Py_ssize_t jmin = Gr.dims.gw
             Py_ssize_t kmin = Gr.dims.gw
-
 
             Py_ssize_t imax = Gr.dims.nlg[0] - Gr.dims.gw
             Py_ssize_t jmax = Gr.dims.nlg[1] - Gr.dims.gw
@@ -1046,7 +1041,6 @@ cdef class RadiationRRTM(RadiationBase):
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
-
 
         # Now update entropy tendencies
         with nogil:
@@ -1073,6 +1067,7 @@ cdef class RadiationRRTM(RadiationBase):
             Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv')
             Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
             Py_ssize_t qi_shift
+            Py_ssize_t qisi_shift
             double [:,:] t_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[t_shift])
             double [:,:] qv_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[qv_shift])
             double [:,:] ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[ql_shift])
@@ -1082,13 +1077,13 @@ cdef class RadiationRRTM(RadiationBase):
             bint use_ice = False
             Py_ssize_t gw = Gr.dims.gw
 
-
         if 'qi' in DV.name_index:
             qi_shift = DV.get_varshift(Gr, 'qi')
             qi_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[qi_shift])
             # use_ice = True  # testing radiation without ice effect
-
-
+        if 'qisi' in PV.name_index:
+            qisi_shift = PV.get_varshift(Gr, 'qisi')
+            qi_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &PV.values[qisi_shift])
 
         # Define input arrays for RRTM
         cdef:
@@ -1202,7 +1197,6 @@ cdef class RadiationRRTM(RadiationBase):
                     plev_in[ip,k] = self.pi_full[k]/100.0
                 tlev_in[ip, nz_full] = 2.0*tlay_in[ip,nz_full-1] - tlev_in[ip,nz_full-1]
                 plev_in[ip,nz_full] = self.pi_full[nz_full]/100.0
-
 
         cdef:
             int ncol = n_pencils
@@ -1333,8 +1327,6 @@ cdef class RadiationRRTM(RadiationBase):
                    NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
 
         RadiationBase.stats_io(self, Gr, Ref, DV, NS, Pa)
-
-
         return
 
 #Calculate cos(solar zenith angle) from radiation.f90 in JPLLES provided by Colleen
