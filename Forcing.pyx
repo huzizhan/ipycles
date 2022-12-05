@@ -1222,9 +1222,10 @@ cdef class ForcingSheba:
         self.u0 = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.v0 = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
 
-        #Original SHEBA forcing file from https://atmos.washington.edu/~roode/SHEBA.html
-        fh = open('./SHEBAdata/SHEBA_forcing.pkl', 'r')
-        sheba_ec = pickle.load(fh)
+        # Original SHEBA forcing file from https://atmos.washington.edu/~roode/SHEBA.html
+        # open(..., 'rb') and pickle.load(fn, encoding='latin1') are added for python3 support
+        fh = open('./SHEBAdata/SHEBA_forcing.pkl', 'rb')
+        sheba_ec = pickle.load(fh, encoding='latin1')
         fh.close()
 
         Pa.root_print('Finish reading in SHEBA forcing fields.')
