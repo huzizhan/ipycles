@@ -271,7 +271,7 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
                     sb_evaporation_rain(g_therm, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
                     
-                    sb_nucleation_ice(temperature[ijk], sat_ratio_ice, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
+                    sb_nucleation_ice(ql_tmp, temperature[ijk], sat_ratio_ice, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
                             &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &qi_tendency_frez, &ni_tendency_frez);
                     sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
@@ -657,7 +657,7 @@ void sb_nucleation_ice_wrapper(const struct DimStruct *dims, struct LookupStruct
                 const double qi_tmp = fmax(qi[ijk],0.0);
                 const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
                 const double sat_ratio = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], qt[ijk]);
-                sb_nucleation_ice(temperature[ijk], sat_ratio, dt, ni_tmp, &qi_tendency[ijk], &ni_tendency[ijk]);
+                // sb_nucleation_ice(temperature[ijk], sat_ratio, dt, ni_tmp, &qi_tendency[ijk], &ni_tendency[ijk]);
             }
         }
     }

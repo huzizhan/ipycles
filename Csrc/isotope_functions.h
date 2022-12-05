@@ -66,7 +66,8 @@ static inline double iso_vapor_diffusivity(const double temperature, const doubl
 double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature, double dvap, double kt){
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
-    double pv_sat = lookup(LT, temperature);
+    // double pv_sat = lookup(LT, temperature);
+    double pv_sat = saturation_vapor_pressure_water(temperature);
     double rho_sat = pv_sat/Rv/temperature;
 
     /*blossey's scheme for evaporation*/
@@ -84,7 +85,8 @@ double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), dou
                              double dvap, double kt){
     double lam          = lam_fp(temperature);
     double L            = L_fp(temperature,lam);
-    double pv_sat       = lookup(LT, temperature);
+    // double pv_sat       = lookup(LT, temperature);
+    double pv_sat       = saturation_vapor_pressure_water(temperature);
     double rho_sat      = pv_sat/Rv/temperature;
     // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
     double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
@@ -174,7 +176,8 @@ double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(do
     // this function is adopted from Blossey's 2015, for calculate of alpha_k
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
-    double pv_sat_ice     = lookup(LT, temperature);
+    // double pv_sat_ice     = lookup(LT, temperature);
+    double pv_sat_ice     = saturation_vapor_pressure_water(temperature);
     double rho_sat_ice    = pv_sat_ice/Rv/temperature;
     // calculate sat_ratio of vapor respect to ice, S_s is the same simple in Blossey's 2015
     double qv_sat_ice     = qv_star_c(p0,qt,pv_sat_ice);
@@ -191,7 +194,8 @@ double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(dou
     // this function is adopted from Jouzel's 1984, for calculate of alpha_k
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
-    double pv_sat_ice     = lookup(LT, temperature);
+    // double pv_sat_ice     = lookup(LT, temperature);
+    double pv_sat_ice     = saturation_vapor_pressure_water(temperature);
     double rho_sat_ice    = pv_sat_ice/Rv/temperature;
     // calculate sat_ratio of vapor respect to ice, S_s means the sat_ratio
     double qv_sat_ice     = qv_star_c(p0,qt,pv_sat_ice);
@@ -341,8 +345,9 @@ void arc1m_std_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
                       double density, const double p0, double temperature,
                       double qt, double qrain, double nrain, double* qrain_tendency){
     double beta = 2.0;
-    double pv_star = lookup(LT, temperature);
-    double qv_star = qv_star_c(p0, qt, pv_star);
+    // double pv_star = lookup(LT, temperature);
+    double pv_star_liq = saturation_vapor_pressure_water(temperature);
+    double qv_star = qv_star_c(p0, qt, pv_star_liq);
     double satratio = qt/qv_star;
     double vapor_diff = vapor_diffusivity(temperature, p0);
     double therm_cond = thermal_conductivity(temperature);
@@ -367,8 +372,9 @@ void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
                    double qt, double qv, double qrain, double nrain, 
                    double qv_iso, double qrain_iso, double *qrain_iso_tendency){
     double beta       = 2.0;
-    double pv_star    = lookup(LT, temperature);
-    double qv_star    = qv_star_c(p0, qt, pv_star);
+    // double pv_star    = lookup(LT, temperature);
+    double pv_star_liq = saturation_vapor_pressure_water(temperature);
+    double qv_star    = qv_star_c(p0, qt, pv_star_liq);
     double satratio   = qt/qv_star;
     double vapor_diff = vapor_diffusivity(temperature, p0);
     double therm_cond = thermal_conductivity(temperature);
@@ -393,8 +399,9 @@ void arc1m_iso_evap_snow(struct LookupStruct *LT, double (*lam_fp)(double), doub
                    double qt, double qv, double qsnow, double nsnow, 
                    double qv_iso, double qsnow_iso, double* qsnow_iso_tendency){
     double beta = 3.0;
-    double pv_star = lookup(LT, temperature);
-    double qv_star = qv_star_c(p0, qt, pv_star);
+    // double pv_star = lookup(LT, temperature);
+    double pv_star_ice = lookup(LT, temperature);
+    double qv_star = qv_star_c(p0, qt, pv_star_ice);
     double satratio = qt/qv_star;
 
     double vapor_diff = vapor_diffusivity(temperature, p0);

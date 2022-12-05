@@ -252,7 +252,11 @@ void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr
     return;
 }
 
-void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
+void sb_nucleation_ice(double ql, double temperature, double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
+    // ================================================
+    // ToDo: Needed find a better condition setting for 
+    //       Nucleation processes.
+    // ================================================
 
     //-------------------------------------------------------------
     // INPUT VARIABLES
@@ -268,7 +272,7 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
     // qi_tendency: mixing ratio tendency of nucleation;
     //-------------------------------------------------------------
 
-    if (S_i >= 0.0){
+    if (S_i >= 0.0 && ql > SB_EPS){
         // double N_nc = 1.0e-2 * exp(0.6*(273.15 - fmax(temperature, 246.0))); // scheme from RR98;
         // double N_nc = 0.005 * exp(0.304*(273.15 - temperature)); // scheme from MS08(Coper62);
         // double N_nc = exp(-2.8 + 0.262*(273.15 - temperature)); // scheme from MY92;
@@ -276,7 +280,8 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
         if (N_nc > ni){
             double ni_tend_tmp = (N_nc - ni)/dt;
             *ni_tendency = ni_tend_tmp;
-            *qi_tendency = X_ICE_NUC*ni_tend_tmp;
+            double ice_nuc = 1e-10;
+            *qi_tendency = ice_nuc*ni_tend_tmp;
         } 
     }
     else{
