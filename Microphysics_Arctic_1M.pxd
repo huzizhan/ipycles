@@ -26,7 +26,11 @@ cdef inline double lambda_Arctic(double T) nogil:
     cdef:
         double Twarm = 273.0
         double Tcold = 235.0
-        double pow_n = 0.1
+        # double pow_n = 0.1 --> initial setting for pycles
+        # if pow_n < 0.3, caes Sheba and IsdacCC will stuck in at about T=3700, and 
+        # T = 6600 respectively, after sevel tests, we think for Sheba and IsdacCC, 
+        # pow_n = 0.35 is a better option.
+        double pow_n = 0.35 
         double Lambda = 0.0
 
     if T >= Tcold and T <= Twarm:
