@@ -68,7 +68,7 @@ def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         elif casename == 'Mpace':
             return SurfaceMpace(namelist, LH)
         elif casename == 'Sheba':
-            return SurfaceSheba(LH)
+            return SurfaceSheba(namelist, LH)
         elif casename == 'CGILS':
             return SurfaceCGILS(namelist, LH, Par)
         elif casename == 'ZGILS':
@@ -1270,7 +1270,7 @@ cdef class SurfaceMpace(SurfaceBase):
         return
 
 cdef class SurfaceSheba(SurfaceBase):
-    def __init__(self,LatentHeat LH):
+    def __init__(self, namelist, LatentHeat LH):
         self.ft = 7.98
         self.fq = 2.86
         self.gustiness = 0.01
@@ -1288,6 +1288,14 @@ cdef class SurfaceSheba(SurfaceBase):
 
         self.dry_case = False
         self.z0 = 4.0e-4 #roughness length
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         SurfaceBase.initialize(self,Gr,Ref,NS,Pa)
@@ -1358,16 +1366,16 @@ cdef class SurfaceSheba(SurfaceBase):
             double dzi = 1.0/Gr.dims.dx[2]
             double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
             double R_vapor = 2.225e-3 # there the isotope R of vapor is calculated using C-G model, and given surface conditions.
-            
-        qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
-        qt_std_shift = PV.get_varshift(Gr, 'qt_std')
-        with nogil:
-            for i in xrange(gw, imax):
-                for j in xrange(gw, jmax): 
-                    ijk = i * istride + j * jstride + gw
-                    ij = i * istride_2d + j
-                    PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
-                    PV.tendencies[qt_iso_shift + ijk] += (self.qt_flux[ij] * R_vapor) / R_std_O18 * tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
+        if self.isotope_tracers: 
+            qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            with nogil:
+                for i in xrange(gw, imax):
+                    for j in xrange(gw, jmax): 
+                        ijk = i * istride + j * jstride + gw
+                        ij = i * istride_2d + j
+                        PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
+                        PV.tendencies[qt_iso_shift + ijk] += (self.qt_flux[ij] * R_vapor) / R_std_O18 * tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
         return
 
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):

@@ -59,7 +59,7 @@ cdef class Forcing:
         elif casename == 'Mpace':
             self.scheme = ForcingMpace()
         elif casename == 'Sheba':
-            self.scheme = ForcingSheba()
+            self.scheme = ForcingSheba(namelist)
         elif casename == 'CGILS':
             self.scheme = ForcingCGILS(namelist, Pa)
         elif casename == 'ZGILS':
@@ -1204,7 +1204,16 @@ cdef class ForcingMpace:
         return
 
 cdef class ForcingSheba:
-    def __init__(self):
+    def __init__(self, namelist):
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
+
         return
 
     @cython.wraparound(True)
@@ -1332,20 +1341,21 @@ cdef class ForcingSheba:
             Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, "qt_iso")
             Py_ssize_t qt_std_shift = PV.get_varshift(Gr, "qt_std")
             double iso_ratio, qt_iso_, qt_
-        with nogil:
-            for i in xrange(imin,imax):
-                ishift = i * istride
-                for j in xrange(jmin,jmax):
-                    jshift = j * jstride
-                    for k in xrange(kmin,kmax):
-                        ijk = ishift + jshift + k
-                        qt_ = PV.values[qt_std_shift] 
-                        qt_iso_ = PV.values[qt_iso_shift] 
-                        iso_ratio = qt_iso_ / qt_
-                        PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                        PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
-        apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_shift], &PV.tendencies[qt_iso_shift])
-        apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
+        if self.isotope_tracers:
+            with nogil:
+                for i in xrange(imin,imax):
+                    ishift = i * istride
+                    for j in xrange(jmin,jmax):
+                        jshift = j * jstride
+                        for k in xrange(kmin,kmax):
+                            ijk = ishift + jshift + k
+                            qt_ = PV.values[qt_std_shift] 
+                            qt_iso_ = PV.values[qt_iso_shift] 
+                            iso_ratio = qt_iso_ / qt_
+                            PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
+                            PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
+            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_shift], &PV.tendencies[qt_iso_shift])
+            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
 
         return
 

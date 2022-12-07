@@ -468,10 +468,10 @@ cdef class IsotopeTracers_SBSI:
 
         # This equilibrium fractioantion processes only happened in cloud
         # based on SBSI scheme, the formation of cloud ice in in microphysics component.
-        # iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
-        #         &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
-        #         &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift], 
-        #         &DV.values[qv_shift], &DV.values[ql_shift])
+        iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
+                &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
+                &PV.values[qt_iso_shift], &PV.values[qv_iso_shift], &PV.values[ql_iso_shift], 
+                &DV.values[qv_shift], &DV.values[ql_shift])
         return 
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
