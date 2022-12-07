@@ -1329,6 +1329,14 @@ def InitSheba(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                 T,ql = sat_adjst(RS.p0_half[k],thetal[k] + theta_pert_,qt[k], Th)
                 PV.values[ijk + s_varshift] = Th.entropy(RS.p0_half[k], T, qt[k], ql, 0.0)
 
+    # initialize r_vapor profile using rayleigh approach, based on equation 66 in Wei 2018
+    try:
+        isotope_tracers = namelist["isotopetracers"]["use_tracers"]
+        if isotope_tracers:
+            initialize_Rayleigh(Gr, PV, Pa)
+    except:
+        return
+
     return
 
 def InitCGILS(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
@@ -1365,9 +1373,6 @@ def InitCGILS(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
     for index in np.arange(len(q_data)):
         q_data[index] = q_data[index]/ (1.0 + q_data[index])
 
-
-
-
     # Get the surface information we need from the data file
     RS.Tg= data.variables['Tg'][0,0,0]
     RS.Pg= data.variables['Ps'][0,0,0]
@@ -1379,11 +1384,7 @@ def InitCGILS(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
     pv_ = Th.get_pv_star(RS.Tg)*rh_srf
     RS.qtg =  eps_v * pv_ / (RS.Pg + (eps_v-1.0)*pv_)
 
-
     RS.initialize(Gr ,Th, NS, Pa)
-
-
-
 
     cdef:
         Py_ssize_t i, j, k, ijk, ishift, jshift

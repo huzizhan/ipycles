@@ -170,7 +170,6 @@ cdef class SurfaceBase:
                                           (self.shf[ij] + (eps_vi-1.0)*cp_*t_mean[gw]*self.lhf[ij]/lv)
                         self.obukhov_length[ij] = -self.friction_velocity[ij] *self.friction_velocity[ij] *self.friction_velocity[ij] /self.b_flux[ij]/vkb
 
-
                         PV.tendencies[u_shift  + ijk] +=  self.u_flux[ij] * tendency_factor
                         PV.tendencies[v_shift  + ijk] +=  self.v_flux[ij] * tendency_factor
                         PV.tendencies[s_shift  + ijk] +=  self.s_flux[ij] * tendency_factor
@@ -1319,8 +1318,8 @@ cdef class SurfaceSheba(SurfaceBase):
         cdef:
             Py_ssize_t i,j, ijk, ij
             Py_ssize_t gw = Gr.dims.gw
-            Py_ssize_t imax = Gr.dims.nlg[0]
-            Py_ssize_t jmax = Gr.dims.nlg[1]
+            Py_ssize_t imax = Gr.dims.nlg[0]-gw
+            Py_ssize_t jmax = Gr.dims.nlg[1] - gw
             Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
             Py_ssize_t jstride = Gr.dims.nlg[2]
             Py_ssize_t istride_2d = Gr.dims.nlg[1]
@@ -1328,8 +1327,8 @@ cdef class SurfaceSheba(SurfaceBase):
             double lam, lv, pv, pd, sv, sd
 
         with nogil:
-            for i in xrange(gw-1, imax-gw+1):
-                for j in xrange(gw-1, jmax-gw+1):
+            for i in xrange(gw, imax):
+                for j in xrange(gw, jmax):
                     ijk = i * istride + j * jstride + gw
                     ij = i * istride_2d + j
                     # z0 = compute_z0(z1, windspeed[ij])
@@ -1344,14 +1343,31 @@ cdef class SurfaceSheba(SurfaceBase):
                     self.qt_flux[ij] = self.fq / lv / 1.38
                     self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
 
-            for i in xrange(gw, imax-gw):
-                for j in xrange(gw, jmax-gw):
+            for i in xrange(gw, imax):
+                for j in xrange(gw, jmax):
                     ijk = i * istride + j * jstride + gw
                     ij = i * istride_2d + j
                     self.u_flux[ij] = -cm[ij] * interp_2(windspeed[ij], windspeed[ij+istride_2d]) * (PV.values[u_shift + ijk] + Ref.u0)
                     self.v_flux[ij] = -cm[ij] * interp_2(windspeed[ij], windspeed[ij+1]) * (PV.values[v_shift + ijk] + Ref.v0)
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa,TS)
+        
+        cdef: 
+            Py_ssize_t qt_iso_shift
+            Py_ssize_t qt_std_shift
+            double dzi = 1.0/Gr.dims.dx[2]
+            double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
+            double R_vapor = 2.225e-3 # there the isotope R of vapor is calculated using C-G model, and given surface conditions.
+            
+        qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+        qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+        with nogil:
+            for i in xrange(gw, imax):
+                for j in xrange(gw, jmax): 
+                    ijk = i * istride + j * jstride + gw
+                    ij = i * istride_2d + j
+                    PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
+                    PV.tendencies[qt_iso_shift + ijk] += (self.qt_flux[ij] * R_vapor) / R_std_O18 * tendency_factor # make sure qt_iso_flux and qt_flux are at same magnitude
         return
 
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):

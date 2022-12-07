@@ -169,6 +169,7 @@ cdef class ForcingSheba:
         double [:] u0
         double [:] v0
         double nudge_coeff_velocities
+        bint isotope_tracers
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,

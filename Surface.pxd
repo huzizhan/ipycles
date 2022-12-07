@@ -168,6 +168,7 @@ cdef class SurfaceSheba(SurfaceBase):
         double buoyancy_flux
         double gustiness
         double z0
+        bint isotope_tracers 
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
