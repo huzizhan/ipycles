@@ -907,7 +907,15 @@ cdef class ForcingIsdacCC:
             self.z_top = namelist['initial']['z_top'] #cloud top height
         except:
             self.z_top = 820.0
-
+        
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
 
         return
 
@@ -920,6 +928,7 @@ cdef class ForcingIsdacCC:
         self.initial_u = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.initial_v = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.w_half =  np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
+        self.initial_qt_iso = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
 
         cdef:
             Py_ssize_t k
@@ -947,13 +956,13 @@ cdef class ForcingIsdacCC:
             T, ql = sat_adjst(RS.p0_half[k], RS.ic_thetal[k], RS.ic_qt[k], Th)
             self.initial_entropy[k] = Th.entropy(RS.p0_half[k], T, RS.ic_qt[k], ql, 0.0)
             self.initial_qt[k] = RS.ic_qt[k]
+            self.initial_qt_iso[k] = Rayleigh_distillation(RS.ic_qt[k]) / R_std_O18
 
             #Nudging coefficients
             if Gr.zl_half[k] <= 1200.0:
                 self.nudge_coeff_scalars[k] = 0.0
             else:
                 self.nudge_coeff_scalars[k] = 1/3600.0
-
 
        #Initialize Statistical Output
         NS.add_profile('s_subsidence_tendency', Gr, Pa)
@@ -986,7 +995,17 @@ cdef class ForcingIsdacCC:
         apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_entropy[0],&PV.values[s_shift],&PV.tendencies[s_shift])
         apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt[0],&PV.values[qt_shift],&PV.tendencies[qt_shift])
 
+        cdef:
+            Py_ssize_t qt_std_shift
+            Py_ssize_t qt_iso_shift
+        if self.isotope_tracers:
+            qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
 
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
+            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
+            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt_iso[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
         return
 
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
@@ -1197,9 +1216,6 @@ cdef class ForcingMpace:
         NS.write_profile('s_ls_adv_tendency',mean_tendency[Gr.dims.gw:-Gr.dims.gw],Pa)
 
         NS.write_profile('qt_ls_adv_tendency',self.dqtdt[Gr.dims.gw:-Gr.dims.gw],Pa)
-
-
-
 
         return
 
@@ -1452,7 +1468,6 @@ cdef class ForcingCGILS:
         self.tau_inverse = 1.0/(60.0*60.0) # inverse of  max nudging timescale, 1 hr, for all cases
         self.tau_vel_inverse = 1.0/(10.0*60.0) # nudging timescale of horizontal winds
 
-
         return
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -1460,7 +1475,6 @@ cdef class ForcingCGILS:
         self.dtdt = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.dqtdt = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.subsidence = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
-
 
         if self.is_p2:
             file = './CGILSdata/p2k_s'+str(self.loc)+'.nc'
@@ -1534,7 +1548,6 @@ cdef class ForcingCGILS:
             for k in xrange(Gr.dims.nlg[2]):
                 self.subsidence[k] = -self.subsidence[k]*RS.alpha0_half[k]/g
 
-
         # Obtain the moisture floor and find the max index corresponding to z <= 1300 m
 
         self.qt_floor = np.interp(1300.0, Gr.zl_half, self.nudge_qt)
@@ -1542,7 +1555,6 @@ cdef class ForcingCGILS:
             if Gr.zl_half[k] > 1300.0:
                 break
             self.floor_index = k
-
 
         # initialize the inverse timescale coefficient arrays for nudging
         self.gamma_zhalf = np.zeros((Gr.dims.nlg[2]),dtype=np.double,order='c')
@@ -1589,14 +1601,11 @@ cdef class ForcingCGILS:
         NS.add_reference_profile('v_ref_profile', Gr, Pa)
         NS.write_reference_profile('v_ref_profile', self.nudge_v[Gr.dims.gw:-Gr.dims.gw], Pa)
 
-
         NS.add_reference_profile('temperature_ref_profile', Gr, Pa)
         NS.write_reference_profile('temperature_ref_profile', self.nudge_temperature[Gr.dims.gw:-Gr.dims.gw], Pa)
 
         NS.add_reference_profile('qt_ref_profile', Gr, Pa)
         NS.write_reference_profile('qt_ref_profile', self.nudge_qt[Gr.dims.gw:-Gr.dims.gw], Pa)
-
-
 
         return
 
@@ -1678,7 +1687,6 @@ cdef class ForcingCGILS:
 
                         self.s_ls_adv[ijk]= s_tendency_c(p0, qt, qv, t, self.dqtdt[k], self.dtdt[k])
 
-
         return
 
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
@@ -1715,8 +1723,6 @@ cdef class ForcingCGILS:
         mean_tendency = Pa.HorizontalMean(Gr,&self.s_ls_adv[0])
         NS.write_profile('s_ls_adv',mean_tendency[Gr.dims.gw:-Gr.dims.gw],Pa)
 
-
-
         NS.write_profile('qt_floor_nudging',self.source_qt_floor[Gr.dims.gw:-Gr.dims.gw],Pa)
         NS.write_profile('qt_ref_nudging',self.source_qt_nudge[Gr.dims.gw:-Gr.dims.gw],Pa)
         NS.write_profile('temperature_ref_nudging',self.source_t_nudge[Gr.dims.gw:-Gr.dims.gw],Pa)
@@ -1742,7 +1748,6 @@ cdef class ForcingZGILS:
         else:
             Pa.root_print('FORCING: Unrecognized ZGILS location ' + str(self.loc))
             Pa.kill()
-
 
         self.t_adv_max = -1.2/86400.0 # K/s BL tendency of temperature due to horizontal advection
         self.qt_adv_max = -0.6e-3/86400.0 # kg/kg/s BL tendency of qt due to horizontal advection
@@ -1902,7 +1907,6 @@ cdef class ForcingZGILS:
                 self.source_qt_nudge[k] = xi_relax[k] * (self.forcing_ref.qt[k]-qtmean[k])
                 self.source_t_nudge[k]  = xi_relax[k] * (self.forcing_ref.temperature[k]-tmean[k])
 
-
         cdef double total_t_source, total_qt_source
 
         #Apply large scale source terms (BL advection, Free Tropo relaxation, BL humidity nudging)
@@ -1927,7 +1931,6 @@ cdef class ForcingZGILS:
                         self.source_s_nudge[ijk] = s_tendency_c(p0, qt, qv, t, self.source_qt_nudge[k] + self.source_rh_nudge[k], self.source_t_nudge[k] )
 
                         self.s_ls_adv[ijk]= s_tendency_c(p0,qt, qv, t, self.dqtdt[k], self.dtdt[k])
-
 
         return
 
@@ -1959,10 +1962,8 @@ cdef class ForcingZGILS:
         mean_tendency = Pa.HorizontalMean(Gr,&tmp_tendency[0])
         NS.write_profile('qt_subsidence_tendency',mean_tendency[Gr.dims.gw:-Gr.dims.gw],Pa)
 
-
         #Output Coriolis tendencies
         tmp_tendency[:] = 0.0
-
 
         coriolis_force(&Gr.dims,&PV.values[u_shift],&PV.values[v_shift],&tmp_tendency[0],
                        &tmp_tendency_2[0],&self.ug[0], &self.vg[0],self.coriolis_param, RS.u0, RS.v0  )
@@ -1971,7 +1972,6 @@ cdef class ForcingZGILS:
         mean_tendency_2 = Pa.HorizontalMean(Gr,&tmp_tendency_2[0])
         NS.write_profile('u_coriolis_tendency',mean_tendency[Gr.dims.gw:-Gr.dims.gw],Pa)
         NS.write_profile('v_coriolis_tendency',mean_tendency_2[Gr.dims.gw:-Gr.dims.gw],Pa)
-
 
         NS.write_profile('qt_rh_nudging',self.source_rh_nudge[Gr.dims.gw:-Gr.dims.gw],Pa)
         NS.write_profile('qt_ref_nudging',self.source_qt_nudge[Gr.dims.gw:-Gr.dims.gw],Pa)
@@ -2028,8 +2028,6 @@ cdef class AdjustedMoistAdiabat:
             double T, qv, qc, ql, qi, lam
         eos_c(&self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, p0, s, qt, &T, &qv, &ql, &qi)
         return T, ql, qi
-
-
 
     cpdef initialize(self, ParallelMPI.ParallelMPI Pa,
                    double [:] pressure_array, Py_ssize_t n_levels, double Pg, double Tg, double RH):
@@ -2100,7 +2098,6 @@ cdef large_scale_p_gradient(Grid.DimStruct *dims, double *umean, double *vmean, 
         Py_ssize_t ishift, jshift, ijk, i,j,k
         double u_at_v, v_at_u
 
-
     with nogil:
         for i in xrange(imin,imax):
             ishift = i*istride
@@ -2112,7 +2109,6 @@ cdef large_scale_p_gradient(Grid.DimStruct *dims, double *umean, double *vmean, 
                     v_at_u = vmean[k] + v0
                     ut[ijk] = ut[ijk] - coriolis_param * (vg[k] - v_at_u)
                     vt[ijk] = vt[ijk] + coriolis_param * (ug[k] - u_at_v)
-
 
     return
 

@@ -130,10 +130,12 @@ cdef class ForcingIsdacCC:
         double [:] initial_v
         double [:] initial_entropy
         double [:] initial_qt
+        double [:] initial_qt_iso
         double [:] nudge_coeff_velocities
         double [:] nudge_coeff_scalars
         double [:] w_half
         double z_top
+        bint isotope_tracers
 
         double divergence
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
