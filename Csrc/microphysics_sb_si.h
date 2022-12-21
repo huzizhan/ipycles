@@ -280,7 +280,7 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
                     sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
-                    sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
+                    // sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
 
                     //find the maximum substep time
                     dt_ = dt - time_added;
@@ -577,8 +577,8 @@ void sb_si_entropy_source_heating_rain(const struct DimStruct *dims, double* res
 
 };
 
-void sb_si_entropy_source_heating_snow(const struct DimStruct *dims, double* restrict temperature, double* restrict Twet, double* restrict qsnow,
-                               double* restrict w_qsnow, double* restrict w,  double* restrict entropy_tendency){
+void sb_si_entropy_source_heating_ice(const struct DimStruct *dims, double* restrict temperature, double* restrict Twet, double* restrict qisi,
+                               double* restrict w_qisi, double* restrict w,  double* restrict entropy_tendency){
 
     //derivative of Twet is upwinded
 
@@ -598,7 +598,7 @@ void sb_si_entropy_source_heating_snow(const struct DimStruct *dims, double* res
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                entropy_tendency[ijk]+= qsnow[ijk]*(fabs(w_qsnow[ijk]) - w[ijk]) * ci * (Twet[ijk+1] - Twet[ijk])* dzi/temperature[ijk];
+                entropy_tendency[ijk]+= fmin(qisi[ijk], 1.0e-10) *(fabs(w_qisi[ijk]) - w[ijk]) * ci * (Twet[ijk+1] - Twet[ijk])* dzi/temperature[ijk];
             }
         }
     }
@@ -623,7 +623,8 @@ void sb_si_entropy_source_drag(const struct DimStruct *dims, double* restrict te
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                entropy_tendency[ijk]+= g * qprec[ijk]* fabs(w_qprec[ijk])/ temperature[ijk];
+                // entropy_tendency[ijk]+= g * qprec[ijk]* fabs(w_qprec[ijk])/ temperature[ijk];
+                entropy_tendency[ijk]+= g * fmin(qprec[ijk], 1.0e-10)* fabs(w_qprec[ijk])/fabs(temperature[ijk]);
             }
         }
     }
