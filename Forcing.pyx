@@ -1354,10 +1354,12 @@ cdef class ForcingSheba:
                         PV.tendencies[v_shift + ijk] += nudge_source_v[k]
         
         cdef:
-            Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, "qt_iso")
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr, "qt_std")
+            Py_ssize_t qt_iso_shift
+            Py_ssize_t qt_std_shift
             double iso_ratio, qt_iso_, qt_
         if self.isotope_tracers:
+            qt_iso_shift = PV.get_varshift(Gr, "qt_iso")
+            qt_std_shift = PV.get_varshift(Gr, "qt_std")
             with nogil:
                 for i in xrange(imin,imax):
                     ishift = i * istride
