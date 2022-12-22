@@ -185,8 +185,8 @@ cdef class ForcingBomex:
             double [:] vmean = Pa.HorizontalMean(Gr, &PV.values[v_shift])
 
             # isotope tracer components variables and indexes
-            double iso_ratio, qt_, qt_iso_
-            Py_ssize_t qt_iso_shift
+            double iso_ratio, qt_, qt_iso_O18_
+            Py_ssize_t qt_iso_O18_shift
             Py_ssize_t qt_std_shift
 
         #Apply Coriolis Forcing
@@ -215,7 +215,7 @@ cdef class ForcingBomex:
 
         # Add Focing for tracers: std+iso
         if self.isotope_tracers:
-            qt_iso_shift = PV.get_varshift(Gr, "qt_iso")
+            qt_iso_O18_shift = PV.get_varshift(Gr, "qt_iso_O18")
             qt_std_shift = PV.get_varshift(Gr, "qt_std")
             with nogil:
                 for i in xrange(imin,imax):
@@ -225,11 +225,11 @@ cdef class ForcingBomex:
                         for k in xrange(kmin,kmax):
                             ijk = ishift + jshift + k
                             qt_ = PV.values[qt_std_shift] 
-                            qt_iso_ = PV.values[qt_iso_shift] 
-                            iso_ratio = qt_iso_ / qt_
+                            qt_iso_O18_ = PV.values[qt_iso_O18_shift] 
+                            iso_ratio = qt_iso_O18_ / qt_
                             PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                            PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
-            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_shift], &PV.tendencies[qt_iso_shift])
+                            PV.tendencies[qt_iso_O18_shift + ijk] += self.dqtdt[k] * iso_ratio
+            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_O18_shift], &PV.tendencies[qt_iso_O18_shift])
             apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
         return
 
@@ -563,9 +563,9 @@ cdef class ForcingRico:
             double qt, qv, p0, t
             
             # isotope tracer components variables and indexes
-            double qt_, qt_iso_, iso_ratio
+            double qt_, qt_iso_O18_, iso_ratio
             Py_ssize_t qt_std_shift
-            Py_ssize_t qt_iso_shift
+            Py_ssize_t qt_iso_O18_shift
 
         apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[s_shift],&PV.tendencies[s_shift])
         apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_shift],&PV.tendencies[qt_shift])
@@ -594,10 +594,10 @@ cdef class ForcingRico:
         # Add Focing for tracers: std+iso
         if self.isotope_tracers:
             qt_std_shift = PV.get_varshift(Gr,'qt_std')
-            qt_iso_shift = PV.get_varshift(Gr,'qt_iso')
+            qt_iso_O18_shift = PV.get_varshift(Gr,'qt_iso_O18')
                 
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
-            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_iso_O18_shift],&PV.tendencies[qt_iso_O18_shift])
         
             with nogil:
                 for i in xrange(imin,imax):
@@ -607,10 +607,10 @@ cdef class ForcingRico:
                         for k in xrange(kmin,kmax):
                             ijk = ishift + jshift + k
                             qt_ = PV.values[qt_std_shift] 
-                            qt_iso_ = PV.values[qt_iso_shift] 
-                            iso_ratio = qt_iso_ / qt_
+                            qt_iso_O18_ = PV.values[qt_iso_O18_shift] 
+                            iso_ratio = qt_iso_O18_ / qt_
                             PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                            PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
+                            PV.tendencies[qt_iso_O18_shift + ijk] += self.dqtdt[k] * iso_ratio
 
         return
 
@@ -640,7 +640,7 @@ cdef class ForcingIsdac:
 
         self.initial_entropy = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.initial_qt = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
-        self.initial_qt_iso = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
+        self.initial_qt_iso_O18 = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.nudge_coeff_velocities = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.nudge_coeff_scalars = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.initial_u = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
@@ -682,7 +682,7 @@ cdef class ForcingIsdac:
 
             #Change units to kg/kg
             self.initial_qt[k]/= 1000.0
-            self.initial_qt_iso[k] = Rayleigh_distillation(self.initial_qt[k]) / R_std_O18
+            self.initial_qt_iso_O18[k] = Rayleigh_distillation(self.initial_qt[k]) / R_std_O18
             #Set velocity profile
             self.initial_v[k] = -2.0 + 0.003 * Gr.zl_half[k]
             self.initial_u[k] = -7.0
@@ -739,8 +739,8 @@ cdef class ForcingIsdac:
             double pd, pv, qt, qv, p0, rho0, t
 
             # isotope tracer components variables and indexes
-            double iso_ratio, qt_, qt_iso_
-            Py_ssize_t qt_iso_shift
+            double iso_ratio, qt_, qt_iso_O18_
+            Py_ssize_t qt_iso_O18_shift
             Py_ssize_t qt_std_shift
 
         apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[s_shift],&PV.tendencies[s_shift])
@@ -774,7 +774,7 @@ cdef class ForcingIsdac:
 
         # Add Focing for tracers: std+iso
         if self.isotope_tracers:
-            qt_iso_shift = PV.get_varshift(Gr, "qt_iso")
+            qt_iso_O18_shift = PV.get_varshift(Gr, "qt_iso_O18")
             qt_std_shift = PV.get_varshift(Gr, "qt_std")
             with nogil:
                 for i in xrange(gw,imax):
@@ -784,15 +784,15 @@ cdef class ForcingIsdac:
                         for k in xrange(gw,kmax):
                             ijk = ishift + jshift + k
                             qt_ = PV.values[qt_std_shift] 
-                            qt_iso_ = PV.values[qt_iso_shift] 
-                            iso_ratio = qt_iso_ / qt_
+                            qt_iso_O18_ = PV.values[qt_iso_O18_shift] 
+                            iso_ratio = qt_iso_O18_ / qt_
                             PV.tendencies[qt_std_shift + ijk] += (self.ls_adv_qt[k])
-                            PV.tendencies[qt_iso_shift + ijk] += (self.ls_adv_qt[k])* iso_ratio
+                            PV.tendencies[qt_iso_O18_shift + ijk] += (self.ls_adv_qt[k])* iso_ratio
 
             apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
-            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt_iso[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
+            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt_iso_O18[0],&PV.values[qt_iso_O18_shift],&PV.tendencies[qt_iso_O18_shift])
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
-            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_iso_O18_shift],&PV.tendencies[qt_iso_O18_shift])
 
         return
 
@@ -928,7 +928,7 @@ cdef class ForcingIsdacCC:
         self.initial_u = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.initial_v = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.w_half =  np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
-        self.initial_qt_iso = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
+        self.initial_qt_iso_O18 = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
 
         cdef:
             Py_ssize_t k
@@ -956,7 +956,7 @@ cdef class ForcingIsdacCC:
             T, ql = sat_adjst(RS.p0_half[k], RS.ic_thetal[k], RS.ic_qt[k], Th)
             self.initial_entropy[k] = Th.entropy(RS.p0_half[k], T, RS.ic_qt[k], ql, 0.0)
             self.initial_qt[k] = RS.ic_qt[k]
-            self.initial_qt_iso[k] = Rayleigh_distillation(RS.ic_qt[k]) / R_std_O18
+            self.initial_qt_iso_O18[k] = Rayleigh_distillation(RS.ic_qt[k]) / R_std_O18
 
             #Nudging coefficients
             if Gr.zl_half[k] <= 1200.0:
@@ -997,15 +997,15 @@ cdef class ForcingIsdacCC:
 
         cdef:
             Py_ssize_t qt_std_shift
-            Py_ssize_t qt_iso_shift
+            Py_ssize_t qt_iso_O18_shift
         if self.isotope_tracers:
             qt_std_shift = PV.get_varshift(Gr, 'qt_std')
-            qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
+            qt_iso_O18_shift = PV.get_varshift(Gr, 'qt_iso_O18')
 
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
-            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_iso_O18_shift],&PV.tendencies[qt_iso_O18_shift])
             apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
-            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt_iso[0],&PV.values[qt_iso_shift],&PV.tendencies[qt_iso_shift])
+            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt_iso_O18[0],&PV.values[qt_iso_O18_shift],&PV.tendencies[qt_iso_O18_shift])
         return
 
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
@@ -1354,11 +1354,11 @@ cdef class ForcingSheba:
                         PV.tendencies[v_shift + ijk] += nudge_source_v[k]
         
         cdef:
-            Py_ssize_t qt_iso_shift
+            Py_ssize_t qt_iso_O18_shift
             Py_ssize_t qt_std_shift
-            double iso_ratio, qt_iso_, qt_
+            double iso_ratio, qt_iso_O18_, qt_
         if self.isotope_tracers:
-            qt_iso_shift = PV.get_varshift(Gr, "qt_iso")
+            qt_iso_O18_shift = PV.get_varshift(Gr, "qt_iso_O18")
             qt_std_shift = PV.get_varshift(Gr, "qt_std")
             with nogil:
                 for i in xrange(imin,imax):
@@ -1368,11 +1368,11 @@ cdef class ForcingSheba:
                         for k in xrange(kmin,kmax):
                             ijk = ishift + jshift + k
                             qt_ = PV.values[qt_std_shift] 
-                            qt_iso_ = PV.values[qt_iso_shift] 
-                            iso_ratio = qt_iso_ / qt_
+                            qt_iso_O18_ = PV.values[qt_iso_O18_shift] 
+                            iso_ratio = qt_iso_O18_ / qt_
                             PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                            PV.tendencies[qt_iso_shift + ijk] += self.dqtdt[k] * iso_ratio
-            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_shift], &PV.tendencies[qt_iso_shift])
+                            PV.tendencies[qt_iso_O18_shift + ijk] += self.dqtdt[k] * iso_ratio
+            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_iso_O18_shift], &PV.tendencies[qt_iso_O18_shift])
             apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
 
         return

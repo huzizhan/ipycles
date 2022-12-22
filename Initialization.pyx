@@ -1790,8 +1790,8 @@ def initialize_Rayleigh(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV
     cdef:
         Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
         Py_ssize_t qv_std_shift = PV.get_varshift(Gr, 'qv_std')
-        Py_ssize_t qt_iso_shift = PV.get_varshift(Gr, 'qt_iso')
-        Py_ssize_t qv_iso_shift = PV.get_varshift(Gr, 'qv_iso')
+        Py_ssize_t qt_iso_O18_shift = PV.get_varshift(Gr, 'qt_iso_O18')
+        Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr, 'qv_iso_O18')
         Py_ssize_t qt_varshift = PV.get_varshift(Gr, 'qt')
         Py_ssize_t i, j, k, ishift, jshift, ijk
         double qt,qi
@@ -1805,5 +1805,5 @@ def initialize_Rayleigh(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV
                 qi = Rayleigh_distillation(qt)
                 PV.values[qt_std_shift + ijk] = qt
                 PV.values[qv_std_shift + ijk] = qt
-                PV.values[qt_iso_shift + ijk] = qi / R_std_O18 # make sure qt_iso and qt are in same magnitude
-                PV.values[qv_iso_shift + ijk] = qi / R_std_O18 # make sure qv_iso and qv are in same magnitude
+                PV.values[qt_iso_O18_shift + ijk] = qi / R_std_O18 # make sure qt_iso_O18 and qt are in same magnitude
+                PV.values[qv_iso_O18_shift + ijk] = qi / R_std_O18 # make sure qv_iso_O18 and qv are in same magnitude

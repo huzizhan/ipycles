@@ -333,7 +333,7 @@ def Bomex():
     namelist['thermodynamics']['latentheat'] = 'constant'
 
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'SB_Liquid'
+    namelist['microphysics']['scheme'] = 'None_SA'
     namelist['microphysics']['phase_partitioning'] = 'liquid_only'
 
     namelist['sgs'] = {}
@@ -389,9 +389,9 @@ def Bomex():
     # namelist['tracers']['use_tracers'] = True
     # namelist['tracers']['scheme'] = 'PurityTracers'
 
-    # namelist['isotopetracers'] = {}
-    # namelist['isotopetracers']['use_tracers'] = True
-    # namelist['isotopetracers']['scheme'] = 'No microphysics'
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'None_SA'
     return namelist
 
 def Gabls():
@@ -758,8 +758,8 @@ def Rico():
 
     namelist['grid'] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 128
-    namelist['grid']['ny'] = 128
+    namelist['grid']['nx'] = 128/32
+    namelist['grid']['ny'] = 128/32
     namelist['grid']['nz'] = 150
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 100.0
@@ -776,7 +776,7 @@ def Rico():
     namelist['time_stepping']['cfl_limit'] = 0.7
     namelist['time_stepping']['dt_initial'] = 1.0
     namelist['time_stepping']['dt_max'] = 10.0
-    namelist['time_stepping']['t_max'] = 3600.0*24.0
+    namelist['time_stepping']['t_max'] = 3600.0
 
     namelist['thermodynamics'] = {}
     namelist['thermodynamics']['latentheat'] = 'constant'
@@ -873,13 +873,13 @@ def Isdac():
 
 
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'SB_SI'
-    namelist['microphysics']['phase_partitioning'] = 'liquid_only'
+    namelist['microphysics']['scheme'] = 'Arctic_1M'
+    namelist['microphysics']['phase_partitioning'] = 'Arctic'
     namelist['microphysics']['n0_ice'] = 1.0e7
 
     namelist['isotopetracers'] = {}
     namelist['isotopetracers']['use_tracers'] = True
-    namelist['isotopetracers']['scheme'] = 'SBSI'
+    namelist['isotopetracers']['scheme'] = 'Arctic_1M'
     
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
@@ -1130,8 +1130,8 @@ def Sheba():
 
     namelist["grid"] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64
-    namelist['grid']['ny'] = 64
+    namelist['grid']['nx'] = 64/16
+    namelist['grid']['ny'] = 64/16
     namelist['grid']['nz'] = 250
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 50.0
@@ -1148,13 +1148,17 @@ def Sheba():
     namelist['time_stepping']['cfl_limit'] = 0.5
     namelist['time_stepping']['dt_initial'] = 1.0
     namelist['time_stepping']['dt_max'] = 10.0
-    namelist['time_stepping']['t_max'] = 3600.0 * 12.0
+    namelist['time_stepping']['t_max'] = 3600.0
 
 
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'Arctic_1M'
-    namelist['microphysics']['phase_partitioning'] = 'Arctic'
+    namelist['microphysics']['scheme'] = 'SB_SI'
+    namelist['microphysics']['phase_partitioning'] = 'liquid_only'
     namelist['microphysics']['n0_ice'] = 1.0e7
+    
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'SB_SI'
 
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
@@ -1162,7 +1166,7 @@ def Sheba():
     namelist['sgs']['Smagorinsky']['iles'] = True
 
     namelist['radiation'] = {}
-    namelist['radiation']['use_RRTM'] = True
+    namelist['radiation']['use_RRTM'] = False
     namelist['radiation']['RRTM'] = {}
     namelist['radiation']['RRTM']['frequency'] = 60.0
     namelist['radiation']['RRTM']['buffer_points'] = 15

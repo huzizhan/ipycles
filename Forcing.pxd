@@ -107,7 +107,7 @@ cdef class ForcingIsdac:
         double [:] initial_v
         double [:] initial_entropy
         double [:] initial_qt
-        double [:] initial_qt_iso
+        double [:] initial_qt_iso_O18
         double [:] nudge_coeff_velocities
         double [:] nudge_coeff_scalars
         double [:] w_half
@@ -130,7 +130,7 @@ cdef class ForcingIsdacCC:
         double [:] initial_v
         double [:] initial_entropy
         double [:] initial_qt
-        double [:] initial_qt_iso
+        double [:] initial_qt_iso_O18
         double [:] nudge_coeff_velocities
         double [:] nudge_coeff_scalars
         double [:] w_half
