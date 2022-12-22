@@ -621,7 +621,7 @@ cdef class ForcingRico:
         return
 
 cdef extern from "isotope.h":
-    double Rayleigh_distillation(double qt) nogil
+    double Rayleigh_distillation_O18(double qt) nogil
 cdef class ForcingIsdac:
     def __init__(self, namelist):
         self.divergence = 5e-6
@@ -682,7 +682,7 @@ cdef class ForcingIsdac:
 
             #Change units to kg/kg
             self.initial_qt[k]/= 1000.0
-            self.initial_qt_iso_O18[k] = Rayleigh_distillation(self.initial_qt[k]) / R_std_O18
+            self.initial_qt_iso_O18[k] = Rayleigh_distillation_O18(self.initial_qt[k]) / R_std_O18
             #Set velocity profile
             self.initial_v[k] = -2.0 + 0.003 * Gr.zl_half[k]
             self.initial_u[k] = -7.0
@@ -956,7 +956,7 @@ cdef class ForcingIsdacCC:
             T, ql = sat_adjst(RS.p0_half[k], RS.ic_thetal[k], RS.ic_qt[k], Th)
             self.initial_entropy[k] = Th.entropy(RS.p0_half[k], T, RS.ic_qt[k], ql, 0.0)
             self.initial_qt[k] = RS.ic_qt[k]
-            self.initial_qt_iso_O18[k] = Rayleigh_distillation(RS.ic_qt[k]) / R_std_O18
+            self.initial_qt_iso_O18[k] = Rayleigh_distillation_O18(RS.ic_qt[k]) / R_std_O18
 
             #Nudging coefficients
             if Gr.zl_half[k] <= 1200.0:

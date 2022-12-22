@@ -34,6 +34,12 @@ cdef extern from "isotope.h":
         double *qt_std, double *qv_std, double *ql_std,
         double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18,
         double *qv_DV, double *ql_DV) nogil
+    void iso_equilibrium_fractionation_No_Microphysics_full(Grid.DimStruct *dims, double *t, 
+        double *qt_std, double *qv_std, double *ql_std,
+        double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18,
+        double *qt_iso_HDO, double *qv_iso_HDO, double *ql_iso_HDO,
+        double *qv_DV, double *ql_DV) nogil
+
     void delta_isotopologue(Grid.DimStruct *dims, double *q_iso, double *q_std, double *delta, int index) nogil
     void compute_sedimentaion(Grid.DimStruct *dims, double *w_q, double *w_q_iso, double *w_q_std) nogil
     void tracer_constrain_NoMicro(Grid.DimStruct *dims, double *ql, double *ql_std, double *ql_iso_O18, double *qv_std, double *qv_iso_O18, double *qt_std, double *qt_iso_O18) nogil
@@ -89,9 +95,14 @@ cdef class IsotopeTracers_NoMicrophysics:
         PV.add_variable('ql_std', 'kg/kg','ql_std','Cloud liquid water std specific humidity','sym', 'scalar', Pa)
         
         # Prognostic variable: qt_iso_O18, total water isotopic specific humidity, defined as the ratio of isotopic mass of H2O18 to moist air.
-        PV.add_variable('qt_iso_O18', 'kg/kg','qt_iso_O18tope','Total water isotopic specific humidity','sym', "scalar", Pa)
-        PV.add_variable('qv_iso_O18', 'kg/kg','qv_iso_O18tope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
-        PV.add_variable('ql_iso_O18', 'kg/kg','ql_iso_O18tope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qt_iso_O18', 'kg/kg','qt_iso_O18_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso_O18', 'kg/kg','qv_iso_O18_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso_O18', 'kg/kg','ql_iso_O18_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        
+        # Prognostic variable: qt_iso_HDO, total water isotopic specific humidity, defined as the ratio of isotopic mass of HDO to moist air.
+        PV.add_variable('qt_iso_HDO', 'kg/kg','qt_iso_HDO_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso_HDO', 'kg/kg','qv_iso_HDO_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso_HDO', 'kg/kg','ql_iso_HDO_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
 
         initialize_NS_base(NS, Gr, Pa)
         # finial output results after selection and scaling
@@ -111,14 +122,18 @@ cdef class IsotopeTracers_NoMicrophysics:
             Py_ssize_t qt_iso_O18_shift = PV.get_varshift(Gr,'qt_iso_O18')
             Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr,'qv_iso_O18')
             Py_ssize_t ql_iso_O18_shift = PV.get_varshift(Gr,'ql_iso_O18')
+            Py_ssize_t qt_iso_HDO_shift = PV.get_varshift(Gr,'qt_iso_HDO')
+            Py_ssize_t qv_iso_HDO_shift = PV.get_varshift(Gr,'qv_iso_HDO')
+            Py_ssize_t ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
             double[:] qv_std_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_O18_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_O18_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-        iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
+        iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
                 &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
                 &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
+                &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
                 &DV.values[qv_shift], &DV.values[ql_shift])
         return
 

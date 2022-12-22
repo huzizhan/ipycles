@@ -13,12 +13,32 @@
 
 static inline double equilibrium_fractionation_factor_H2O18_liquid(double t){
 // fractionation factor α_eq for 018 is based equations from Majoube 1971
-	double alpha_tmp = exp(1137/(t*t) - 0.4156/t -2.0667e-3);  
-    return alpha_tmp;
+// α_eq specificly is α_l/v 
+	double alpha_lv = exp(1137.0/(t*t) - 0.4156/t - 2.0667e-3);  
+    return alpha_lv;
+}
+
+static inline double equilibrium_fractionation_factor_HDO_liquid(double t){
+// fractionation factor α_eq for HDO is based equations from Majoube 1971
+// α_eq specificly is α_l/v 
+	double alpha_lv = exp(24844.0/(t*t) - 76.248/t + 52.612e-3);
+    return alpha_lv;
 }
 
 // Rayleigh distillation is adopted from Wei's paper in 2018 for qt_iso initialization
-static inline double Rayleigh_distillation(double qt){
+static inline void Rayleigh_distillation(double qt, double* qt_O18, double* qt_HDO){
+    double delta_O18 = 8.99 * log((qt*1000)/0.622) - 42.9;
+    double delta_HDO = 8.0 * delta_O18 + 10.0;
+    double R_O18 = (delta_O18/1000 + 1) * R_std_O18;
+    double R_HDO = (delta_HDO/1000 + 1) * R_std_HDO;
+    *qt_O18 = R_O18*qt;
+    *qt_HDO = R_HDO*qt;
+    return;
+}
+
+// Rayleigh distillation is adopted from Wei's paper in 2018 for qt_iso initialization
+// only for H2O18
+static inline double Rayleigh_distillation_O18(double qt){
     double delta;
     double R;
     delta = 8.99 * log((qt*1000)/0.622) - 42.9;

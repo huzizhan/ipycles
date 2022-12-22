@@ -1785,25 +1785,33 @@ def interp_pchip(z_out, z_in, v_in, pchip_type=True):
         return np.interp(z_out, z_in, v_in)
 
 def initialize_Rayleigh(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ParallelMPI.ParallelMPI Pa):
+# ================================================
+# ToDo: add iso_HDO initialization processes
+# δD = 8 * δ O18 + 10 ‱
+# ================================================
     cdef extern from "isotope.h":
-        double Rayleigh_distillation(double qt) nogil
+        double Rayleigh_distillation(double qt, double* qt_O18, double* qt_HDO) nogil
     cdef:
         Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
         Py_ssize_t qv_std_shift = PV.get_varshift(Gr, 'qv_std')
         Py_ssize_t qt_iso_O18_shift = PV.get_varshift(Gr, 'qt_iso_O18')
         Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr, 'qv_iso_O18')
+        Py_ssize_t qt_iso_HDO_shift = PV.get_varshift(Gr, 'qt_iso_HDO')
+        Py_ssize_t qv_iso_HDO_shift = PV.get_varshift(Gr, 'qv_iso_HDO')
         Py_ssize_t qt_varshift = PV.get_varshift(Gr, 'qt')
         Py_ssize_t i, j, k, ishift, jshift, ijk
-        double qt,qi
+        double qt_tmp, qt_iso_O18_tmp, qt_iso_HDO_tmp
     for i in xrange(Gr.dims.nlg[0]):
         ishift =  i * Gr.dims.nlg[1] * Gr.dims.nlg[2]
         for j in xrange(Gr.dims.nlg[1]):
             jshift = j * Gr.dims.nlg[2]
             for k in xrange(Gr.dims.nlg[2]):
                 ijk = ishift + jshift + k
-                qt = PV.values[qt_varshift + ijk] # change from kg/kg to g/kg
-                qi = Rayleigh_distillation(qt)
-                PV.values[qt_std_shift + ijk] = qt
-                PV.values[qv_std_shift + ijk] = qt
-                PV.values[qt_iso_O18_shift + ijk] = qi / R_std_O18 # make sure qt_iso_O18 and qt are in same magnitude
-                PV.values[qv_iso_O18_shift + ijk] = qi / R_std_O18 # make sure qv_iso_O18 and qv are in same magnitude
+                qt_tmp = PV.values[qt_varshift + ijk] # change from kg/kg to g/kg
+                Rayleigh_distillation(qt_tmp, &qt_iso_O18_tmp, &qt_iso_HDO_tmp)
+                PV.values[qt_std_shift + ijk] = qt_tmp
+                PV.values[qv_std_shift + ijk] = qt_tmp
+                PV.values[qt_iso_O18_shift + ijk] = qt_iso_O18_tmp / R_std_O18 # make sure qt_iso_O18 and qt are in same magnitude
+                PV.values[qv_iso_O18_shift + ijk] = qt_iso_O18_tmp / R_std_O18 # make sure qv_iso_O18 and qv are in same magnitude
+                PV.values[qt_iso_HDO_shift + ijk] = qt_iso_HDO_tmp / R_std_HDO # make sure qt_iso_O18 and qt are in same magnitude
+                PV.values[qv_iso_HDO_shift + ijk] = qt_iso_HDO_tmp / R_std_HDO # make sure qv_iso_O18 and qv are in same magnitude

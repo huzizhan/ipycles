@@ -63,6 +63,7 @@ def default():
 
     # Isotope related parameters 
     parameters['R_std_O18'] = 2.228e-3 # can also used for value scaling of O18
+    parameters['R_std_HDO'] = 1.5595e-3 # can also used for value scaling of HDO
     
     #############################
     # Users shouldn't modify below

@@ -14,7 +14,7 @@
 
 void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, double* restrict t,
     double* restrict qt_std, double* restrict qv_std, double* restrict ql_std, 
-    double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso, 
+    double* restrict qt_iso_O18, double* restrict qv_iso_O18, double* restrict ql_iso_O18, 
     double* restrict qv_DV, double* restrict ql_DV){ 
     ssize_t i,j,k;
     double alpha_eq_O18 = 0.0;
@@ -33,23 +33,67 @@ void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, doubl
             const ssize_t jshift = j * jstride;
                 for (k=kmin;k<kmax;k++){
                     const ssize_t ijk = ishift + jshift + k;
-                    double qv_std_tmp, ql_std_tmp, qv_iso_tmp, ql_iso_tmp;
+                    double qv_std_tmp, ql_std_tmp, qv_iso_O18_tmp, ql_iso_O18_tmp;
                     alpha_eq_O18 = equilibrium_fractionation_factor_H2O18_liquid(t[ijk]);
                     qv_std_tmp   = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
-                    qv_iso_tmp   = eq_frac_function(qt_iso[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
+                    qv_iso_O18_tmp   = eq_frac_function(qt_iso_O18[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
                     ql_std_tmp   = qt_std[ijk] - qv_std_tmp;
-                    ql_iso_tmp   = qt_iso[ijk] - qv_iso_tmp;
+                    ql_iso_O18_tmp   = qt_iso_O18[ijk] - qv_iso_O18_tmp;
                     
                     qv_std[ijk]  = qv_std_tmp;
                     ql_std[ijk]  = ql_std_tmp;
-                    qv_iso[ijk]  = qv_iso_tmp;
-                    ql_iso[ijk]  = ql_iso_tmp;
+                    qv_iso_O18[ijk]  = qv_iso_O18_tmp;
+                    ql_iso_O18[ijk]  = ql_iso_O18_tmp;
                 } // End k loop
             } // End j loop
         } // End i loop
     return;
 }
 
+void iso_equilibrium_fractionation_No_Microphysics_full(struct DimStruct *dims, double* restrict temperature,
+    double* restrict qt_std, double* restrict qv_std, double* restrict ql_std, 
+    double* restrict qt_iso_O18, double* restrict qv_iso_O18, double* restrict ql_iso_O18, 
+    double* restrict qt_iso_HDO, double* restrict qv_iso_HDO, double* restrict ql_iso_HDO, 
+    double* restrict qv_DV, double* restrict ql_DV){ 
+    ssize_t i,j,k;
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = 0;
+    const ssize_t jmin = 0;
+    const ssize_t kmin = 0;
+    const ssize_t imax = dims->nlg[0];
+    const ssize_t jmax = dims->nlg[1];
+    const ssize_t kmax = dims->nlg[2];
+
+    for (i=imin; i<imax; i++){
+       const ssize_t ishift = i * istride;
+        for (j=jmin;j<jmax;j++){
+            const ssize_t jshift = j * jstride;
+                for (k=kmin;k<kmax;k++){
+                    const ssize_t ijk = ishift + jshift + k;
+                    double qv_std_tmp, ql_std_tmp, qv_iso_O18_tmp, ql_iso_O18_tmp, qv_iso_HDO_tmp, ql_iso_HDO_tmp;
+                    double alpha_eq_lv_O18 = equilibrium_fractionation_factor_H2O18_liquid(temperature[ijk]);
+                    double alpha_eq_lv_HDO = equilibrium_fractionation_factor_HDO_liquid(temperature[ijk]);
+
+                    qv_std_tmp     = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
+                    qv_iso_O18_tmp = eq_frac_function(qt_iso_O18[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_O18);
+                    qv_iso_HDO_tmp = eq_frac_function(qt_iso_HDO[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_HDO);
+
+                    ql_std_tmp     = qt_std[ijk] - qv_std_tmp;
+                    ql_iso_O18_tmp = qt_iso_O18[ijk] - qv_iso_O18_tmp;
+                    ql_iso_HDO_tmp = qt_iso_HDO[ijk] - qv_iso_HDO_tmp;
+                    
+                    qv_std[ijk]     = qv_std_tmp;
+                    ql_std[ijk]     = ql_std_tmp;
+                    qv_iso_O18[ijk] = qv_iso_O18_tmp;
+                    ql_iso_O18[ijk] = ql_iso_O18_tmp;
+                    qv_iso_HDO[ijk] = qv_iso_HDO_tmp;
+                    ql_iso_HDO[ijk] = ql_iso_HDO_tmp;
+                } // End k loop
+            } // End j loop
+        } // End i loop
+    return;
+}
 // Scaling the isotope specific humidity values back to correct magnitude
 void statsIO_isotope_scaling_magnitude(struct DimStruct *dims, double* restrict tmp_values){
     ssize_t i;
