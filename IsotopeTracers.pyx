@@ -150,10 +150,16 @@ cdef class IsotopeTracers_SB_Liquid:
         Pa.root_print('initialized with IsotopeTracer with SB_Liquid scheme')
         
         # Prognostic variable: q_iso, isotopic specific humidity of qt, qv, ql and qr, defined as the ratio of isotopic mass of H2O18 to moist air.
-        PV.add_variable('qt_iso_O18', 'kg/kg','qt_iso_O18tope','Total water isotopic specific humidity','sym', "scalar", Pa)
-        PV.add_variable('qv_iso_O18', 'kg/kg','qv_iso_O18tope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
-        PV.add_variable('ql_iso_O18', 'kg/kg','ql_iso_O18tope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
-        PV.add_variable('qr_iso_O18', 'kg/kg','qr_iso_O18tope','Rain droplets water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qt_iso_O18', 'kg/kg','qt_iso_O18_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso_O18', 'kg/kg','qv_iso_O18_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso_O18', 'kg/kg','ql_iso_O18_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qr_iso_O18', 'kg/kg','qr_iso_O18_isotope','Rain droplets water isotopic specific humidity','sym', 'scalar', Pa)
+
+        # Prognostic variable: q_iso, isotopic specific humidity of qt, qv, ql and qr, defined as the ratio of isotopic mass of HDO to moist air.
+        PV.add_variable('qt_iso_HDO', 'kg/kg','qt_iso_HDO_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso_HDO', 'kg/kg','qv_iso_HDO_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso_HDO', 'kg/kg','ql_iso_HDO_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qr_iso_HDO', 'kg/kg','qr_iso_HDO_isotope','Rain droplets water isotopic specific humidity','sym', 'scalar', Pa)
 
         PV.add_variable('qt_std', 'kg/kg','qt_std','Total water std specific humidity','sym', "scalar", Pa)
         PV.add_variable('qv_std', 'kg/kg','qv_std','Vapor water std specific humidity','sym', 'scalar', Pa)
@@ -169,14 +175,17 @@ cdef class IsotopeTracers_SB_Liquid:
         
         if self.cloud_sedimentation:
             DV.add_variables('w_qt_iso_O18', 'm/s', r'w_{qt_iso_O18}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
+            DV.add_variables('w_qt_iso_HDO', 'm/s', r'w_{qt_iso_HDO}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
             DV.add_variables('w_qt_std', 'm/s', r'w_{qt_iso_O18}', 'cloud liquid water std sedimentation velocity', 'sym', Pa)
             NS.add_profile('qt_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
         DV.add_variables('w_qr_iso_O18', 'm/s', r'w_{qr_iso_O18}', 'rain mass isotopic sedimentation veloctiy', 'sym', Pa)
+        DV.add_variables('w_qr_iso_HDO', 'm/s', r'w_{qr_iso_HDO}', 'rain mass isotopic sedimentation veloctiy', 'sym', Pa)
         DV.add_variables('w_qr_std', 'm/s', r'w_{qr_iso_O18}', 'rain std mass sedimentation veloctiy', 'sym', Pa)
         DV.add_variables('w_nr_std', 'm/s', r'w_{qr_iso_O18}', 'rain std mass sedimentation veloctiy', 'sym', Pa)
 
         NS.add_profile('qr_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer rain')
-        NS.add_profile('qr_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
+        NS.add_profile('qr_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity of H2O18')
+        NS.add_profile('qr_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity of HDO')
 
         initialize_NS_base(NS, Gr, Pa)
         return
@@ -199,27 +208,32 @@ cdef class IsotopeTracers_SB_Liquid:
             Py_ssize_t qt_iso_O18_shift = PV.get_varshift(Gr,'qt_iso_O18')
             Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr,'qv_iso_O18')
             Py_ssize_t ql_iso_O18_shift = PV.get_varshift(Gr,'ql_iso_O18')
-            Py_ssize_t qr_iso_O18_shift = PV.get_varshift(Gr,'qr_iso_O18')
+            Py_ssize_t qt_iso_HDO_shift = PV.get_varshift(Gr,'qt_iso_HDO')
+            Py_ssize_t qv_iso_HDO_shift = PV.get_varshift(Gr,'qv_iso_HDO')
+            Py_ssize_t ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
             double[:] qv_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qt_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tend_micro     = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] nr_tend_tmp       = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-            double[:] qr_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qt_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-        iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
+            double[:] qt_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
                 &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
                 &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
+                &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
                 &DV.values[qv_shift], &DV.values[ql_shift])
         return 
 

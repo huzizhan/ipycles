@@ -100,6 +100,30 @@ double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), dou
     return g_therm;
 }
 
+double microphysics_g_iso_tmp(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                             double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
+                             double dvap, double kt){
+    double lam          = lam_fp(temperature);
+    double L            = L_fp(temperature,lam);
+    // double pv_sat       = lookup(LT, temperature);
+    double pv_sat       = saturation_vapor_pressure_water(temperature);
+    double rho_sat      = pv_sat/Rv/temperature;
+    // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
+    double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+
+    double S_l          = sat_ratio + 1.0;
+    
+    double R_qr         = qr_iso / qr;
+    double R_qv_ambient = qv_iso / qv;
+    double alpha_eq     = equilibrium_fractionation_factor_H2O18_liquid(temperature);
+    double R_qr_surface = R_qr / alpha_eq;
+    // double rat = R_qr_surface/R_qv_ambient;
+    
+    // double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+    double g_therm_iso = dvap*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+    return g_therm_iso;
+};
+
 double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
                              double dvap, double kt){
