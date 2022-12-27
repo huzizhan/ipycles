@@ -222,10 +222,10 @@ cdef class Microphysics_SB_Liquid:
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         
         sb_liquid_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
-                                self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
-                                &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
-                                &self.precip_rate[0], &self.evap_rate[0])
+            self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
+            &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
+            &PV.values[qr_shift], dt, &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
+            &self.precip_rate[0], &self.evap_rate[0])
 
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
                                        &DV.values[wnr_shift], &DV.values[wqr_shift])
@@ -277,18 +277,19 @@ cdef class Microphysics_SB_Liquid:
             wqr_iso_HDO_shift = DV.get_varshift(Gr, 'w_qr_iso_HDO')
 
             tracer_sb_liquid_microphysics_sources_full(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, self.compute_rain_shape_parameter,
-                                    self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
-                                    &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
-                                    &PV.values[qr_std_shift], dt, &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
-                                    &PV.values[qr_iso_O18_shift], &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift],
-                                    &PV.values[qr_iso_HDO_shift], &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift],
-                                    &PV.tendencies[qr_iso_O18_shift], &qr_iso_O18_tend_micro[0], &PV.values[qr_iso_HDO_shift], &qr_iso_HDO_tend_micro[0])
+                self.compute_droplet_nu, &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift],
+                &PV.values[qt_shift], self.ccn, &DV.values[ql_shift], &PV.values[nr_shift],
+                &PV.values[qr_std_shift], dt, &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
+                &PV.values[qr_iso_O18_shift], &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift],
+                &PV.values[qr_iso_HDO_shift], &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift],
+                &qr_iso_O18_tend_micro[0], &PV.tendencies[qr_iso_O18_shift], &qr_iso_HDO_tend_micro[0], &PV.tendencies[qr_iso_HDO_shift])
+
             sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
-                                           &DV.values[wnr_shift], &DV.values[wqr_std_shift])
+               &DV.values[wnr_shift], &DV.values[wqr_std_shift])
             sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
-                                           &DV.values[wnr_shift], &DV.values[wqr_iso_O18_shift])
+               &DV.values[wnr_shift], &DV.values[wqr_iso_O18_shift])
             sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
-                                           &DV.values[wnr_shift], &DV.values[wqr_iso_HDO_shift])
+               &DV.values[wnr_shift], &DV.values[wqr_iso_HDO_shift])
             
             if self.cloud_sedimentation:
                 wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
@@ -313,21 +314,21 @@ cdef class Microphysics_SB_Liquid:
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
 
         microphysics_wetbulb_temperature(&Gr.dims, &self.CC.LT.LookupStructC, &Ref.p0_half[0], &PV.values[s_shift],
-                            &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
+            &PV.values[qt_shift], &DV.values[t_shift], &DV.values[tw_shift])
 
         sb_liquid_entropy_source_precipitation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
-                            &self.precip_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
+            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
+            &self.precip_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
 
         sb_liquid_entropy_source_evaporation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.p0_half[0],
-                            &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift],
-                            &self.evap_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
+            &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qt_shift], &DV.values[qv_shift],
+            &self.evap_rate[0], &qr_tend_micro[0], &PV.tendencies[s_shift])
 
         sb_liquid_entropy_source_heating_rain(&Gr.dims, &DV.values[t_shift], &DV.values[tw_shift], &PV.values[qr_shift],
-                            &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
+            &DV.values[wqr_shift],  &PV.values[w_shift], &PV.tendencies[s_shift])
 
         sb_liquid_entropy_source_drag(&Gr.dims, &DV.values[t_shift], &PV.values[qr_shift], &DV.values[wqr_shift],
-                            &PV.tendencies[s_shift])
+            &PV.tendencies[s_shift])
 
         return
     

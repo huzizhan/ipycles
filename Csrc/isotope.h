@@ -106,12 +106,12 @@ void statsIO_isotope_scaling_magnitude(struct DimStruct *dims, double* restrict 
 }
 
 void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-                             double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
-                             double* restrict ql, double* restrict nr, double* restrict qr, double dt,
-                             double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
-                             double* restrict qr_iso, double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso,
-                             double* restrict qr_iso_tendency_micro, double* restrict qr_iso_tendency){
+    double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+    double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
+    double* restrict ql, double* restrict nr, double* restrict qr, double dt,
+    double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
+    double* restrict qr_iso, double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso,
+    double* restrict qr_iso_tendency_micro, double* restrict qr_iso_tendency){
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
     //Temporal substepping is used to help ensure boundedness of moments
@@ -239,14 +239,14 @@ void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct 
 }
 
 void tracer_sb_liquid_microphysics_sources_full(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-                             double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
-                             double* restrict ql, double* restrict nr, double* restrict qr, double dt,
-                             double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
-                             double* restrict qr_iso_O18, double* restrict qt_iso_O18, double* restrict qv_iso_O18, double* restrict ql_iso_O18,
-                             double* restrict qr_iso_HDO, double* restrict qt_iso_HDO, double* restrict qv_iso_HDO, double* restrict ql_iso_HDO,
-                             double* restrict qr_iso_O18_tendency_micro, double* restrict qr_iso_O18_tendency, 
-                             double* restrict qr_iso_HDO_tendency_micro, double* restrict qr_iso_HDO_tendency){
+    double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+    double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
+    double* restrict ql, double* restrict nr, double* restrict qr, double dt,
+    double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
+    double* restrict qr_iso_O18, double* restrict qt_iso_O18, double* restrict qv_iso_O18, double* restrict ql_iso_O18,
+    double* restrict qr_iso_HDO, double* restrict qt_iso_HDO, double* restrict qv_iso_HDO, double* restrict ql_iso_HDO,
+    double* restrict qr_iso_O18_tendency_micro, double* restrict qr_iso_O18_tendency, 
+    double* restrict qr_iso_HDO_tendency_micro, double* restrict qr_iso_HDO_tendency){
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
     //Temporal substepping is used to help ensure boundedness of moments
@@ -340,7 +340,6 @@ void tracer_sb_liquid_microphysics_sources_full(const struct DimStruct *dims, st
                     double diff_O18 = DVAPOR*0.9723;
                     // ================================================
                     // ToDo: give the defination of diff_HDO based on the actual physical value of the diffusivity of HDO
-                
                     // ================================================
                     double diff_HDO = DVAPOR*0.9723;
                     double g_therm_iso_O18 = microphysics_g_iso_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_iso_O18_tmp, qv_tmp, qv_iso_O18_tmp, sat_ratio, diff_O18, KT);

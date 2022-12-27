@@ -160,7 +160,7 @@ double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), dou
 };
 
 static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double qr_auto_tendency, double* qr_iso_auto_tendency){
-    if (ql > SB_EPS && ql_iso > SB_EPS){
+    if (ql > 0.0 && ql_iso > SB_EPS){
         *qr_iso_auto_tendency = qr_auto_tendency * (ql_iso/ql);
     }
     else{
@@ -170,7 +170,7 @@ static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double q
 }
 
 static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_accre_tendency, double* qr_iso_accre_tendency){
-    if (ql > SB_EPS && ql_iso > SB_EPS){
+    if (ql > 0.0 && ql_iso > SB_EPS){
         *qr_iso_accre_tendency = qr_accre_tendency * (ql_iso/ql);
     }
     else{
