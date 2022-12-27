@@ -60,9 +60,19 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
     return qt_tracer / (1.0+(ql_/qv_)*alpha);
 }
 
-static inline double C_G_model(double RH,  double temperature, double alpha_k){
-    double alpha_eq = 1.0 / equilibrium_fractionation_factor_H2O18_liquid(temperature);
-    double R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-RH)+alpha_k*RH);
+static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
+    double alpha_eq;
+    double R_sur_evap;
+    alpha_eq = 1.0 / equilibrium_fractionation_factor_H2O18_liquid(temperature);
+    R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-RH)+alpha_k*RH);
+    return R_sur_evap;
+}
+
+static inline double C_G_model_HDO(double RH,  double temperature, double alpha_k){
+    double alpha_eq;
+    double R_sur_evap;
+    alpha_eq = 1.0 / equilibrium_fractionation_factor_HDO_liquid(temperature);
+    R_sur_evap = alpha_eq*alpha_k*R_std_HDO/((1-RH)+alpha_k*RH);
     return R_sur_evap;
 }
 

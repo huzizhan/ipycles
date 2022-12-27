@@ -44,7 +44,10 @@ cdef extern from "entropies.h":
     double sd_c(double pd, double T) nogil
     double sv_c(double pv, double T) nogil
 cdef extern from "isotope_functions.h":
-    double C_G_model(double RH,  double temperature, double alpha_k) nogil
+    double C_G_model_O18(double RH,  double temperature, double alpha_k_O18) nogil
+    double C_G_model_HDO(double RH,  double temperature, double alpha_k_HDO) nogil
+    double equilibrium_fractionation_factor_H2O18_liquid(double temperature) nogil
+    double equilibrium_fractionation_factor_HDO_liquid(double temperature) nogil
 
 def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
 
@@ -375,21 +378,34 @@ cdef class SurfaceBomex(SurfaceBase):
         # isotope surface flux calculation and added to qt_iso_O18_tendency
         cdef: 
             Py_ssize_t qt_iso_O18_shift
+            Py_ssize_t qt_iso_HDO_shift
             Py_ssize_t qt_std_shift
             double dzi = 1.0/Gr.dims.dx[2]
             double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
-            double R_vapor = 2.225e-3 # there the isotope R of vapor is calculated using C-G model, and given surface conditions.
+            # double R_vapor = 2.225e-3 # there the isotope R of vapor is calculated using C-G model, and given surface conditions.
+            double pv_star = pv_c(Ref.Pg, Ref.qtg, Ref.qtg)
+            double pd_star = Ref.Pg - pv_star
+            double qv_star = qv_star_c(Ref.Pg, Ref.qtg, pv_star)
+            double T_surface = Ref.Tg
+            double RH_surface = Ref.qtg / qv_star  
+
+            double R_surface_O18
+            double R_surface_HDO
             
         if self.isotope_tracers:
             qt_iso_O18_shift = PV.get_varshift(Gr, 'qt_iso_O18')
+            qt_iso_HDO_shift = PV.get_varshift(Gr, 'qt_iso_HDO')
             qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+            R_surface_O18 = C_G_model_O18(RH_surface, T_surface, 1.0)
+            R_surface_HDO = C_G_model_HDO(RH_surface, T_surface, 1.0)
             with nogil:
                 for i in xrange(gw, imax):
                     for j in xrange(gw, jmax): 
                         ijk = i * istride + j * jstride + gw
                         ij = i * istride_2d + j
                         PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_iso_O18_flux and qt_flux are at same magnitude
-                        PV.tendencies[qt_iso_O18_shift + ijk] += (self.qt_flux[ij] * R_vapor) / R_std_O18 * tendency_factor # make sure qt_iso_O18_flux and qt_flux are at same magnitude
+                        PV.tendencies[qt_iso_O18_shift + ijk] += (self.qt_flux[ij] * R_surface_O18) / R_std_O18 * tendency_factor # make sure qt_iso_O18_flux and qt_flux are at same magnitude
+                        PV.tendencies[qt_iso_HDO_shift + ijk] += (self.qt_flux[ij] * R_surface_HDO) / R_std_HDO * tendency_factor # make sure qt_iso_O18_flux and qt_flux are at same magnitude
         return
 
 
@@ -781,7 +797,7 @@ cdef class SurfaceRico(SurfaceBase):
                     for j in xrange(gw,jmax-gw):
                         ijk = i * istride + j * jstride + gw
                         ij = i * istride_2d + j
-                        R_evap = C_G_model(self.RH, self.T_surface, 1.0)
+                        R_evap = C_G_model_O18(self.RH, self.T_surface, 1.0)
                         PV.tendencies[qt_std_shift + ijk] +=  self.qt_flux[ij] * tendency_factor
                         PV.tendencies[qt_iso_O18_shift + ijk] +=  self.qt_flux[ij] * R_evap * tendency_factor / R_std_O18
         return
