@@ -784,22 +784,26 @@ cdef class SurfaceRico(SurfaceBase):
         # tracers surface source
         cdef:
             double dzi = 1.0/Gr.dims.dx[2]
-            double R_evap
+            double R_evap_O18, R_evap_HDO
             double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
             Py_ssize_t qt_std_shift
             Py_ssize_t qt_iso_O18_shift
+            Py_ssize_t qt_iso_HDO_shift
 
         if self.isotope_tracers:
             qt_std_shift = PV.get_varshift(Gr, 'qt_std')
             qt_iso_O18_shift = PV.get_varshift(Gr, 'qt_iso_O18')
+            qt_iso_HDO_shift = PV.get_varshift(Gr, 'qt_iso_HDO')
             with nogil:
                 for i in xrange(gw, imax-gw):
                     for j in xrange(gw,jmax-gw):
                         ijk = i * istride + j * jstride + gw
                         ij = i * istride_2d + j
-                        R_evap = C_G_model_O18(self.RH, self.T_surface, 1.0)
+                        R_evap_O18 = C_G_model_O18(self.RH, self.T_surface, 1.0)
+                        R_evap_HDO = C_G_model_HDO(self.RH, self.T_surface, 1.0)
                         PV.tendencies[qt_std_shift + ijk] +=  self.qt_flux[ij] * tendency_factor
-                        PV.tendencies[qt_iso_O18_shift + ijk] +=  self.qt_flux[ij] * R_evap * tendency_factor / R_std_O18
+                        PV.tendencies[qt_iso_O18_shift + ijk] +=  self.qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
+                        PV.tendencies[qt_iso_HDO_shift + ijk] +=  self.qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO
         return
 
 
