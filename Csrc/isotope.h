@@ -466,35 +466,35 @@ void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT
 // ===========<<< 1M tracer scheme for Arctic_1M Microphysics scheme >>> ============
 
 void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-                             double (*L_fp)(double, double), double* restrict density, double* restrict p0,
-                             double* restrict temperature,  double* restrict qt, double ccn, double n0_ice,
-                             double* restrict qv, double* restrict ql, double* restrict qi, double* restrict qrain, double* restrict nrain,
-                             double* restrict qsnow, double* restrict nsnow, double dt,
-                             double* restrict ql_std, double* restrict qi_std,
-                             double* restrict qrain_tendency_micro, double* restrict qrain_tendency,
-                             double* restrict qsnow_tendency_micro, double* restrict qsnow_tendency,
-                             double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate,
-                             double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso, double* restrict qi_iso, double* restrict qrain_iso, double* restrict qsnow_iso,
-                             double* restrict qrain_iso_tendency, double* restrict qrain_iso_tendency_micro, double* restrict qsnow_iso_tendency, double* restrict qsnow_iso_tendency_micro,
-                             double* restrict precip_iso_rate, double* restrict evap_iso_rate){
+    double (*L_fp)(double, double), double* restrict density, double* restrict p0,
+    double* restrict temperature,  double* restrict qt, double ccn, double n0_ice,
+    double* restrict qv, double* restrict ql, double* restrict qi, double* restrict qrain, double* restrict nrain,
+    double* restrict qsnow, double* restrict nsnow, double dt,
+    double* restrict ql_std, double* restrict qi_std,
+    double* restrict qrain_tendency_micro, double* restrict qrain_tendency,
+    double* restrict qsnow_tendency_micro, double* restrict qsnow_tendency,
+    double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate,
+    double* restrict qt_iso_O18, double* restrict qv_iso_O18, double* restrict ql_iso_O18, double* restrict qi_iso_O18, double* restrict qrain_iso_O18, double* restrict qsnow_iso_O18,
+    double* restrict qrain_iso_O18_tendency, double* restrict qrain_iso_O18_tendency_micro, double* restrict qsnow_iso_O18_tendency, double* restrict qsnow_iso_O18_tendency_micro,
+    double* restrict precip_iso_O18_rate, double* restrict evap_iso_O18_rate){
 
     const double b1 = 650.1466922699631;
     const double b2 = -1.222222222222222;
     const double y1 = 5.62e7;
     const double y2 = 0.63;
 
-    double iwc,                     ni;
-    double qrain_tendency_aut=0.0,  qrain_tendency_acc=0.0, qrain_tendency_evp=0.0;
-    double qsnow_tendency_aut=0.0,  qsnow_tendency_acc=0.0, qsnow_tendency_evp=0.0, qsnow_tendency_melt=0.0;
-    double ql_tendency_acc=0.0,     qi_tendency_acc=0.0;
-    double ql_tendency_tmp=0.0,     qi_tendency_tmp=0.0, qrain_tendency_tmp=0.0, qsnow_tendency_tmp=0.0;
-    double qt_tmp,                  qv_tmp, ql_tmp, qi_tmp, qrain_tmp, qsnow_tmp;
-    double precip_tmp,              evap_tmp;
-    double qt_iso_tmp,              qv_iso_tmp, ql_iso_tmp, qi_iso_tmp, qrain_iso_tmp, qsnow_iso_tmp;
-    double qrain_iso_tendency_tmp=0.0,  qrain_iso_tendency_aut=0.0, qrain_iso_tendency_acc=0.0, qrain_iso_tendency_evp=0.0;
-    double qsnow_iso_tendency_tmp=0.0,  qsnow_iso_tendency_aut=0.0, qsnow_iso_tendency_acc=0.0, qsnow_iso_tendency_evp=0.0, qsnow_iso_tendency_melt=0.0;
-    double ql_iso_tendency_tmp=0.0, ql_iso_tendency_acc=0.0, qi_iso_tendency_tmp=0.0, qi_iso_tendency_acc=0.0;
-    double precip_iso_tmp,          evap_iso_tmp;
+    double iwc, ni;
+    double qrain_tendency_aut, qrain_tendency_acc, qrain_tendency_evp;
+    double qsnow_tendency_aut, qsnow_tendency_acc, qsnow_tendency_evp, qsnow_tendency_melt;
+    double ql_tendency_acc, qi_tendency_acc;
+    double ql_tendency_tmp, qi_tendency_tmp, qrain_tendency_tmp, qsnow_tendency_tmp;
+    double qt_tmp, qv_tmp, ql_tmp, qi_tmp, qrain_tmp, qsnow_tmp;
+    double precip_tmp, evap_tmp;
+    double qt_iso_O18_tmp, qv_iso_O18_tmp, ql_iso_O18_tmp, qi_iso_O18_tmp, qrain_iso_O18_tmp, qsnow_iso_O18_tmp;
+    double qrain_iso_O18_tendency_tmp, qrain_iso_O18_tendency_aut, qrain_iso_O18_tendency_acc, qrain_iso_O18_tendency_evp;
+    double qsnow_iso_O18_tendency_tmp, qsnow_iso_O18_tendency_aut, qsnow_iso_O18_tendency_acc, qsnow_iso_O18_tendency_evp, qsnow_iso_O18_tendency_melt;
+    double ql_iso_O18_tendency_tmp, ql_iso_O18_tendency_acc, qi_iso_O18_tendency_tmp, qi_iso_O18_tendency_acc;
+    double precip_iso_O18_tmp, evap_iso_O18_tmp;
     double ql_std_tmp, qi_std_tmp, R_ql, R_qi, R_qrain, R_qsnow;
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
@@ -531,15 +531,15 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
                 melt_rate[ijk]   = 0.0;
 
                 // First get initial values of isotope tracers
-                qi_iso_tmp           = fmax(qi_iso[ijk], 0.0);
-                qt_iso_tmp           = qt_iso[ijk];
-                qv_iso_tmp           = fmax(qv_iso[ijk], 0.0);
-                qrain_iso_tmp        = fmax(qrain_iso[ijk],0.0);
-                ql_iso_tmp           = fmax(ql_iso[ijk], 0.0);
-                qsnow_iso_tmp        = fmax(qsnow_iso[ijk],0.0);
+                qi_iso_O18_tmp           = fmax(qi_iso_O18[ijk], 0.0);
+                qt_iso_O18_tmp           = qt_iso_O18[ijk];
+                qv_iso_O18_tmp           = fmax(qv_iso_O18[ijk], 0.0);
+                qrain_iso_O18_tmp        = fmax(qrain_iso_O18[ijk],0.0);
+                ql_iso_O18_tmp           = fmax(ql_iso_O18[ijk], 0.0);
+                qsnow_iso_O18_tmp        = fmax(qsnow_iso_O18[ijk],0.0);
 
-                precip_iso_rate[ijk] = 0.0;
-                evap_iso_rate[ijk]   = 0.0;
+                precip_iso_O18_rate[ijk] = 0.0;
+                evap_iso_O18_rate[ijk]   = 0.0;
                 
                 // Now do sub-timestepping
                 double time_added = 0.0, dt_, rate;
@@ -584,54 +584,56 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
 
                     // ===========<<< IsotopeTracer calculation components >>> ============
 
-                    qrain_iso_tendency_aut  = 0.0;
-                    qrain_iso_tendency_acc  = 0.0;
-                    qrain_iso_tendency_evp  = 0.0;
+                    qrain_iso_O18_tendency_aut  = 0.0;
+                    qrain_iso_O18_tendency_acc  = 0.0;
+                    qrain_iso_O18_tendency_evp  = 0.0;
 
-                    qsnow_iso_tendency_aut  = 0.0;
-                    qsnow_iso_tendency_acc  = 0.0;
-                    qsnow_iso_tendency_evp  = 0.0;
-                    qsnow_iso_tendency_melt = 0.0;
+                    qsnow_iso_O18_tendency_aut  = 0.0;
+                    qsnow_iso_O18_tendency_acc  = 0.0;
+                    qsnow_iso_O18_tendency_evp  = 0.0;
+                    qsnow_iso_O18_tendency_melt = 0.0;
 
-                    ql_iso_tendency_acc     = 0.0;
-                    qi_iso_tendency_acc     = 0.0;
+                    ql_iso_O18_tendency_acc     = 0.0;
+                    qi_iso_O18_tendency_acc     = 0.0;
 
-                    R_ql = 0.0;
-                    if(ql_std_tmp > SMALL && ql_iso_tmp > SMALL){
-                        R_ql = ql_iso_tmp/ql_std_tmp;
-                    }
-
-                    R_qi = 0.0;
-                    if(qi_std_tmp > SMALL && qi_iso_tmp > SMALL){
-                        R_qi = qi_iso_tmp/qi_std_tmp;
-                    }
-
-                    R_qrain = 0.0;
-                    if(qrain_tmp > 1.0e-15 && qrain_iso_tmp > 1.0e-15){
-                        R_qrain = qrain_iso_tmp/qrain_tmp;
-                    }
-                    
-                    R_qsnow = 0.0;
-                    if(qsnow_tmp > 1.0e-15 && qsnow_iso_tmp > 1.0e-15){
-                        R_qsnow = qsnow_iso_tmp/qsnow_tmp;
-                    }
-
-                    arc1m_iso_autoconversion_rain(qrain_tendency_aut, R_ql, &qrain_iso_tendency_aut);
-                    arc1m_iso_autoconversion_snow(qsnow_tendency_aut, R_qi, &qsnow_iso_tendency_aut);
+                    // the following sections are non-fractionational processes
+                    arc1m_iso_autoconversion_rain(qrain_tendency_aut, ql_std_tmp, ql_iso_O18_tmp, &qrain_iso_O18_tendency_aut);
+                    arc1m_iso_autoconversion_snow(qsnow_tendency_aut, qi_std_tmp, qi_iso_O18_tmp, &qsnow_iso_O18_tendency_aut);
                     arc1m_iso_accretion_all(density[k], p0[k], temperature[ijk], ccn, ql_tmp, qi_tmp, ni,
-                                  qrain_tmp, nrain[ijk], qsnow_tmp, nsnow[ijk],
-                                  R_ql, R_qi, R_qrain, R_qsnow,
-                                  &ql_iso_tendency_acc, &qi_iso_tendency_acc, &qrain_iso_tendency_acc, &qsnow_iso_tendency_acc);
-                    arc1m_iso_evap_rain(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qv_tmp, qrain_tmp, nrain[ijk],
-                                     qv_iso_tmp, qrain_iso_tmp, &qrain_iso_tendency_evp);
-                    arc1m_iso_evap_snow(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qv_tmp, qsnow_tmp, nsnow[ijk],
-                                     qv_iso_tmp, qsnow_iso_tmp, &qsnow_iso_tendency_evp);
-                    arc1m_iso_melt_snow(qsnow_tendency_melt, R_qsnow, &qsnow_iso_tendency_melt);
+                        qrain_tmp, nrain[ijk], qsnow_tmp, nsnow[ijk],
+                        ql_iso_O18_tmp, qi_iso_O18_tmp, qrain_iso_O18_tmp, qsnow_iso_O18_tmp,
+                        &ql_iso_O18_tendency_acc, &qi_iso_O18_tendency_acc, &qrain_iso_O18_tendency_acc, &qsnow_iso_O18_tendency_acc);
+
+                    // the following sections are kinetic fractionational processes 
+                    // defination of thermo variables
+                    double vapor_diff = vapor_diffusivity(temperature[ijk], p0[k]);
+                    double therm_cond = thermal_conductivity(temperature[ijk]);
+                    double diff_O18 = vapor_diff*0.9723;
+                    // ================================================
+                    // ToDo: give the defination of diff_HDO based on the actual physical value of the diffusivity of HDO
+                    // ================================================
+                    double diff_HDO = vapor_diff*0.9723;
+
+                    double gtherm_iso_O18_liq, gtherm_iso_O18_ice, sat_ratio_liq, sat_ratio_ice;
+                    sat_ratio_liq = microphysics_saturation_ratio_liq(LT, temperature[ijk], p0[k], qt_tmp);
+                    gtherm_iso_O18_liq = microphysics_g_iso_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qrain_tmp, qrain_iso_O18_tmp, 
+                        qv_tmp, qv_iso_O18_tmp, sat_ratio_liq, diff_O18, therm_cond);
+                    arc1m_iso_evap_rain(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], sat_ratio_liq, qt_tmp, qv_tmp, qrain_tmp, 
+                        nrain[ijk], gtherm_iso_O18_liq, qv_iso_O18_tmp, qrain_iso_O18_tmp, &qrain_iso_O18_tendency_evp);
+
+                    sat_ratio_ice = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], 
+                            qt_tmp); // sat_ratio_ice > 0.0 when super saturated over ice water
+                    gtherm_iso_O18_ice = microphysics_g_iso_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qsnow_tmp, qsnow_iso_O18_tmp, 
+                        qv_tmp, qv_iso_O18_tmp, sat_ratio_ice, diff_O18, therm_cond);
+                    arc1m_iso_evap_snow(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qv_tmp, qsnow_tmp, nsnow[ijk], 
+                        gtherm_iso_O18_ice, qv_iso_O18_tmp, qsnow_iso_O18_tmp, &qsnow_iso_O18_tendency_evp);
+
+                    arc1m_iso_melt_snow(qsnow_tendency_melt, qsnow_tmp, qsnow_iso_O18_tmp, &qsnow_iso_O18_tendency_melt);
                     //
-                    qrain_iso_tendency_tmp  = qrain_iso_tendency_aut + qrain_iso_tendency_acc + qrain_iso_tendency_evp - qsnow_iso_tendency_melt;
-                    qsnow_iso_tendency_tmp  = qsnow_iso_tendency_aut + qsnow_iso_tendency_acc + qsnow_iso_tendency_evp + qsnow_iso_tendency_melt;
-                    ql_iso_tendency_tmp     = ql_iso_tendency_acc - qrain_iso_tendency_aut;
-                    qi_iso_tendency_tmp     = qi_iso_tendency_acc - qsnow_iso_tendency_aut;
+                    qrain_iso_O18_tendency_tmp  = qrain_iso_O18_tendency_aut + qrain_iso_O18_tendency_acc + qrain_iso_O18_tendency_evp - qsnow_iso_O18_tendency_melt;
+                    qsnow_iso_O18_tendency_tmp  = qsnow_iso_O18_tendency_aut + qsnow_iso_O18_tendency_acc + qsnow_iso_O18_tendency_evp + qsnow_iso_O18_tendency_melt;
+                    ql_iso_O18_tendency_tmp     = ql_iso_O18_tendency_acc - qrain_iso_O18_tendency_aut;
+                    qi_iso_O18_tendency_tmp     = qi_iso_O18_tendency_acc - qsnow_iso_O18_tendency_aut;
 
 
                     rate = 1.05 * qrain_tendency_tmp * dt_ / (-fmax(qrain_tmp, SMALL));
@@ -655,63 +657,63 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
                     melt_rate[ijk]   += qsnow_tendency_melt * dt_; // NEGATIVE if snow melts to rain
 
                     // IsotopeTracer precip_rate and evap_rate source calculation
-                    precip_iso_tmp        = -qrain_iso_tendency_aut + ql_iso_tendency_acc - qsnow_iso_tendency_aut + qi_iso_tendency_acc;
-                    evap_iso_tmp          = qrain_iso_tendency_evp + qsnow_iso_tendency_evp;
+                    precip_iso_O18_tmp = -qrain_iso_O18_tendency_aut + ql_iso_O18_tendency_acc - qsnow_iso_O18_tendency_aut + qi_iso_O18_tendency_acc;
+                    evap_iso_O18_tmp   = qrain_iso_O18_tendency_evp + qsnow_iso_O18_tendency_evp;
 
-                    precip_iso_rate[ijk] += precip_iso_tmp * dt_;
-                    evap_iso_rate[ijk]   += evap_iso_tmp * dt_;
+                    precip_iso_O18_rate[ijk] += precip_iso_O18_tmp * dt_;
+                    evap_iso_O18_rate[ijk]   += evap_iso_O18_tmp * dt_;
                     
                     //Integrate forward in time
-                    ql_tmp     += ql_tendency_tmp * dt_;
-                    qi_tmp     += qi_tendency_tmp * dt_;
-                    qrain_tmp  += qrain_tendency_tmp * dt_;
-                    qsnow_tmp  += qsnow_tendency_tmp * dt_;
-                    qt_tmp     += (precip_tmp - evap_tmp) * dt_;
+                    ql_tmp    += ql_tendency_tmp * dt_;
+                    qi_tmp    += qi_tendency_tmp * dt_;
+                    qrain_tmp += qrain_tendency_tmp * dt_;
+                    qsnow_tmp += qsnow_tendency_tmp * dt_;
+                    qt_tmp    += (precip_tmp - evap_tmp) * dt_;
 
-                    qrain_tmp   = fmax(qrain_tmp, 0.0);
-                    qsnow_tmp   = fmax(qsnow_tmp, 0.0);
-                    ql_tmp      = fmax(ql_tmp, 0.0);
-                    qi_tmp      = fmax(qi_tmp, 0.0);
-                    qt_tmp      = fmax(qt_tmp, 0.0);
-                    double qv_  = qt_tmp - ql_tmp - qi_tmp;
-                    qv_tmp      = fmax(qv_, 0.0);
-                    ql_std_tmp  = ql_tmp;
-                    qi_std_tmp  = qi_tmp;
+                    qrain_tmp  = fmax(qrain_tmp, 0.0);
+                    qsnow_tmp  = fmax(qsnow_tmp, 0.0);
+                    ql_tmp     = fmax(ql_tmp, 0.0);
+                    qi_tmp     = fmax(qi_tmp, 0.0);
+                    qt_tmp     = fmax(qt_tmp, 0.0);
+                    double qv_ = qt_tmp - ql_tmp - qi_tmp;
+                    qv_tmp     = fmax(qv_, 0.0);
+                    ql_std_tmp = ql_tmp;
+                    qi_std_tmp = qi_tmp;
 
                     // IsotopeTracer Intergrate forward in time
-                    ql_iso_tmp    += ql_iso_tendency_tmp * dt_;
-                    qi_iso_tmp    += qi_iso_tendency_tmp * dt_;
-                    qrain_iso_tmp += qrain_iso_tendency_tmp *dt_;
-                    qsnow_iso_tmp += qsnow_iso_tendency_tmp *dt_;
-                    qt_iso_tmp    += (precip_iso_tmp - evap_iso_tmp) * dt_;
+                    ql_iso_O18_tmp    += ql_iso_O18_tendency_tmp * dt_;
+                    qi_iso_O18_tmp    += qi_iso_O18_tendency_tmp * dt_;
+                    qrain_iso_O18_tmp += qrain_iso_O18_tendency_tmp *dt_;
+                    qsnow_iso_O18_tmp += qsnow_iso_O18_tendency_tmp *dt_;
+                    qt_iso_O18_tmp    += (precip_iso_O18_tmp - evap_iso_O18_tmp) * dt_;
 
-                    qt_iso_tmp     = fmax(qt_iso_tmp, 0.0);
-                    ql_iso_tmp     = fmax(ql_iso_tmp, 0.0);
-                    qi_iso_tmp     = fmax(qi_iso_tmp, 0.0);
-                    qrain_iso_tmp  = fmax(qrain_iso_tmp, 0.0);
-                    qsnow_iso_tmp  = fmax(qsnow_iso_tmp, 0.0);
-                    double qv_iso_ = qt_iso_tmp - ql_iso_tmp - qi_iso_tmp;
-                    qv_iso_tmp     = fmax(qv_iso_, 0.0);
+                    qt_iso_O18_tmp     = fmax(qt_iso_O18_tmp, 0.0);
+                    ql_iso_O18_tmp     = fmax(ql_iso_O18_tmp, 0.0);
+                    qi_iso_O18_tmp     = fmax(qi_iso_O18_tmp, 0.0);
+                    qrain_iso_O18_tmp  = fmax(qrain_iso_O18_tmp, 0.0);
+                    qsnow_iso_O18_tmp  = fmax(qsnow_iso_O18_tmp, 0.0);
+                    double qv_iso_O18_ = qt_iso_O18_tmp - ql_iso_O18_tmp - qi_iso_O18_tmp;
+                    qv_iso_O18_tmp     = fmax(qv_iso_O18_, 0.0);
 
                     time_added += dt_;
                     }while(time_added < dt && iter_count < MAX_ITER);
 
-                qrain_tendency_micro[ijk]      = (qrain_tmp - qrain[ijk])/dt;
-                qrain_tendency[ijk]           += qrain_tendency_micro[ijk];
-                qsnow_tendency_micro[ijk]      = (qsnow_tmp - qsnow[ijk])/dt;
-                qsnow_tendency[ijk]           += qsnow_tendency_micro[ijk];
+                qrain_tendency_micro[ijk]  = (qrain_tmp - qrain[ijk])/dt;
+                qrain_tendency[ijk]       += qrain_tendency_micro[ijk];
+                qsnow_tendency_micro[ijk]  = (qsnow_tmp - qsnow[ijk])/dt;
+                qsnow_tendency[ijk]       += qsnow_tendency_micro[ijk];
 
-                precip_rate[ijk]               = precip_rate[ijk]/dt;
-                evap_rate[ijk]                 = evap_rate[ijk]/dt;
-                melt_rate[ijk]                 = melt_rate[ijk]/dt;
+                precip_rate[ijk] = precip_rate[ijk]/dt;
+                evap_rate[ijk]   = evap_rate[ijk]/dt;
+                melt_rate[ijk]   = melt_rate[ijk]/dt;
 
-                qrain_iso_tendency_micro[ijk]  = (qrain_iso_tmp - qrain_iso[ijk])/dt;
-                qrain_iso_tendency[ijk]       += qrain_iso_tendency_micro[ijk];
-                qsnow_iso_tendency_micro[ijk]  = (qsnow_iso_tmp - qsnow_iso[ijk])/dt;
-                qsnow_iso_tendency[ijk]       += qsnow_iso_tendency_micro[ijk];
+                qrain_iso_O18_tendency_micro[ijk]  = (qrain_iso_O18_tmp - qrain_iso_O18[ijk])/dt;
+                qrain_iso_O18_tendency[ijk]       += qrain_iso_O18_tendency_micro[ijk];
+                qsnow_iso_O18_tendency_micro[ijk]  = (qsnow_iso_O18_tmp - qsnow_iso_O18[ijk])/dt;
+                qsnow_iso_O18_tendency[ijk]       += qsnow_iso_O18_tendency_micro[ijk];
 
-                precip_iso_rate[ijk]           = precip_iso_rate[ijk]/dt;
-                evap_iso_rate[ijk]             = evap_iso_rate[ijk]/dt;
+                precip_iso_O18_rate[ijk] = precip_iso_O18_rate[ijk]/dt;
+                evap_iso_O18_rate[ijk]   = evap_iso_O18_rate[ijk]/dt;
             }
         }
     }
