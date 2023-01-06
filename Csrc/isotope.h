@@ -34,7 +34,7 @@ void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, doubl
                 for (k=kmin;k<kmax;k++){
                     const ssize_t ijk = ishift + jshift + k;
                     double qv_std_tmp, ql_std_tmp, qv_iso_O18_tmp, ql_iso_O18_tmp;
-                    alpha_eq_O18 = equilibrium_fractionation_factor_H2O18_liquid(t[ijk]);
+                    alpha_eq_O18 = equilibrium_fractionation_factor_O18_liquid(t[ijk]);
                     qv_std_tmp   = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
                     qv_iso_O18_tmp   = eq_frac_function(qt_iso_O18[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
                     ql_std_tmp   = qt_std[ijk] - qv_std_tmp;
@@ -72,7 +72,7 @@ void iso_equilibrium_fractionation_No_Microphysics_full(struct DimStruct *dims, 
                 for (k=kmin;k<kmax;k++){
                     const ssize_t ijk = ishift + jshift + k;
                     double qv_std_tmp, ql_std_tmp, qv_iso_O18_tmp, ql_iso_O18_tmp, qv_iso_HDO_tmp, ql_iso_HDO_tmp;
-                    double alpha_eq_lv_O18 = equilibrium_fractionation_factor_H2O18_liquid(temperature[ijk]);
+                    double alpha_eq_lv_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
                     double alpha_eq_lv_HDO = equilibrium_fractionation_factor_HDO_liquid(temperature[ijk]);
 
                     qv_std_tmp     = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
@@ -444,10 +444,10 @@ void iso_wbf_fractionation_tmp(const struct DimStruct *dims, struct LookupStruct
                     // ================================================
                     double diff_HDO = DVAPOR*0.9723;
 
-                    alpha_eq_lv_O18 = equilibrium_fractionation_factor_H2O18_liquid(temperature[ijk]);
+                    alpha_eq_lv_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
                     alpha_eq_lv_HDO = equilibrium_fractionation_factor_HDO_liquid(temperature[ijk]);
 
-                    alpha_s_ice_O18 = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
+                    alpha_s_ice_O18 = 1.0 / equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
                     alpha_s_ice_HDO = 1.0 / equilibrium_fractionation_factor_HDO_ice(temperature[ijk]);
 
                     alpha_k_ice_O18 = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_O18, DVAPOR, diff_O18);
@@ -499,8 +499,8 @@ void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT
                     const ssize_t ijk = ishift + jshift + k;
                     double qv_std_tmp, ql_std_tmp, qi_std_tmp, qv_iso_tmp, ql_iso_tmp, qi_iso_tmp;
 
-                    alpha_eq_O18 = equilibrium_fractionation_factor_H2O18_liquid(temperature[ijk]);
-                    alpha_s_ice = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
+                    alpha_eq_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
+                    alpha_s_ice = equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
                     alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
                     // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
 
@@ -981,7 +981,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                             qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio, DVAPOR, KT);
                     sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm_r, &qr_iso_tendency_evap);
 
-                    double alpha_s_ice = 1.0 / equilibrium_fractionation_factor_H2O18_ice(temperature[ijk]);
+                    double alpha_s_ice = equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
                     double alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
                     double F_ratio = 0.998;
                     sb_iso_ice_nucleation(qi_tendency_nuc, alpha_s_ice, &qi_iso_tendency_nuc);

@@ -12,7 +12,7 @@
 // #define KT  2.5e-2 // J/m/1s/K
 // #define DVAPOR 3.0e-5 // m^2/s
 
-static inline double equilibrium_fractionation_factor_H2O18_liquid(double t){
+static inline double equilibrium_fractionation_factor__liquid(double t){
 // fractionation factor α_eq for 018 is based equations from Majoube 1971
 // α_eq specificly is α_l/v 
 	double alpha_lv = exp(1137.0/(t*t) - 0.4156/t - 2.0667e-3);  
@@ -38,7 +38,7 @@ static inline void Rayleigh_distillation(double qt, double* qt_O18, double* qt_H
 }
 
 // Rayleigh distillation is adopted from Wei's paper in 2018 for qt_iso initialization
-// only for H2O18
+// only for   
 static inline double Rayleigh_distillation_O18(double qt){
     double delta;
     double R;
@@ -64,7 +64,7 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
 static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
     double alpha_eq;
     double R_sur_evap;
-    alpha_eq = 1.0 / equilibrium_fractionation_factor_H2O18_liquid(temperature);
+    alpha_eq = 1.0 / equilibrium_fractionation_factor__liquid(temperature);
     R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-RH)+alpha_k*RH);
     return R_sur_evap;
 }
@@ -126,7 +126,7 @@ double microphysics_g_iso_tmp(struct LookupStruct *LT, double (*lam_fp)(double),
     
     double R_qr         = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
-    double alpha_eq     = equilibrium_fractionation_factor_H2O18_liquid(temperature);
+    double alpha_eq     = equilibrium_fractionation_factor__liquid(temperature);
     double R_qr_surface = R_qr / alpha_eq;
     // double rat = R_qr_surface/R_qv_ambient;
     
@@ -151,7 +151,7 @@ double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), dou
     
     double R_qr         = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
-    double alpha_eq     = equilibrium_fractionation_factor_H2O18_liquid(temperature);
+    double alpha_eq     = equilibrium_fractionation_factor__liquid(temperature);
     double R_qr_surface = R_qr / alpha_eq;
     // double rat = R_qr_surface/R_qv_ambient;
     
@@ -206,8 +206,8 @@ double Dm, double* qr_iso_tendency){
     else{
         gamma = 0.7;
         // gamma = 0.7 is used by DALES ; alternative expression gamma= d_eq/Dm
-        // * exp(-0.2*mudouble vapor_H2O18_diff, vapor_HDO16_diff; 2double
-        // vapor_H2O18_diff, vapor_HDO16_diff;) is used by S08;
+        // * exp(-0.2*mudouble vapor__diff, vapor_HDO16_diff; 2double
+        // vapor__diff, vapor_HDO16_diff;) is used by S08;
         phi_v = 1.0 - (0.5  * bova * pow(1.0 +  cdp, -mupow) + 0.125 * bova * bova * pow(1.0 + 2.0*cdp, -mupow)
                       + 0.0625 * bova * bova * bova * pow(1.0 +3.0*cdp, -mupow) + 0.0390625 * bova * bova * bova * bova * pow(1.0 + 4.0*cdp, -mupow));
         dpfv  = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
@@ -220,18 +220,29 @@ double Dm, double* qr_iso_tendency){
 
 // ===========<<< iso 1-m ice scheme >>> ============
 
-static inline double equilibrium_fractionation_factor_H2O18_ice(double t){
+static inline double equilibrium_fractionation_factor__ice(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
-	double alpha_ice = exp(11.839/t - 2.8224e-2);  
+	double alpha_ice = exp(11.839/(t*t) - 2.8224e-2);  
     return alpha_ice;
 }
 
 static inline double equilibrium_fractionation_factor_HDO_ice(double t){
-// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
-	double alpha_ice = exp(11.839/t - 2.8224e-2);  
+// fractionation factor α_eq for HDO for vapor between ice, based equations from Majoube 1971
+	double alpha_ice = exp(16289.0/(t*t) - 9.45e-2);  
     return alpha_ice;
 }
 
+static inline double equilibrium_fractionation_factor__ice(double t){
+// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
+	double alpha_ice = exp(11.839/(t*t) - 2.8224e-2);  
+    return alpha_ice;
+}
+
+static inline double equilibrium_fractionation_factor_HDO_ice(double t){
+// fractionation factor α_eq for HDO for vapor between ice, based equations from Majoube 1971
+	double alpha_ice = exp(16289.0/(t*t) - 9.45e-2);  
+    return alpha_ice;
+}
 double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
     //-------------------------------------------------------------
