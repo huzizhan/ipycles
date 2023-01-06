@@ -6,6 +6,7 @@
 #include "microphysics_sb.h"
 #include "microphysics_arctic_1m.h"
 #include "lookup.h"
+#include <cmath>
 #include <math.h>
 #define SB_EPS_iso 1.02e-13
 // #define KT  2.5e-2 // J/m/1s/K
@@ -225,9 +226,27 @@ static inline double equilibrium_fractionation_factor_H2O18_ice(double t){
     return alpha_ice;
 }
 
+static inline double equilibrium_fractionation_factor_HDO_ice(double t){
+// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
+	double alpha_ice = exp(11.839/t - 2.8224e-2);  
+    return alpha_ice;
+}
+
 double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qt, double alpha_s){
+                             double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // alpha_s: equilibrium fractionation factor for ice
+    // diff_vapor: diffusivity of common water vapor
+    // diff_iso: diffusivity of isotope water vapor (O18 or HDO)
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // alpha_k_ice: kinetic fractionation factor for ice
+    //------------------------------------------------------------- 
     // this function is adopted from Blossey's 2015, for calculate of alpha_k
+
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
     // double pv_sat_ice     = lookup(LT, temperature);
@@ -236,15 +255,25 @@ double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(do
     // calculate sat_ratio of vapor respect to ice, S_s is the same simple in Blossey's 2015
     double qv_sat_ice     = qv_star_c(p0,qt,pv_sat_ice);
     double S_s            = qt/qv_sat_ice;
-    double vapor_O18_diff = DVAPOR*0.9723;
-    double diff_ratio     = DVAPOR / vapor_O18_diff;
-    double b_s            = (DVAPOR*rho_sat_ice)*(L/KT/temperature)*(L/Rv/temperature - 1.0);
+    double diff_ratio     = diff_vapor / diff_iso;
+    double b_s            = (diff_vapor*rho_sat_ice)*(L/KT/temperature)*(L/Rv/temperature - 1.0);
     double alpha_k_ice    = (1 + b_s) * S_s * (1/(alpha_s*diff_ratio*(S_s - 1) + 1 + b_s*S_s));
     return alpha_k_ice;
 }
 
 double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qt, double alpha_s){
+                             double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // alpha_s: equilibrium fractionation factor for ice
+    // diff_vapor: diffusivity of common water vapor
+    // diff_iso: diffusivity of isotope water vapor (O18 or HDO)
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // alpha_k_ice: kinetic fractionation factor for ice
+    //------------------------------------------------------------- 
     // this function is adopted from Jouzel's 1984, for calculate of alpha_k
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
@@ -254,8 +283,7 @@ double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(dou
     // calculate sat_ratio of vapor respect to ice, S_s means the sat_ratio
     double qv_sat_ice     = qv_star_c(p0,qt,pv_sat_ice);
     double S_s            = qt/qv_sat_ice;
-    double vapor_O18_diff = DVAPOR*0.9723;
-    double diff_ratio     = DVAPOR / vapor_O18_diff;
+    double diff_ratio     = diff_vapor / diff_iso;
     double alpha_k_ice    = S_s/(alpha_s*diff_ratio*(S_s-1.0)+1.0);
     return alpha_k_ice;
 }
