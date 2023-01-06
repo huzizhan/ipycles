@@ -167,7 +167,7 @@ double Dm, double* qr_iso_tendency){
 
 static inline double equilibrium_fractionation_factor_H2O18_ice(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
-	double alpha_ice = exp(11.839/t - 2.8224e-2);  
+	double alpha_ice = exp(11.839/(t*t) - 2.8224e-2);  
     return alpha_ice;
 }
 
