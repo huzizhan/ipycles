@@ -499,8 +499,8 @@ void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT
                     const ssize_t ijk = ishift + jshift + k;
                     double qv_std_tmp, ql_std_tmp, qi_std_tmp, qv_iso_tmp, ql_iso_tmp, qi_iso_tmp;
 
-                    alpha_eq_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
-                    alpha_s_ice = equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
+                    alpha_eq_O18 = equilibrium_fractionation_factor_H2O18_liquid(temperature[ijk]);
+                    alpha_s_ice = 1.0 / equilibrium_fractionation_factor_O18_ice_Ellehoj(temperature[ijk]);
                     alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
                     // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
 
