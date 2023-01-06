@@ -171,6 +171,18 @@ static inline double equilibrium_fractionation_factor_H2O18_ice(double t){
     return alpha_ice;
 }
 
+static inline double equilibrium_fractionation_factor_O18_ice_Ellehoj(double t){
+// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
+	double alpha_ice_O18 = exp(0.0831 - 49.192/t + 8312.5/(t*t));  
+    return alpha_ice_O18;
+}
+
+static inline double equilibrium_fractionation_factor_HDO_ice_Ellehoj(double t){
+// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
+	double alpha_ice_O18 = exp(0.2133 - 203.10/t + 48888.0/(t*t));  
+    return alpha_ice_O18;
+}
+
 double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double temperature, double p0, double qt, double alpha_s){
     // this function is adopted from Blossey's 2015, for calculate of alpha_k
