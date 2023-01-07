@@ -6,13 +6,12 @@
 #include "microphysics_sb.h"
 #include "microphysics_arctic_1m.h"
 #include "lookup.h"
-#include <cmath>
 #include <math.h>
 #define SB_EPS_iso 1.02e-13
 // #define KT  2.5e-2 // J/m/1s/K
 // #define DVAPOR 3.0e-5 // m^2/s
 
-static inline double equilibrium_fractionation_factor__liquid(double t){
+static inline double equilibrium_fractionation_factor_O18_liquid(double t){
 // fractionation factor α_eq for 018 is based equations from Majoube 1971
 // α_eq specificly is α_l/v 
 	double alpha_lv = exp(1137.0/(t*t) - 0.4156/t - 2.0667e-3);  
@@ -64,7 +63,7 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
 static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
     double alpha_eq;
     double R_sur_evap;
-    alpha_eq = 1.0 / equilibrium_fractionation_factor__liquid(temperature);
+    alpha_eq = 1.0 / equilibrium_fractionation_factor_O18_liquid(temperature);
     R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-RH)+alpha_k*RH);
     return R_sur_evap;
 }
@@ -126,7 +125,7 @@ double microphysics_g_iso_tmp(struct LookupStruct *LT, double (*lam_fp)(double),
     
     double R_qr         = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
-    double alpha_eq     = equilibrium_fractionation_factor__liquid(temperature);
+    double alpha_eq     = equilibrium_fractionation_factor_O18_liquid(temperature);
     double R_qr_surface = R_qr / alpha_eq;
     // double rat = R_qr_surface/R_qv_ambient;
     
@@ -151,7 +150,7 @@ double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), dou
     
     double R_qr         = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
-    double alpha_eq     = equilibrium_fractionation_factor__liquid(temperature);
+    double alpha_eq     = equilibrium_fractionation_factor_O18_liquid(temperature);
     double R_qr_surface = R_qr / alpha_eq;
     // double rat = R_qr_surface/R_qv_ambient;
     
@@ -220,12 +219,17 @@ double Dm, double* qr_iso_tendency){
 
 // ===========<<< iso 1-m ice scheme >>> ============
 
-static inline double equilibrium_fractionation_factor__ice(double t){
-// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
-	double alpha_ice = exp(11.839/(t*t) - 2.8224e-2);  
+static inline double equilibrium_fractionation_factor_O18_ice(double t){
+// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1970
+	double alpha_ice = exp(11.839/t - 2.8224e-2);  
     return alpha_ice;
 }
 
+static inline double equilibrium_fractionation_factor_HDO_ice(double t){
+// fractionation factor α_eq for HDO for vapor between ice, based equations from Merlivat 1967
+	double alpha_ice = exp(16289/(t*t) - 9.45e-2);  
+    return alpha_ice;
+}
 static inline double equilibrium_fractionation_factor_O18_ice_Ellehoj(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
 	double alpha_ice_O18 = exp(0.0831 - 49.192/t + 8312.5/(t*t));  
@@ -238,7 +242,7 @@ static inline double equilibrium_fractionation_factor_HDO_ice_Ellehoj(double t){
     return alpha_ice_O18;
 }
 
-double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+double alpha_k_ice_equation_Blossey_tmp(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
     //-------------------------------------------------------------
     // INPUT VARIABLES
@@ -263,6 +267,35 @@ double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(do
     double S_s            = qt/qv_sat_ice;
     double diff_ratio     = diff_vapor / diff_iso;
     double b_s            = (diff_vapor*rho_sat_ice)*(L/KT/temperature)*(L/Rv/temperature - 1.0);
+    double alpha_k_ice    = (1 + b_s) * S_s * (1/(alpha_s*diff_ratio*(S_s - 1) + 1 + b_s*S_s));
+    return alpha_k_ice;
+}
+
+double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+                             double temperature, double p0, double qt, double alpha_s){
+    //-------------------------------------------------------------
+    // INPUT VARIABLES
+    //-------------------------------------------------------------
+    // alpha_s: equilibrium fractionation factor for ice
+    // diff_vapor: diffusivity of common water vapor
+    // diff_iso: diffusivity of isotope water vapor (O18 or HDO)
+    //-------------------------------------------------------------
+    // OUTPUT VARIABLES
+    //-------------------------------------------------------------
+    // alpha_k_ice: kinetic fractionation factor for ice
+    //------------------------------------------------------------- 
+    // this function is adopted from Blossey's 2015, for calculate of alpha_k
+
+    double lam            = lam_fp(temperature);
+    double L              = L_fp(temperature,lam);
+    // double pv_sat_ice     = lookup(LT, temperature);
+    double pv_sat_ice     = saturation_vapor_pressure_water(temperature);
+    double rho_sat_ice    = pv_sat_ice/Rv/temperature;
+    // calculate sat_ratio of vapor respect to ice, S_s is the same simple in Blossey's 2015
+    double qv_sat_ice     = qv_star_c(p0,qt,pv_sat_ice);
+    double S_s            = qt/qv_sat_ice;
+    double diff_ratio     = 1.0/0.973;
+    double b_s            = (DVAPOR*rho_sat_ice)*(L/KT/temperature)*(L/Rv/temperature - 1.0);
     double alpha_k_ice    = (1 + b_s) * S_s * (1/(alpha_s*diff_ratio*(S_s - 1) + 1 + b_s*S_s));
     return alpha_k_ice;
 }

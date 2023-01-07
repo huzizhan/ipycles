@@ -7,15 +7,14 @@
 #include "advection_interpolation.h"
 #include "entropies.h"
 #include "thermodynamic_functions.h"
-// #include <cmath>
 #include <math.h>
 
 void sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-                             double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
-                             double* restrict ql, double* restrict nr, double* restrict qr, double dt,
-                             double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
-                             double* restrict precip_rate, double*restrict evap_rate){
+    double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+    double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
+    double* restrict ql, double* restrict nr, double* restrict qr, double dt,
+    double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency,
+    double* restrict precip_rate, double*restrict evap_rate){
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
     //Temporal substepping is used to help ensure boundedness of moments
@@ -153,8 +152,8 @@ void sb_qt_source_formation(const struct DimStruct *dims,double* restrict qr_ten
 // ===========<<< microphysics process's effect on thermodynamic process >>> ============
 
 void sb_entropy_source_formation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                              double* restrict p0, double* restrict T, double* restrict Twet, double* restrict qt, double* restrict qv,
-                              double* restrict qr_tendency,  double* restrict entropy_tendency){
+    double* restrict p0, double* restrict T, double* restrict Twet, double* restrict qt, double* restrict qv,
+    double* restrict qr_tendency,  double* restrict entropy_tendency){
 
     //Here we compute the source terms of total water and entropy related to microphysics. See Pressel et al. 2015, Eq. 49-54
     //
@@ -203,7 +202,7 @@ void sb_entropy_source_formation(const struct DimStruct *dims, struct LookupStru
 }
 
 void sb_entropy_source_heating(const struct DimStruct *dims, double* restrict T, double* restrict Twet, double* restrict qr,
-                               double* restrict w_qr, double* restrict w,  double* restrict entropy_tendency){
+    double* restrict w_qr, double* restrict w,  double* restrict entropy_tendency){
 
     //derivative of Twet is upwinded
 
@@ -234,7 +233,7 @@ void sb_entropy_source_heating(const struct DimStruct *dims, double* restrict T,
 
 // following  Pressel15 Equ 54.
 void sb_entropy_source_drag(const struct DimStruct *dims, double* restrict T,  double* restrict qr,
-                            double* restrict w_qr, double* restrict entropy_tendency){
+    double* restrict w_qr, double* restrict entropy_tendency){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -259,9 +258,9 @@ void sb_entropy_source_drag(const struct DimStruct *dims, double* restrict T,  d
 }
 
 void sb_liquid_entropy_source_precipitation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
-                              double* restrict qt, double* restrict qv, double* precip_rate,
-                              double* restrict qr_tendency, double* restrict entropy_tendency){
+    double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
+    double* restrict qt, double* restrict qv, double* precip_rate,
+    double* restrict qr_tendency, double* restrict entropy_tendency){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -301,9 +300,9 @@ void sb_liquid_entropy_source_precipitation(const struct DimStruct *dims, struct
 
 // entropy source functions which are adopted from arctic 1m scheme
 void sb_liquid_entropy_source_evaporation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
-                              double* restrict Twet, double* restrict qt, double* restrict qv, 
-                              double* evap_rate, double* restrict qr_tendency, double* restrict entropy_tendency){
+    double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
+    double* restrict Twet, double* restrict qt, double* restrict qv, 
+    double* evap_rate, double* restrict qr_tendency, double* restrict entropy_tendency){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -341,8 +340,7 @@ void sb_liquid_entropy_source_evaporation(const struct DimStruct *dims, struct L
 };
 
 void sb_liquid_entropy_source_heating_rain(const struct DimStruct *dims, double* restrict temperature, double* restrict Twet, double* restrict qrain,
-                               double* restrict w_qrain, double* restrict w,  double* restrict entropy_tendency){
-
+    double* restrict w_qrain, double* restrict w,  double* restrict entropy_tendency){
 
     //derivative of Twet is upwinded
 
@@ -370,7 +368,7 @@ void sb_liquid_entropy_source_heating_rain(const struct DimStruct *dims, double*
 };
 
 void sb_liquid_entropy_source_drag(const struct DimStruct *dims, double* restrict temperature,  double* restrict qprec,
-                            double* restrict w_qprec, double* restrict entropy_tendency){
+    double* restrict w_qprec, double* restrict entropy_tendency){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];

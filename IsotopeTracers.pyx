@@ -48,6 +48,12 @@ cdef extern from "isotope.h":
         double *qt_std, double *qv_std, double *ql_std, double *qi_std, 
         double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18, double *qi_iso_O18, 
         double *qv_DV, double *ql_DV, double *qi_DV) nogil
+    void iso_wbf_fractionation_tmp(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double),
+        double *temperature, double *p0,
+        double *qt_std, double *qv_std, double *ql_std, double *qi_std, 
+        double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18, double *qi_iso_O18, 
+        double *qt_iso_HDO, double *qv_iso_HDO, double *ql_iso_HDO, double *qi_iso_HDO, 
+        double *qv_DV, double *ql_DV, double *qi_DV) nogil
 cdef extern from "scalar_advection.h":
     void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double *rho0_half, double *velocity, double *scalar, double* flux, int d, int scheme) nogil
 cdef extern from "isotope_functions.h":
@@ -313,17 +319,25 @@ cdef class IsotopeTracers_Arctic_1M:
             Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr,'qv_iso_O18')
             Py_ssize_t ql_iso_O18_shift = PV.get_varshift(Gr,'ql_iso_O18')
             Py_ssize_t qi_iso_O18_shift = PV.get_varshift(Gr,'qi_iso_O18')
+            Py_ssize_t qt_iso_HDO_shift = PV.get_varshift(Gr,'qt_iso_HDO')
+            Py_ssize_t qv_iso_HDO_shift = PV.get_varshift(Gr,'qv_iso_HDO')
+            Py_ssize_t ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
+            Py_ssize_t qi_iso_HDO_shift = PV.get_varshift(Gr,'qi_iso_HDO')
             double[:] qv_std_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qi_std_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_O18_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_O18_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qi_iso_O18_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_iso_HDO_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_iso_HDO_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qi_iso_HDO_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-        iso_wbf_fractionation(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
+        iso_wbf_fractionation_tmp(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
                 &DV.values[t_shift], &RS.p0_half[0],
                 &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[qi_std_shift], 
                 &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qi_iso_O18_shift], 
+                &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
                 &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
         return
 
