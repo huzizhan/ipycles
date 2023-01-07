@@ -84,6 +84,9 @@ cdef extern from "isotope.h":
         double* precip_rate, double* evap_rate, double* melt_rate,
         double* qt_iso_O18, double* qv_iso_O18, double* ql_iso_O18, double* qi_iso_O18, double* qrain_iso_O18, double* qsnow_iso_O18,
         double* qrain_iso_O18_tendency, double* qrain_iso_O18_tendency_micro, double* qsnow_iso_O18_tendency, double* qsnow_iso_O18_tendency_micro,
+        double* precip_iso_rate, double* evap_iso_rate, 
+        double* qt_iso_HDO, double* qv_iso_HDO, double* ql_iso_HDO, double* qi_iso_HDO, double* qrain_iso_HDO, double* qsnow_iso_HDO,
+        double* qrain_iso_HDO_tendency, double* qrain_iso_HDO_tendency_micro, double* qsnow_iso_HDO_tendency, double* qsnow_iso_HDO_tendency_micro,
         double* precip_iso_rate, double* evap_iso_rate) nogil
 
 cdef extern from "microphysics.h":
@@ -289,9 +292,22 @@ cdef class Microphysics_Arctic_1M:
             Py_ssize_t wqsnow_iso_O18_shift
             double [:] qrain_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double [:] qsnow_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double [:] precip_rate_iso = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double [:] evap_rate_iso = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double [:] precip_rate_iso_O18 = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double [:] evap_rate_iso_O18 = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
        
+            Py_ssize_t qt_iso_HDO_shift
+            Py_ssize_t qv_iso_HDO_shift
+            Py_ssize_t ql_iso_HDO_shift
+            Py_ssize_t qi_iso_HDO_shift
+            Py_ssize_t qsnow_iso_HDO_shift
+            Py_ssize_t qrain_iso_HDO_shift
+            Py_ssize_t wqrain_iso_HDO_shift
+            Py_ssize_t wqsnow_iso_HDO_shift
+            double [:] qrain_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double [:] qsnow_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double [:] precip_rate_iso_HDO = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double [:] evap_rate_iso_HDO = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
         if self.isotope_tracers:
             qt_std_shift = PV.get_varshift(Gr,'qt_std')
             qv_std_shift = PV.get_varshift(Gr,'qv_std')
@@ -309,17 +325,28 @@ cdef class Microphysics_Arctic_1M:
             qrain_iso_O18_shift = PV.get_varshift(Gr,'qrain_iso_O18')
             wqrain_iso_O18_shift = DV.get_varshift(Gr,'w_qrain_iso_O18')
             wqsnow_iso_O18_shift = DV.get_varshift(Gr,'w_qsnow_iso_O18')
+            qt_iso_HDO_shift = PV.get_varshift(Gr,'qt_iso_HDO')
+            qv_iso_HDO_shift = PV.get_varshift(Gr,'qv_iso_HDO')
+            ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
+            qi_iso_HDO_shift = PV.get_varshift(Gr,'qi_iso_HDO')
+            qsnow_iso_HDO_shift = PV.get_varshift(Gr,'qsnow_iso_HDO')
+            qrain_iso_HDO_shift = PV.get_varshift(Gr,'qrain_iso_HDO')
+            wqrain_iso_HDO_shift = DV.get_varshift(Gr,'w_qrain_iso_HDO')
+            wqsnow_iso_HDO_shift = DV.get_varshift(Gr,'w_qsnow_iso_HDO')
 
             # Calculation of sources
             tracer_arctic1m_microphysics_sources(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &Ref.rho0_half[0],
                 &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, self.n0_ice_input,
                 &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift], &PV.values[qrain_std_shift], &DV.values[nrain_shift],
                 &PV.values[qsnow_std_shift], &DV.values[nsnow_shift], TS.dt,
-                &PV.values[ql_std_shift], &PV.values[qi_std_shift],
-                &qrain_std_tend_micro[0], &PV.tendencies[qrain_std_shift],
+                &PV.values[ql_std_shift], &PV.values[qi_std_shift], &qrain_std_tend_micro[0], &PV.tendencies[qrain_std_shift],
                 &qsnow_std_tend_micro[0], &PV.tendencies[qsnow_std_shift], &self.precip_rate[0], &self.evap_rate[0],&self.melt_rate[0],
-                &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qi_iso_O18_shift], &PV.values[qrain_iso_O18_shift], &PV.values[qsnow_iso_O18_shift],
-                &PV.tendencies[qrain_iso_O18_shift], &qrain_iso_O18_tend_micro[0], &PV.tendencies[qsnow_iso_O18_shift], &qsnow_iso_O18_tend_micro[0], &precip_rate_iso[0], &evap_rate_iso[0])
+                &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qi_iso_O18_shift], 
+                &PV.values[qrain_iso_O18_shift], &PV.values[qsnow_iso_O18_shift], &PV.tendencies[qrain_iso_O18_shift], &qrain_iso_O18_tend_micro[0], 
+                &PV.tendencies[qsnow_iso_O18_shift], &qsnow_iso_O18_tend_micro[0], &precip_rate_iso_O18[0], &evap_rate_iso_O18[0],
+                &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
+                &PV.values[qrain_iso_HDO_shift], &PV.values[qsnow_iso_HDO_shift], &PV.tendencies[qrain_iso_HDO_shift], &qrain_iso_HDO_tend_micro[0], 
+                &PV.tendencies[qsnow_iso_HDO_shift], &qsnow_iso_HDO_tend_micro[0], &precip_rate_iso_HDO[0], &evap_rate_iso_HDO[0])
             
             sedimentation_velocity_rain(&Gr.dims, &Ref.rho0_half[0], &DV.values[nrain_shift], &PV.values[qrain_shift],
                 &DV.values[wqrain_std_shift])
@@ -330,9 +357,14 @@ cdef class Microphysics_Arctic_1M:
                 &DV.values[wqrain_iso_O18_shift])
             sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], &DV.values[nsnow_shift], &PV.values[qsnow_shift],
                 &DV.values[wqsnow_iso_O18_shift])
+            sedimentation_velocity_rain(&Gr.dims, &Ref.rho0_half[0], &DV.values[nrain_shift], &PV.values[qrain_shift],
+                &DV.values[wqrain_iso_HDO_shift])
+            sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], &DV.values[nsnow_shift], &PV.values[qsnow_shift],
+                &DV.values[wqsnow_iso_HDO_shift])
 
             qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], &self.precip_rate[0], &self.evap_rate[0])
-            qt_source_formation(&Gr.dims, &PV.tendencies[qt_iso_O18_shift], &precip_rate_iso[0], &evap_rate_iso[0])
+            qt_source_formation(&Gr.dims, &PV.tendencies[qt_iso_O18_shift], &precip_rate_iso_O18[0], &evap_rate_iso_O18[0])
+            qt_source_formation(&Gr.dims, &PV.tendencies[qt_iso_HDO_shift], &precip_rate_iso_HDO[0], &evap_rate_iso_HDO[0])
 
         #Entropy tendencies due to microphysics
         microphysics_wetbulb_temperature(&Gr.dims, &self.CC.LT.LookupStructC, &Ref.p0_half[0], &PV.values[s_shift],
