@@ -137,10 +137,10 @@ cdef class IsotopeTracers_NoMicrophysics:
             double[:] ql_iso_O18_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
-                &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
-                &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
-                &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
-                &DV.values[qv_shift], &DV.values[ql_shift])
+            &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
+            &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
+            &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
+            &DV.values[qv_shift], &DV.values[ql_shift])
         return
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
@@ -237,14 +237,14 @@ cdef class IsotopeTracers_SB_Liquid:
             double[:] ql_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
-                &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
-                &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
-                &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
-                &DV.values[qv_shift], &DV.values[ql_shift])
+            &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
+            &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
+            &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
+            &DV.values[qv_shift], &DV.values[ql_shift])
         return 
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-                   ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+                ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
         return
 
@@ -256,7 +256,7 @@ cdef class IsotopeTracers_Arctic_1M:
         self.CC.initialize(namelist, LH, Par)
         return
     cpdef initialize(self, namelist, Grid.Grid Gr,  PrognosticVariables.PrognosticVariables PV,
-                     DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+                DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         Pa.root_print('initialized with IsotopeTracers_Arctic_1M')
         
         PV.add_variable('qt_std', 'kg/kg','qt_std','Total water std specific humidity','sym', "scalar", Pa)
@@ -303,7 +303,7 @@ cdef class IsotopeTracers_Arctic_1M:
         return
 
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, 
-					ThermodynamicsSA.ThermodynamicsSA Th_sa, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
+                ThermodynamicsSA.ThermodynamicsSA Th_sa, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
             Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
@@ -448,6 +448,12 @@ cdef class IsotopeTracers_SBSI:
         PV.add_variable('qr_iso_O18', 'kg/kg','qr_iso_O18_isotope','Rain droplets water isotopic specific humidity','sym', 'scalar', Pa)
         PV.add_variable('qisi_iso_O18', 'kg/kg','qr_iso_O18_isotope','Single Ice droplets water isotopic specific humidity','sym', 'scalar', Pa)
 
+        PV.add_variable('qt_iso_HDO', 'kg/kg','qt_iso_HDO_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso_HDO', 'kg/kg','qv_iso_HDO_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso_HDO', 'kg/kg','ql_iso_HDO_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qr_iso_HDO', 'kg/kg','qr_iso_HDO_isotope','Rain droplets water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qisi_iso_HDO', 'kg/kg','qr_iso_HDO_isotope','Single Ice droplets water isotopic specific humidity','sym', 'scalar', Pa)
+
         PV.add_variable('qt_std', 'kg/kg','qt_std','Total water std specific humidity','sym', "scalar", Pa)
         PV.add_variable('qv_std', 'kg/kg','qv_std','Vapor water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('ql_std', 'kg/kg','ql_std','Cloud liquid water std specific humidity','sym', 'scalar', Pa)
@@ -464,8 +470,10 @@ cdef class IsotopeTracers_SBSI:
         DV.add_variables('w_qisi_std', 'unit', r'w_qisi_std','declaration', 'sym', Pa)
         DV.add_variables('w_nisi_std', 'unit', r'w_nisi_std','declaration', 'sym', Pa)
         DV.add_variables('w_qr_iso_O18', 'unit', r'w_qrain_iso_O18','declaration', 'sym', Pa)
+        DV.add_variables('w_qr_iso_HDO', 'unit', r'w_qrain_iso_O18','declaration', 'sym', Pa)
         DV.add_variables('w_nr_iso', 'unit', r'w_nr_iso','declaration', 'sym', Pa)
         DV.add_variables('w_qisi_iso_O18', 'unit', r'w_qsnow_iso_O18','declaration', 'sym', Pa)
+        DV.add_variables('w_qisi_iso_HDO', 'unit', r'w_qsnow_iso_O18','declaration', 'sym', Pa)
         DV.add_variables('w_nisi_iso', 'unit', r'w_nisi_iso','declaration', 'sym', Pa)
         try:
             self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
@@ -474,14 +482,18 @@ cdef class IsotopeTracers_SBSI:
         
         if self.cloud_sedimentation:
             DV.add_variables('w_qt_iso_O18', 'm/s', r'w_{qt_iso_O18}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
+            DV.add_variables('w_qt_iso_HDO', 'm/s', r'w_{qt_iso_HDO}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
             DV.add_variables('w_qt_std', 'm/s', r'w_{qt_iso_O18}', 'cloud liquid water std sedimentation velocity', 'sym', Pa)
             NS.add_profile('qt_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
             NS.add_profile('qt_iso_O18_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
+            NS.add_profile('qt_iso_HDO_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
 
         NS.add_profile('qr_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer rain')
         NS.add_profile('qr_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
+        NS.add_profile('qr_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
         NS.add_profile('qisi_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer of single ice')
         NS.add_profile('qisi_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of single ice isotopic sepcific humidity')
+        NS.add_profile('qisi_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of single ice isotopic sepcific humidity')
 
         initialize_NS_base(NS, Gr, Pa)
         return
@@ -503,11 +515,16 @@ cdef class IsotopeTracers_SBSI:
             Py_ssize_t qt_iso_O18_shift = PV.get_varshift(Gr,'qt_iso_O18')
             Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr,'qv_iso_O18')
             Py_ssize_t ql_iso_O18_shift = PV.get_varshift(Gr,'ql_iso_O18')
+            Py_ssize_t qt_iso_HDO_shift = PV.get_varshift(Gr,'qt_iso_HDO')
+            Py_ssize_t qv_iso_HDO_shift = PV.get_varshift(Gr,'qv_iso_HDO')
+            Py_ssize_t ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
 
             double[:] qv_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_iso_HDO_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_iso_HDO_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
             double[:] qt_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
@@ -516,17 +533,21 @@ cdef class IsotopeTracers_SBSI:
             double[:] qt_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qv_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qt_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         # This equilibrium fractioantion processes only happened in cloud
         # based on SBSI scheme, the formation of cloud ice in in microphysics component.
-        iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
-                &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
-                &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
-                &DV.values[qv_shift], &DV.values[ql_shift])
+        iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
+            &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
+            &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
+            &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
+            &DV.values[qv_shift], &DV.values[ql_shift])
         return 
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-                   ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+            ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
         return
 

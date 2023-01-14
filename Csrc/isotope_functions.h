@@ -591,7 +591,7 @@ void sb_iso_ice_nucleation(const double qi_tendency_nuc, const double alpha_s_ic
     //-------------------------------------------------------------
     // qi_iso_tendency_nuc: single ice isotope content tendency due to nucleation;
     //-------------------------------------------------------------
-    *qi_iso_tendency_nuc = (1.0/alpha_s_ice)*qi_tendency_nuc;
+    *qi_iso_tendency_nuc = alpha_s_ice*qi_tendency_nuc;
     return;
 };
 

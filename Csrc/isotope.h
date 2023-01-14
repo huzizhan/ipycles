@@ -875,14 +875,16 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
 // ===========<<< SBSI two moment microphysics scheme >>> ============
 
 void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-         double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
-         double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt, double* restrict ql_std,
-         double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency, 
-         double* restrict ni_tendency_micro, double* restrict qi_tendency_micro, double* restrict ni_tendency, double* restrict qi_tendency, 
-         double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate, 
-         double* restrict qt_iso, double* restrict ql_iso, double* restrict qr_iso, double* restrict qi_iso, double* restrict qr_iso_tendency, 
-         double* restrict qi_iso_tendency, double* restrict qr_iso_tendency_micro, double* restrict qi_iso_tendency_micro){
+    double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+    double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
+    double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt, double* restrict ql_std,
+    double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency, 
+    double* restrict ni_tendency_micro, double* restrict qi_tendency_micro, double* restrict ni_tendency, double* restrict qi_tendency, 
+    double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate, 
+    double* restrict qt_iso_O18, double* restrict ql_iso_O18, double* restrict qr_iso_O18, double* restrict qi_iso_O18, double* restrict qr_iso_O18_tendency, 
+    double* restrict qi_iso_O18_tendency, double* restrict qr_iso_O18_tendency_micro, double* restrict qi_iso_O18_tendency_micro,
+    double* restrict qt_iso_HDO, double* restrict ql_iso_HDO, double* restrict qr_iso_HDO, double* restrict qi_iso_HDO, double* restrict qr_iso_HDO_tendency, 
+    double* restrict qi_iso_HDO_tendency, double* restrict qr_iso_HDO_tendency_micro, double* restrict qi_iso_HDO_tendency_micro){
 
     // Here all rain and ice related variables are std_tracers;
     // while qr_iso* and qi_iso* means isotope tracers.
@@ -899,10 +901,13 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
     double ni_tendency_nuc, ni_tendency_frez, ni_tendency_berg, ni_tendency_melt;
     double qi_tendency_nuc, qi_tendency_frez, qi_tendency_acc, qi_tendency_dep, qi_tendency_berg, qi_tendency_melt, qi_tendency_sub;
     // isotope tracers tendency definition
-    double qv_iso_tendency_tmp, ql_iso_tendency_tmp, ql_iso_tendency_frez;
-    double qr_iso_tendency_tmp, qr_iso_tendency_auto, qr_iso_tendency_acc, qr_iso_tendency_evap, qr_iso_tendency_frez;
-    double qi_iso_tendency_tmp, qi_iso_tendency_nuc, qi_iso_tendency_frez, qi_iso_tendency_dep, qi_iso_tendency_sub, qi_iso_tendency_melt, qi_iso_tendency_acc;
-    double R_qt, R_qv, R_ql, R_qr, R_qi;
+    double qv_iso_O18_tendency_tmp, ql_iso_O18_tendency_tmp, ql_iso_O18_tendency_frez;
+    double qr_iso_O18_tendency_tmp, qr_iso_O18_tendency_auto, qr_iso_O18_tendency_acc, qr_iso_O18_tendency_evap, qr_iso_O18_tendency_frez;
+    double qi_iso_O18_tendency_tmp, qi_iso_O18_tendency_nuc, qi_iso_O18_tendency_frez, qi_iso_O18_tendency_dep, qi_iso_O18_tendency_sub, qi_iso_O18_tendency_melt, qi_iso_O18_tendency_acc;
+
+    double qv_iso_HDO_tendency_tmp, ql_iso_HDO_tendency_tmp, ql_iso_HDO_tendency_frez;
+    double qr_iso_HDO_tendency_tmp, qr_iso_HDO_tendency_auto, qr_iso_HDO_tendency_acc, qr_iso_HDO_tendency_evap, qr_iso_HDO_tendency_frez;
+    double qi_iso_HDO_tendency_tmp, qi_iso_HDO_tendency_nuc, qi_iso_HDO_tendency_frez, qi_iso_HDO_tendency_dep, qi_iso_HDO_tendency_sub, qi_iso_HDO_tendency_melt, qi_iso_HDO_tendency_acc;
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -948,12 +953,18 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                 melt_rate[ijk] = 0.0;
                 
                 // Get isotpe tracer values before the computation system begin
-                double qt_iso_tmp = qt_iso[ijk];
-                double ql_iso_tmp = fmax(ql_iso[ijk], 0.0);
-                double qv_iso_tmp = qt_iso_tmp - ql_iso_tmp;
-                double qr_iso_tmp = fmax(qr_iso[ijk], 0.0);
-                double qi_iso_tmp = fmax(qi_iso[ijk], 0.0);
+                double qt_iso_O18_tmp = qt_iso_O18[ijk];
+                double ql_iso_O18_tmp = fmax(ql_iso_O18[ijk], 0.0);
+                double qv_iso_O18_tmp = qt_iso_O18_tmp - ql_iso_O18_tmp;
+                double qr_iso_O18_tmp = fmax(qr_iso_O18[ijk], 0.0);
+                double qi_iso_O18_tmp = fmax(qi_iso_O18[ijk], 0.0);
                 
+                double qt_iso_HDO_tmp = qt_iso_HDO[ijk];
+                double ql_iso_HDO_tmp = fmax(ql_iso_HDO[ijk], 0.0);
+                double qv_iso_HDO_tmp = qt_iso_HDO_tmp - ql_iso_HDO_tmp;
+                double qr_iso_HDO_tmp = fmax(qr_iso_HDO[ijk], 0.0);
+                double qi_iso_HDO_tmp = fmax(qi_iso_HDO[ijk], 0.0);
+
                 double time_added = 0.0, dt_, rate;
                 ssize_t iter_count = 0;
                 do{
@@ -1046,48 +1057,101 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     
                     // ===========<<< isotope traces components computation >>> ============
                     // set all variables with initial values as 0.0 before loop start;
-                    qv_iso_tendency_tmp  = 0.0;
-                    ql_iso_tendency_tmp  = 0.0;
-                    ql_iso_tendency_frez = 0.0;
-                    qr_iso_tendency_tmp  = 0.0;
-                    qr_iso_tendency_auto = 0.0;
-                    qr_iso_tendency_acc  = 0.0;
-                    qr_iso_tendency_evap = 0.0;
-                    qr_iso_tendency_frez = 0.0;
-                    qi_iso_tendency_tmp  = 0.0;
-                    qi_iso_tendency_nuc  = 0.0;
-                    qi_iso_tendency_frez = 0.0;
-                    qi_iso_tendency_dep  = 0.0;
-                    qi_iso_tendency_sub  = 0.0;
-                    qi_iso_tendency_melt = 0.0;
-                    qi_iso_tendency_acc  = 0.0;
+                    qv_iso_O18_tendency_tmp  = 0.0;
+                    ql_iso_O18_tendency_tmp  = 0.0;
+                    ql_iso_O18_tendency_frez = 0.0;
+                    qr_iso_O18_tendency_tmp  = 0.0;
+                    qr_iso_O18_tendency_auto = 0.0;
+                    qr_iso_O18_tendency_acc  = 0.0;
+                    qr_iso_O18_tendency_evap = 0.0;
+                    qr_iso_O18_tendency_frez = 0.0;
+                    qi_iso_O18_tendency_tmp  = 0.0;
+                    qi_iso_O18_tendency_nuc  = 0.0;
+                    qi_iso_O18_tendency_frez = 0.0;
+                    qi_iso_O18_tendency_dep  = 0.0;
+                    qi_iso_O18_tendency_sub  = 0.0;
+                    qi_iso_O18_tendency_melt = 0.0;
+                    qi_iso_O18_tendency_acc  = 0.0;
                     
-                    // iso_tendencies calculations
-                    // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
-                    sb_iso_rain_autoconversion(ql_tmp, ql_iso_tmp, qr_tendency_au, &qr_iso_tendency_auto);
-                    sb_iso_rain_accretion(ql_tmp, ql_iso_tmp, qr_tendency_ac, &qr_iso_tendency_acc);
-                    double g_therm_iso = microphysics_g_iso(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp,
-                            qr_iso_tmp, qv_tmp, qv_iso_tmp, sat_ratio, DVAPOR, KT);
-                    sb_iso_evaporation_rain(g_therm_iso, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_tmp, rain_mass, Dp, Dm_r, &qr_iso_tendency_evap);
+                    qv_iso_HDO_tendency_tmp  = 0.0;
+                    ql_iso_HDO_tendency_tmp  = 0.0;
+                    ql_iso_HDO_tendency_frez = 0.0;
+                    qr_iso_HDO_tendency_tmp  = 0.0;
+                    qr_iso_HDO_tendency_auto = 0.0;
+                    qr_iso_HDO_tendency_acc  = 0.0;
+                    qr_iso_HDO_tendency_evap = 0.0;
+                    qr_iso_HDO_tendency_frez = 0.0;
+                    qi_iso_HDO_tendency_tmp  = 0.0;
+                    qi_iso_HDO_tendency_nuc  = 0.0;
+                    qi_iso_HDO_tendency_frez = 0.0;
+                    qi_iso_HDO_tendency_dep  = 0.0;
+                    qi_iso_HDO_tendency_sub  = 0.0;
+                    qi_iso_HDO_tendency_melt = 0.0;
+                    qi_iso_HDO_tendency_acc  = 0.0;
 
-                    double alpha_s_ice = equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
-                    double alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice);
+                    // iso_tendencies calculations
+                    // non-fractionational processes of qr for O18 and HDO
+
+                    sb_iso_rain_autoconversion(ql_tmp, ql_iso_O18_tmp, qr_tendency_au, &qr_iso_O18_tendency_auto);
+                    sb_iso_rain_autoconversion(ql_tmp, ql_iso_HDO_tmp, qr_tendency_au, &qr_iso_HDO_tendency_auto);
+
+                    sb_iso_rain_accretion(ql_tmp, ql_iso_O18_tmp, qr_tendency_ac, &qr_iso_O18_tendency_acc);
+                    sb_iso_rain_accretion(ql_tmp, ql_iso_HDO_tmp, qr_tendency_ac, &qr_iso_HDO_tendency_acc);
+
+                    sb_iso_ice_freezing(ql_tmp, qr_tmp, nr_tmp, ql_iso_O18_tmp, qr_iso_O18_tmp, ql_tendency_frez, qr_tendency_frez,
+                            &qr_iso_O18_tendency_frez, &ql_iso_O18_tendency_frez, &qi_iso_O18_tendency_frez);
+                    sb_iso_ice_freezing(ql_tmp, qr_tmp, nr_tmp, ql_iso_HDO_tmp, qr_iso_HDO_tmp, ql_tendency_frez, qr_tendency_frez,
+                            &qr_iso_HDO_tendency_frez, &ql_iso_HDO_tendency_frez, &qi_iso_HDO_tendency_frez);
+
+                    // fractionational processes of qi(qisi) for O18 and HDO
+                    
+                    // ================================================
+                    // ToDo: give the defination of diff_HDO based on the actual physical value of the diffusivity of HDO
+                    // ================================================
+                    double diff_O18 = DVAPOR*0.9723;
+                    double diff_HDO = DVAPOR*0.9723;
+
+                    double gtherm_iso_O18_liq = microphysics_g_iso_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_iso_O18_tmp, 
+                        qv_tmp, qv_iso_O18_tmp, sat_ratio_liq, diff_O18, KT);
+                    sb_iso_evaporation_rain(gtherm_iso_O18_liq, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_O18_tmp, rain_mass, Dp, Dm_r, &qr_iso_O18_tendency_evap);
+                    double gtherm_iso_HDO_liq = microphysics_g_iso_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_iso_HDO_tmp, 
+                        qv_tmp, qv_iso_HDO_tmp, sat_ratio_liq, diff_HDO, KT);
+                    sb_iso_evaporation_rain(gtherm_iso_HDO_liq, sat_ratio, nr_tmp, qr_tmp, mu, qr_iso_HDO_tmp, rain_mass, Dp, Dm_r, &qr_iso_HDO_tendency_evap);
+
+                    double alpha_s_ice_O18 = 1.0 / equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
+                    double alpha_k_ice_O18 = alpha_k_ice_equation_Blossey_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice_O18, DVAPOR, diff_O18);
+
+                    double alpha_s_ice_HDO = 1.0 / equilibrium_fractionation_factor_HDO_ice(temperature[ijk]);
+                    double alpha_k_ice_HDO = alpha_k_ice_equation_Blossey_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt[ijk], alpha_s_ice_HDO, DVAPOR, diff_HDO);
+
                     double F_ratio = 0.998;
-                    sb_iso_ice_nucleation(qi_tendency_nuc, alpha_s_ice, &qi_iso_tendency_nuc);
-                    sb_iso_ice_freezing(ql_tmp, qr_tmp, nr_tmp, ql_iso_tmp, qr_iso_tmp, ql_tendency_frez, qr_tendency_frez,
-                            &qr_iso_tendency_frez, &ql_iso_tendency_frez, &qi_iso_tendency_frez);
-                    sb_iso_ice_accretion_cloud(ql_tmp, qi_tmp, ni_tmp, qi_iso_tmp, qi_tendency_acc, &qi_iso_tendency_acc);
-                    sb_iso_ice_deposition(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, alpha_k_ice, alpha_s_ice, 
-                            qi_tendency_dep, F_ratio, &qi_iso_tendency_dep);
-                    sb_iso_ice_sublimation(qi_tmp, ni_tmp, qi_iso_tmp, sat_ratio, qi_tendency_sub, &qi_iso_tendency_sub);
+
+                    sb_iso_ice_nucleation(qi_tendency_nuc, alpha_s_ice_O18, &qi_iso_O18_tendency_nuc);
+                    sb_iso_ice_nucleation(qi_tendency_nuc, alpha_s_ice_HDO, &qi_iso_HDO_tendency_nuc);
+
+                    sb_iso_ice_accretion_cloud(ql_tmp, qi_tmp, ni_tmp, qi_iso_O18_tmp, qi_tendency_acc, &qi_iso_O18_tendency_acc);
+                    sb_iso_ice_accretion_cloud(ql_tmp, qi_tmp, ni_tmp, qi_iso_HDO_tmp, qi_tendency_acc, &qi_iso_HDO_tendency_acc);
+
+                    sb_iso_ice_deposition(qi_tmp, ni_tmp, qi_iso_O18_tmp, sat_ratio, alpha_k_ice_O18, alpha_s_ice_O18, 
+                            qi_tendency_dep, F_ratio, &qi_iso_O18_tendency_dep);
+                    sb_iso_ice_deposition(qi_tmp, ni_tmp, qi_iso_HDO_tmp, sat_ratio, alpha_k_ice_HDO, alpha_s_ice_HDO, 
+                            qi_tendency_dep, F_ratio, &qi_iso_HDO_tendency_dep);
+
+                    sb_iso_ice_sublimation(qi_tmp, ni_tmp, qi_iso_O18_tmp, sat_ratio, qi_tendency_sub, &qi_iso_O18_tendency_sub);
+                    sb_iso_ice_sublimation(qi_tmp, ni_tmp, qi_iso_HDO_tmp, sat_ratio, qi_tendency_sub, &qi_iso_HDO_tendency_sub);
                     // sb_iso_ice_melting(qi_tendency_melt, R_qi, &qi_iso_tendency_melt);
 
                     // iso_tendencies add
                     // qi_iso_tendency_sub is NEGATIVE because qi_tendency_sub is NEGATIVE
-                    qi_iso_tendency_tmp = qi_iso_tendency_nuc + qi_iso_tendency_frez + qi_iso_tendency_dep + qi_iso_tendency_acc + qi_iso_tendency_sub - qi_iso_tendency_melt;
-                    qr_iso_tendency_tmp = qr_iso_tendency_auto + qr_iso_tendency_acc + qr_iso_tendency_evap - qr_iso_tendency_frez;
-                    ql_iso_tendency_tmp = -qr_iso_tendency_auto - qr_iso_tendency_acc - ql_iso_tendency_frez; 
-                    qv_iso_tendency_tmp = -qi_iso_tendency_dep - qr_iso_tendency_evap - qi_iso_tendency_sub;
+                    qi_iso_O18_tendency_tmp = qi_iso_O18_tendency_nuc + qi_iso_O18_tendency_frez + qi_iso_O18_tendency_dep + qi_iso_O18_tendency_acc + qi_iso_O18_tendency_sub - qi_iso_O18_tendency_melt;
+                    qr_iso_O18_tendency_tmp = qr_iso_O18_tendency_auto + qr_iso_O18_tendency_acc + qr_iso_O18_tendency_evap - qr_iso_O18_tendency_frez;
+                    ql_iso_O18_tendency_tmp = -qr_iso_O18_tendency_auto - qr_iso_O18_tendency_acc - ql_iso_O18_tendency_frez; 
+                    qv_iso_O18_tendency_tmp = -qi_iso_O18_tendency_dep - qr_iso_O18_tendency_evap - qi_iso_O18_tendency_sub;
+
+                    qi_iso_HDO_tendency_tmp = qi_iso_HDO_tendency_nuc + qi_iso_HDO_tendency_frez + qi_iso_HDO_tendency_dep + qi_iso_HDO_tendency_acc + qi_iso_HDO_tendency_sub - qi_iso_HDO_tendency_melt;
+                    qr_iso_HDO_tendency_tmp = qr_iso_HDO_tendency_auto + qr_iso_HDO_tendency_acc + qr_iso_HDO_tendency_evap - qr_iso_HDO_tendency_frez;
+                    ql_iso_HDO_tendency_tmp = -qr_iso_HDO_tendency_auto - qr_iso_HDO_tendency_acc - ql_iso_HDO_tendency_frez; 
+                    qv_iso_HDO_tendency_tmp = -qi_iso_HDO_tendency_dep - qr_iso_HDO_tendency_evap - qi_iso_HDO_tendency_sub;
 
                     //Factor of 1.05 is ad-hoc
                     
@@ -1134,15 +1198,24 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     qt_tmp = ql_tmp + qv_tmp;
 
                     // isotope tracers Intergrate forward in time
-                    qi_iso_tmp += qi_iso_tendency_tmp * dt_;
-                    qr_iso_tmp += qr_iso_tendency_tmp * dt_;
-                    ql_iso_tmp += ql_iso_tendency_tmp * dt_;
-                    qv_iso_tmp += qv_iso_tendency_tmp * dt_;
+                    qi_iso_O18_tmp += qi_iso_O18_tendency_tmp * dt_;
+                    qr_iso_O18_tmp += qr_iso_O18_tendency_tmp * dt_;
+                    ql_iso_O18_tmp += ql_iso_O18_tendency_tmp * dt_;
+                    qv_iso_O18_tmp += qv_iso_O18_tendency_tmp * dt_;
 
-                    qi_iso_tmp = fmax(qi_iso_tmp, 0.0);
-                    qr_iso_tmp = fmax(qr_iso_tmp, 0.0);
-                    ql_iso_tmp = fmax(ql_iso_tmp, 0.0);
+                    qi_iso_O18_tmp = fmax(qi_iso_O18_tmp, 0.0);
+                    qr_iso_O18_tmp = fmax(qr_iso_O18_tmp, 0.0);
+                    ql_iso_O18_tmp = fmax(ql_iso_O18_tmp, 0.0);
                     
+                    qi_iso_HDO_tmp += qi_iso_HDO_tendency_tmp * dt_;
+                    qr_iso_HDO_tmp += qr_iso_HDO_tendency_tmp * dt_;
+                    ql_iso_HDO_tmp += ql_iso_HDO_tendency_tmp * dt_;
+                    qv_iso_HDO_tmp += qv_iso_HDO_tendency_tmp * dt_;
+
+                    qi_iso_HDO_tmp = fmax(qi_iso_HDO_tmp, 0.0);
+                    qr_iso_HDO_tmp = fmax(qr_iso_HDO_tmp, 0.0);
+                    ql_iso_HDO_tmp = fmax(ql_iso_HDO_tmp, 0.0);
+
                     time_added += dt_ ;
                 }while(time_added < dt);
 
@@ -1160,18 +1233,17 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                 melt_rate[ijk] = melt_rate[ijk]/dt;
                 
                 // Isotope Tracer output
-                qr_iso_tendency_micro[ijk]  = (qr_iso_tmp - qr_iso[ijk])/dt;
-                qr_iso_tendency[ijk]       += qr_iso_tendency_micro[ijk];
-                qi_iso_tendency_micro[ijk]  = (qi_iso_tmp - qi_iso[ijk])/dt;
-                qi_iso_tendency[ijk]       += qi_iso_tendency_micro[ijk];
+                qr_iso_O18_tendency_micro[ijk]  = (qr_iso_O18_tmp - qr_iso_O18[ijk])/dt;
+                qr_iso_O18_tendency[ijk]       += qr_iso_O18_tendency_micro[ijk];
+                qi_iso_O18_tendency_micro[ijk]  = (qi_iso_O18_tmp - qi_iso_O18[ijk])/dt;
+                qi_iso_O18_tendency[ijk]       += qi_iso_O18_tendency_micro[ijk];
+
+                qr_iso_HDO_tendency_micro[ijk]  = (qr_iso_HDO_tmp - qr_iso_HDO[ijk])/dt;
+                qr_iso_HDO_tendency[ijk]       += qr_iso_HDO_tendency_micro[ijk];
+                qi_iso_HDO_tendency_micro[ijk]  = (qi_iso_HDO_tmp - qi_iso_HDO[ijk])/dt;
+                qi_iso_HDO_tendency[ijk]       += qi_iso_HDO_tendency_micro[ijk];
             }
         }
     }
     return;
 }
-
-// void tracer_sedimentation_velocity(double* restrict n_vel, double* restrict q_vel, double* restrict n_std_vel, double* restrict q_std_vel){
-//     std::copy(std::begin(n_vel),std::end(n_vel),std::begin(n_std_vel));
-//     std::copy(std::begin(q_vel),std::end(q_vel),std::begin(q_std_vel));
-//     return;
-// }

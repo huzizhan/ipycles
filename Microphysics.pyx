@@ -26,8 +26,8 @@ cdef extern from "microphysics.h":
 cdef extern from "scalar_advection.h":
     void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double *rho0_half, double *velocity, double *scalar, double* flux, int d, int scheme) nogil
     void compute_qt_sedimentation_s_source(Grid.DimStruct *dims, double *p0_half,  double* rho0_half, double *flux,
-                                           double* qt, double* qv, double* T, double* tendency, double (*lam_fp)(double),
-                                           double (*L_fp)(double, double), double dx, ssize_t d)nogil
+        double* qt, double* qv, double* T, double* tendency, double (*lam_fp)(double),
+        double (*L_fp)(double, double), double dx, ssize_t d)nogil
 
 cdef extern from "microphysics_sb.h":
     void sb_sedimentation_velocity_liquid(Grid.DimStruct *dims, double*  density, double ccn, double* ql, double* qt_velocity)nogil
