@@ -1028,7 +1028,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
                     sb_evaporation_rain(g_therm, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
 
-                    sb_nucleation_ice(ql_tmp, temperature[ijk], sat_ratio_ice, dt_, ni_tmp, &qi_tendency_nuc, &ni_tendency_nuc);
+                    sb_nucleation_ice(temperature[ijk], sat_ratio_ice, dt_, ni_tmp, density[k], &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, 
                             nr_tmp, &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &qi_tendency_frez, &ni_tendency_frez);
                     sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, 

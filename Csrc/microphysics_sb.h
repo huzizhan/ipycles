@@ -252,7 +252,7 @@ void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr
     return;
 }
 
-void sb_nucleation_ice(double ql, double temperature, double S_i, double dt, double ni, double* qi_tendency, double* ni_tendency){
+void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, double density, double* qi_tendency, double* ni_tendency){
     // ================================================
     // ToDo: Needed find a better condition setting for 
     //       Nucleation processes.
@@ -272,17 +272,25 @@ void sb_nucleation_ice(double ql, double temperature, double S_i, double dt, dou
     // qi_tendency: mixing ratio tendency of nucleation;
     //-------------------------------------------------------------
 
-    if (S_i >= 0.0 && ql > SB_EPS){
+    if (S_i >= 0.0){
         // double N_nc = 1.0e-2 * exp(0.6*(273.15 - fmax(temperature, 246.0))); // scheme from RR98;
-        // double N_nc = 0.005 * exp(0.304*(273.15 - temperature)); // scheme from MS08(Coper62);
+        // double N_nc = 0.005 * exp(0.304*(273.15 - temperature)) * 1e3; // scheme from MS08(Coper62);
         // double N_nc = exp(-2.8 + 0.262*(273.15 - temperature)); // scheme from MY92;
-        double N_nc = 1.0e3 * exp(-0.639 + 12.96*S_i); // scheme adopted from SB06, Equ 36;
-        if (N_nc > ni){
-            double ni_tend_tmp = (N_nc - ni)/dt;
+        // double N_dn = 1.0e3 * exp(-0.639 + 12.96*S_i); // scheme adopted from SB06, Equ 36, adopted from MY92, unit m^3
+        double N_in_L = microphysics_ice_nuclei_Mayer(temperature, S_i); // unit is L^-1
+        double N_in = N_in_L * 1000.0 / density; // convert L^-1 to m^3, then to kg^-1
+
+        N_in = fmax(N_in, 0.0);
+
+        if (N_in > ni && ni > SB_EPS){
+            double ni_tend_tmp = (N_in - ni)/dt;
             *ni_tendency = ni_tend_tmp;
-            double ice_nuc = 1e-10;
-            *qi_tendency = ice_nuc*ni_tend_tmp;
-        } 
+            *qi_tendency = X_ICE_NUC*ni_tend_tmp;
+        }
+        else{
+            *qi_tendency = 0.0;
+            *ni_tendency = 0.0;
+        }
     }
     else{
         *qi_tendency = 0.0;

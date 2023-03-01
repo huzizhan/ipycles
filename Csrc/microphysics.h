@@ -76,6 +76,47 @@ double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperatur
     return saturation_ratio;
 }
 
+double microphysics_ice_nuclei_Mayer(double temperature, double S_i){
+    if (temperature < 268.15){
+        return exp(-0.639 + 12.96*S_i); // scheme adopted from SB06, Equ 36, adopted from MY92, unit m^3
+    }
+    else{
+        return 0.0;
+    }
+}
+
+double microphysics_ice_nuclei_Fletcher(double temperature){
+    double T_celsius = temperature - 273.15; 
+    if (T_celsius < 0.0 && T_celsius >= -27.0){
+        return 1.0e-5 * exp(-0.6*T_celsius); // scheme adopted from Fletcher1962
+    }
+    else{
+        return 0.0;
+    }
+}
+
+double microphysics_ice_nuclei_Copper(double temperature){
+    double T_celsius = temperature - 273.15; 
+    if (T_celsius < 0.0 && T_celsius >= -40.0){
+        return 0.005 * exp(0.304*T_celsius); // scheme adopted from Copper1986
+    }
+    else{
+        return 0.0;
+    }
+}
+
+double microphysics_ice_nuclei_Phillips(double temperature, double S_i){
+    if (temperature < 268.15 && temperature >= 243.15){
+        return exp(-0.639 + 12.96*S_i)*0.06; // Adopted from Phillips 2008
+    }
+    else if(temperature < 243.15 && temperature >= 193.15){
+        return pow(exp(12.96*(S_i - 0.1)), 0.3);
+    }
+    else{
+        return 0.0;
+    }
+}
+
 double microphysics_homogenous_freezing_rate(double temperature){
     double T_celsius = temperature - 273.15;
     double liquid_density_cc = 1e-6; // 1 kg/m³ = 1e6 kg/cm³
