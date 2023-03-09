@@ -98,7 +98,7 @@ double microphysics_ice_nuclei_Fletcher(double temperature){
 double microphysics_ice_nuclei_Copper(double temperature){
     double T_celsius = temperature - 273.15; 
     if (T_celsius < 0.0 && T_celsius >= -40.0){
-        return 0.005 * exp(0.304*T_celsius); // scheme adopted from Copper1986
+        return 0.005 * exp(-0.304*T_celsius); // scheme adopted from Copper1986
     }
     else{
         return 0.0;
