@@ -16,6 +16,9 @@ cimport ParallelMPI
 cimport TimeStepping
 cimport Lookup
 from Thermodynamics cimport LatentHeat, ClausiusClapeyron
+cimport Microphysics_SB_Liquid
+cimport Microphysics_Arctic_1M
+cimport Microphysics_SB_SI
 cimport ThermodynamicsSA
 cimport TimeStepping
 
@@ -31,33 +34,60 @@ include 'parameters.pxi'
 cdef extern from "isotope.h":
     void statsIO_isotope_scaling_magnitude(Grid.DimStruct *dims, double *tmp_values) nogil
     void iso_equilibrium_fractionation_No_Microphysics(Grid.DimStruct *dims, double *t, 
-        double *qt_std, double *qv_std, double *ql_std,
+        double *qt, double *qv_DV, double *ql_DV, double *qv_std, double *ql_std,
         double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18,
-        double *qv_DV, double *ql_DV) nogil
-    void iso_equilibrium_fractionation_No_Microphysics_full(Grid.DimStruct *dims, double *t, 
-        double *qt_std, double *qv_std, double *ql_std,
-        double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18,
-        double *qt_iso_HDO, double *qv_iso_HDO, double *ql_iso_HDO,
-        double *qv_DV, double *ql_DV) nogil
+        double *qt_iso_HDO, double *qv_iso_HDO, double *ql_iso_HDO) nogil
 
-    void delta_isotopologue(Grid.DimStruct *dims, double *q_iso, double *q_std, double *delta, int index) nogil
+    void delta_isotopologue(Grid.DimStruct *dims, double *q_iso, double *q_std,
+        double *delta, int index) nogil
     void compute_sedimentaion(Grid.DimStruct *dims, double *w_q, double *w_q_iso, double *w_q_std) nogil
-    void tracer_constrain_NoMicro(Grid.DimStruct *dims, double *ql, double *ql_std, double *ql_iso_O18, double *qv_std, double *qv_iso_O18, double *qt_std, double *qt_iso_O18) nogil
-    void iso_wbf_fractionation(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double),
+    void tracer_constrain_NoMicro(Grid.DimStruct *dims, double *ql, 
+        double*ql_std, double *ql_iso_O18, double *qv_std, double *qv_iso_O18, 
+        double*qt_std, double *qt_iso_O18) nogil
+    void iso_wbf_fractionation(Grid.DimStruct *dims, Lookup.LookupStruct *LT,
+        double(*lam_fp)(double), double(*L_fp)(double, double),
         double *temperature, double *p0,
         double *qt_std, double *qv_std, double *ql_std, double *qi_std, 
         double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18, double *qi_iso_O18, 
         double *qv_DV, double *ql_DV, double *qi_DV) nogil
-    void iso_wbf_fractionation_tmp(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double),
+    void iso_wbf_fractionation_tmp(Grid.DimStruct *dims, Lookup.LookupStruct *LT, 
+        double(*lam_fp)(double), double(*L_fp)(double, double),
         double *temperature, double *p0,
         double *qt_std, double *qv_std, double *ql_std, double *qi_std, 
         double *qt_iso_O18, double *qv_iso_O18, double *ql_iso_O18, double *qi_iso_O18, 
         double *qt_iso_HDO, double *qv_iso_HDO, double *ql_iso_HDO, double *qi_iso_HDO, 
         double *qv_DV, double *ql_DV, double *qi_DV) nogil
+        
+    void tracer_sb_liquid_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, 
+        double (*lam_fp)(double), double (*L_fp)(double, double),
+        double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+        double* density, double* p0, double* temperature,  double* qt, double ccn,
+        double* ql, double* nr, double* qr, double dt, double* nr_tendency_micro, double* qr_tendency_micro,
+        double* nr_tendency, double* qr_tendency,
+        double* qr_iso_O18, double* qt_iso_O18, double* qv_iso_O18, double* ql_iso_O18,
+        double* qr_iso_HDO, double* qt_iso_HDO, double* qv_iso_HDO, double* ql_iso_HDO,
+        double* qr_iso_O18_tendency_micro, double* qr_iso_O18_tendency, 
+        double* qr_iso_HDO_tendency_micro, double* qr_iso_HDO_tendency) nogil
+
 cdef extern from "scalar_advection.h":
-    void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double *rho0_half, double *velocity, double *scalar, double* flux, int d, int scheme) nogil
+    void compute_advective_fluxes_a(Grid.DimStruct *dims, double *rho0, double*rho0_half, 
+        double *velocity, double *scalar, double* flux, int d, int scheme) nogil
+
 cdef extern from "isotope_functions.h":
     double q_2_delta(double q_iso, double q_std) nogil
+
+cdef extern from "microphysics.h":
+    void microphysics_stokes_sedimentation_velocity(Grid.DimStruct *dims, double* density, double ccn, double*  ql, double*  qt_velocity) nogil
+
+cdef extern from "microphysics_sb.h":
+    void sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
+        double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity) nogil
+    void sb_sedimentation_velocity_liquid(Grid.DimStruct *dims, double*  density, double ccn, 
+        double* ql, double* qt_velocity)nogil
+
+cdef extern from "microphysics_sb_liquid.h":
+    void sb_qt_source_formation(Grid.DimStruct *dims,double* qr_tendency, double* qt_tendency )nogil
+
 def IsotopeTracersFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
     try:
         #  micro_scheme = namelist['microphysics']['scheme']
@@ -80,11 +110,12 @@ cdef class IsotopeTracersNone:
                      DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         Pa.root_print('initialized with IsotopeNone')
         return
-    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, 
-					ThermodynamicsSA.ThermodynamicsSA Th_sa, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
+    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref,
+        Microphysics.No_Microphysics_Dry Micro_Dry, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+        DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
         return
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-                   ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+                   ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         return
 
 cdef class IsotopeTracers_NoMicrophysics:
@@ -114,8 +145,9 @@ cdef class IsotopeTracers_NoMicrophysics:
         # finial output results after selection and scaling
         return
         
-    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, ThermodynamicsSA.ThermodynamicsSA Th_sa,
-                 DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
+    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
+        Microphysics.No_Microphysics_SA Micro_SA, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+        DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
             Py_ssize_t qt_shift = PV.get_varshift(Gr,'qt')
@@ -136,7 +168,7 @@ cdef class IsotopeTracers_NoMicrophysics:
             double[:] qv_iso_O18_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ql_iso_O18_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-        iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
+        iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
             &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
             &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
             &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
@@ -144,8 +176,8 @@ cdef class IsotopeTracers_NoMicrophysics:
         return
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-                   ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
-        iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
+                   ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
         return
 
 cdef class IsotopeTracers_SB_Liquid:
@@ -195,8 +227,11 @@ cdef class IsotopeTracers_SB_Liquid:
 
         initialize_NS_base(NS, Gr, Pa)
         return
-    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, ThermodynamicsSA.ThermodynamicsSA Th_sa,
-                 DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
+
+    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
+        Microphysics_SB_Liquid.Microphysics_SB_Liquid Micro_SB_Liquid, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+        DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+
         cdef:
             Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
             Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
@@ -206,54 +241,91 @@ cdef class IsotopeTracers_SB_Liquid:
             Py_ssize_t nr_shift     = PV.get_varshift(Gr,'nr')
             Py_ssize_t s_shift      = PV.get_varshift(Gr,'s')
             Py_ssize_t alpha_shift  = DV.get_varshift(Gr, 'alpha')
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
-            Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
-            Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
-            Py_ssize_t qr_std_shift = PV.get_varshift(Gr,'qr_std')
-            Py_ssize_t nr_std_shift = PV.get_varshift(Gr,'nr_std')
-            Py_ssize_t qt_iso_O18_shift = PV.get_varshift(Gr,'qt_iso_O18')
-            Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr,'qv_iso_O18')
-            Py_ssize_t ql_iso_O18_shift = PV.get_varshift(Gr,'ql_iso_O18')
-            Py_ssize_t qt_iso_HDO_shift = PV.get_varshift(Gr,'qt_iso_HDO')
-            Py_ssize_t qv_iso_HDO_shift = PV.get_varshift(Gr,'qv_iso_HDO')
-            Py_ssize_t ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
-            double[:] qv_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ql_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] qv_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ql_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            Py_ssize_t wqr_shift    = DV.get_varshift(Gr, 'w_qr')
+            Py_ssize_t wnr_shift    = DV.get_varshift(Gr, 'w_nr')
 
-            double[:] qt_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] qv_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ql_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] nr_tend_micro     = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] nr_tend_tmp       = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            Py_ssize_t qt_std_shift  = PV.get_varshift(Gr,'qt_std')
+            Py_ssize_t qv_std_shift  = PV.get_varshift(Gr,'qv_std')
+            Py_ssize_t ql_std_shift  = PV.get_varshift(Gr,'ql_std')
+            Py_ssize_t qr_std_shift  = PV.get_varshift(Gr,'qr_std')
+            Py_ssize_t nr_std_shift  = PV.get_varshift(Gr,'nr_std')
+            Py_ssize_t wqr_std_shift = DV.get_varshift(Gr, 'w_qr_std')
 
-            double[:] qt_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] qv_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ql_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            Py_ssize_t qt_iso_O18_shift  = PV.get_varshift(Gr,'qt_iso_O18')
+            Py_ssize_t qv_iso_O18_shift  = PV.get_varshift(Gr,'qv_iso_O18')
+            Py_ssize_t ql_iso_O18_shift  = PV.get_varshift(Gr,'ql_iso_O18')
+            Py_ssize_t qr_iso_O18_shift  = PV.get_varshift(Gr, 'qr_iso_O18')
+            Py_ssize_t wqr_iso_O18_shift = DV.get_varshift(Gr, 'w_qr_iso_O18')
 
-            double[:] qt_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] qv_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] ql_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            Py_ssize_t qt_iso_HDO_shift  = PV.get_varshift(Gr,'qt_iso_HDO')
+            Py_ssize_t qv_iso_HDO_shift  = PV.get_varshift(Gr,'qv_iso_HDO')
+            Py_ssize_t ql_iso_HDO_shift  = PV.get_varshift(Gr,'ql_iso_HDO')
+            Py_ssize_t qr_iso_HDO_shift  = PV.get_varshift(Gr, 'qr_iso_HDO')
+            Py_ssize_t wqr_iso_HDO_shift = DV.get_varshift(Gr, 'w_qr_iso_HDO')
+            Py_ssize_t wqt_std_shift
+            Py_ssize_t wqt_std_O18_shift
+            Py_ssize_t wqt_std_HDO_shift
 
-        iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
-            &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
+            double[:] qv_std_tmp     = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_std_tmp     = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_iso_O18_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ql_iso_HDO_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
+            &PV.values[qt_shift], &DV.values[qv_shift], &DV.values[ql_shift], 
+            &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
             &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
-            &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
-            &DV.values[qv_shift], &DV.values[ql_shift])
+            &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift])
+
+        tracer_sb_liquid_microphysics_sources(&Gr.dims, &Micro_SB_Liquid.CC.LT.LookupStructC, 
+            Micro_SB_Liquid.Lambda_fp, Micro_SB_Liquid.L_fp, 
+            Micro_SB_Liquid.compute_rain_shape_parameter, Micro_SB_Liquid.compute_droplet_nu, 
+            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], 
+            Micro_SB_Liquid.ccn, &DV.values[ql_shift], &PV.values[nr_shift], &PV.values[qr_shift], TS.dt, 
+            &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
+            &PV.values[qr_iso_O18_shift], &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift],
+            &PV.values[qr_iso_HDO_shift], &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift],
+            &qr_iso_O18_tend_micro[0], &PV.tendencies[qr_iso_O18_shift], &qr_iso_HDO_tend_micro[0], &PV.tendencies[qr_iso_HDO_shift])
+
+        sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_Liquid.compute_rain_shape_parameter, 
+            &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
+            &DV.values[wnr_shift], &DV.values[wqr_std_shift])
+        sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_Liquid.compute_rain_shape_parameter, 
+            &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
+            &DV.values[wnr_shift], &DV.values[wqr_iso_O18_shift])
+        sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_Liquid.compute_rain_shape_parameter, 
+            &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift],
+            &DV.values[wnr_shift], &DV.values[wqr_iso_HDO_shift])
+        if self.cloud_sedimentation:
+            wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
+            wqt_iso_O18_shift = DV.get_varshift(Gr, 'w_qt_iso_O18')
+            wqt_iso_HDO_shift = DV.get_varshift(Gr, 'w_qt_iso_HDO')
+            if self.stokes_sedimentation:
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_Liquid.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_Liquid.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_O18_shift])
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_Liquid.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_HDO_shift])
+            else:
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_Liquid.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_Liquid.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_O18_shift])
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_Liquid.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_HDO_shift])
+        sb_qt_source_formation(&Gr.dims,  &qr_std_tend_micro[0], &PV.tendencies[qt_std_shift])
+        sb_qt_source_formation(&Gr.dims,  &qr_iso_O18_tend_micro[0], &PV.tendencies[qt_iso_O18_shift])
+        sb_qt_source_formation(&Gr.dims,  &qr_iso_HDO_tend_micro[0], &PV.tendencies[qt_iso_HDO_shift])
+
         return 
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-                ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
-        iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
+                ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
         return
 
 cdef class IsotopeTracers_Arctic_1M:
     def __init__(self, dict namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
-        self.L_fp = LH.L_fp
-        self.Lambda_fp = LH.Lambda_fp
-        self.CC = ClausiusClapeyron()
-        self.CC.initialize(namelist, LH, Par)
         return
     cpdef initialize(self, namelist, Grid.Grid Gr,  PrognosticVariables.PrognosticVariables PV,
                 DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -302,8 +374,9 @@ cdef class IsotopeTracers_Arctic_1M:
         NS.add_profile('qsnow_iso_O18_cloud_domain', Gr, Pa, 'unit', '', 'qsnow_iso_O18_cloud_domain')
         return
 
-    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, 
-                ThermodynamicsSA.ThermodynamicsSA Th_sa, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
+    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
+        Microphysics_Arctic_1M.Microphysics_Arctic_1M Micro_Arctic_1M, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+        DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
             Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
@@ -333,8 +406,8 @@ cdef class IsotopeTracers_Arctic_1M:
             double[:] ql_iso_HDO_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qi_iso_HDO_tmp    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-        iso_wbf_fractionation_tmp(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
-                &DV.values[t_shift], &RS.p0_half[0],
+        iso_wbf_fractionation_tmp(&Gr.dims, &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp, 
+                &DV.values[t_shift], &Ref.p0_half[0],
                 &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[qi_std_shift], 
                 &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qi_iso_O18_shift], 
                 &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
@@ -342,8 +415,8 @@ cdef class IsotopeTracers_Arctic_1M:
         return
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-                   ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
-        iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
+                   ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
         cdef:
             Py_ssize_t i,j,k, ijk, ishift, jshift
             Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
@@ -498,8 +571,9 @@ cdef class IsotopeTracers_SBSI:
         initialize_NS_base(NS, Gr, Pa)
         return
 
-    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState RS, ThermodynamicsSA.ThermodynamicsSA Th_sa,
-                 DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa):
+    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
+        Microphysics_SB_SI.Microphysics_SB_SI Micro_SB_SI, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+        DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
             Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
@@ -539,7 +613,7 @@ cdef class IsotopeTracers_SBSI:
 
         # This equilibrium fractioantion processes only happened in cloud
         # based on SBSI scheme, the formation of cloud ice in in microphysics component.
-        iso_equilibrium_fractionation_No_Microphysics_full(&Gr.dims, &DV.values[t_shift],
+        iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
             &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
             &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
             &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
@@ -547,12 +621,12 @@ cdef class IsotopeTracers_SBSI:
         return 
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-            ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
-        iso_stats_io_Base(Gr, PV, DV, RS, NS, Pa)
+            ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
         return
 
 cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-            ReferenceState.ReferenceState RS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+            ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
     cdef:
         Py_ssize_t imin    = 0
         Py_ssize_t jmin    = 0
