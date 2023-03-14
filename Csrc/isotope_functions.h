@@ -230,6 +230,7 @@ static inline double equilibrium_fractionation_factor_HDO_ice(double t){
 	double alpha_ice = exp(16289/(t*t) - 9.45e-2);  
     return alpha_ice;
 }
+
 static inline double equilibrium_fractionation_factor_O18_ice_Ellehoj(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
 	double alpha_ice_O18 = exp(0.0831 - 49.192/t + 8312.5/(t*t));  
