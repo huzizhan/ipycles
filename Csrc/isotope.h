@@ -247,12 +247,13 @@ double ice_kinetic_frac_function(double qi_std, double qi_iso, double qi, double
     return qi_iso_tmp;
 }
 
-void iso_wbf_fractionation_tmp(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-    double* restrict temperature, double* restrict p0,
+void iso_mix_phase_fractionation(const struct DimStruct *dims, struct LookupStruct *LT, 
+    double (*lam_fp)(double), double (*L_fp)(double, double),double* restrict temperature, double* restrict p0,
     double* restrict qt_std, double* restrict qv_std, double* restrict ql_std, double* restrict qi_std, 
     double* restrict qt_iso_O18, double* restrict qv_iso_O18, double* restrict ql_iso_O18, double* restrict qi_iso_O18, 
     double* restrict qt_iso_HDO, double* restrict qv_iso_HDO, double* restrict ql_iso_HDO, double* restrict qi_iso_HDO, 
     double* restrict qv_DV, double* restrict ql_DV, double* restrict qi_DV){ 
+
     ssize_t i,j,k;
     double alpha_s_ice_O18, alpha_k_ice_O18, alpha_eq_lv_O18;
     double alpha_s_ice_HDO, alpha_k_ice_HDO, alpha_eq_lv_HDO;
@@ -286,17 +287,19 @@ void iso_wbf_fractionation_tmp(const struct DimStruct *dims, struct LookupStruct
 
                     alpha_k_ice_O18 = alpha_k_ice_equation_Blossey_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_O18, DVAPOR, diff_O18);
                     alpha_k_ice_HDO = alpha_k_ice_equation_Blossey_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_HDO, DVAPOR, diff_HDO);
-                    // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_O18, DVAPOR, diff_O18);
+                    // anthor option for alpha_k_ice is from Jouzel
 
-                    qv_std_tmp  = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
                     qv_iso_O18_tmp  = eq_frac_function(qt_iso_O18[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_O18);
                     qv_iso_HDO_tmp  = eq_frac_function(qt_iso_HDO[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_HDO);
 
                     qi_iso_O18_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_iso_O18[ijk], qi_DV[ijk], alpha_s_ice_O18, alpha_k_ice_O18);
                     qi_iso_HDO_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_iso_HDO[ijk], qi_DV[ijk], alpha_s_ice_HDO, alpha_k_ice_HDO);
+
+
+                    qv_std_tmp  = qv_DV[ijk];
+                    ql_std_tmp  = ql_DV[ijk];
                     qi_std_tmp  = qi_DV[ijk];
 
-                    ql_std_tmp  = qt_std[ijk] - qv_std_tmp - qi_std_tmp;
                     ql_iso_O18_tmp  = qt_iso_O18[ijk] - qv_iso_O18_tmp - qi_iso_O18_tmp;
                     ql_iso_HDO_tmp  = qt_iso_HDO[ijk] - qv_iso_HDO_tmp - qi_iso_HDO_tmp;
                     
@@ -317,64 +320,63 @@ void iso_wbf_fractionation_tmp(const struct DimStruct *dims, struct LookupStruct
     return;
 }
 
-void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-    double* restrict temperature, double* restrict p0,
-    double* restrict qt_std, double* restrict qv_std, double* restrict ql_std, double* restrict qi_std, 
-    double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso, double* restrict qi_iso, 
-    double* restrict qv_DV, double* restrict ql_DV, double* restrict qi_DV){ 
-    ssize_t i,j,k;
-    double alpha_s_ice, alpha_k_ice, alpha_eq_O18;
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = 0;
-    const ssize_t jmin = 0;
-    const ssize_t kmin = 0;
-    const ssize_t imax = dims->nlg[0];
-    const ssize_t jmax = dims->nlg[1];
-    const ssize_t kmax = dims->nlg[2];
-
-    for (i=imin; i<imax; i++){
-       const ssize_t ishift = i * istride;
-        for (j=jmin;j<jmax;j++){
-            const ssize_t jshift = j * jstride;
-                for (k=kmin;k<kmax;k++){
-                    const ssize_t ijk = ishift + jshift + k;
-                    double qv_std_tmp, ql_std_tmp, qi_std_tmp, qv_iso_tmp, ql_iso_tmp, qi_iso_tmp;
-
-                    alpha_eq_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
-                    alpha_s_ice = 1.0 / equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
-                    alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
-                    // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
-
-                    qv_std_tmp  = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
-                    qv_iso_tmp  = eq_frac_function(qt_iso[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
-
-                    qi_iso_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_iso[ijk], qi_DV[ijk], alpha_s_ice, alpha_k_ice);
-                    qi_std_tmp  = qi_DV[ijk];
-
-                    ql_std_tmp  = qt_std[ijk] - qv_std_tmp - qi_std_tmp;
-                    ql_iso_tmp  = qt_iso[ijk] - qv_iso_tmp - qi_iso_tmp;
-                    
-                    qv_std[ijk] = qv_std_tmp;
-                    ql_std[ijk] = ql_std_tmp;
-                    qi_std[ijk] = qi_std_tmp;
-
-                    qv_iso[ijk] = qv_iso_tmp;
-                    ql_iso[ijk] = ql_iso_tmp;
-                    qi_iso[ijk] = qi_iso_tmp;
-                } // End k loop
-            } // End j loop
-        } // End i loop
-    return;
-}
+// void iso_wbf_fractionation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+//     double* restrict temperature, double* restrict p0,
+//     double* restrict qt_std, double* restrict qv_std, double* restrict ql_std, double* restrict qi_std, 
+//     double* restrict qt_iso, double* restrict qv_iso, double* restrict ql_iso, double* restrict qi_iso, 
+//     double* restrict qv_DV, double* restrict ql_DV, double* restrict qi_DV){ 
+//     ssize_t i,j,k;
+//     double alpha_s_ice, alpha_k_ice, alpha_eq_O18;
+//     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+//     const ssize_t jstride = dims->nlg[2];
+//     const ssize_t imin = 0;
+//     const ssize_t jmin = 0;
+//     const ssize_t kmin = 0;
+//     const ssize_t imax = dims->nlg[0];
+//     const ssize_t jmax = dims->nlg[1];
+//     const ssize_t kmax = dims->nlg[2];
+//
+//     for (i=imin; i<imax; i++){
+//        const ssize_t ishift = i * istride;
+//         for (j=jmin;j<jmax;j++){
+//             const ssize_t jshift = j * jstride;
+//                 for (k=kmin;k<kmax;k++){
+//                     const ssize_t ijk = ishift + jshift + k;
+//                     double qv_std_tmp, ql_std_tmp, qi_std_tmp, qv_iso_tmp, ql_iso_tmp, qi_iso_tmp;
+//
+//                     alpha_eq_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
+//                     alpha_s_ice = 1.0 / equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
+//                     alpha_k_ice = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
+//                     // alpha_k_ice = alpha_k_ice_equation_Jouzel(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice);
+//
+//                     qv_std_tmp  = eq_frac_function(qt_std[ijk], qv_DV[ijk], ql_DV[ijk], 1.0);
+//                     qv_iso_tmp  = eq_frac_function(qt_iso[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_O18);
+//
+//                     qi_iso_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_iso[ijk], qi_DV[ijk], alpha_s_ice, alpha_k_ice);
+//                     qi_std_tmp  = qi_DV[ijk];
+//
+//                     ql_std_tmp  = qt_std[ijk] - qv_std_tmp - qi_std_tmp;
+//                     ql_iso_tmp  = qt_iso[ijk] - qv_iso_tmp - qi_iso_tmp;
+//                     
+//                     qv_std[ijk] = qv_std_tmp;
+//                     ql_std[ijk] = ql_std_tmp;
+//                     qi_std[ijk] = qi_std_tmp;
+//
+//                     qv_iso[ijk] = qv_iso_tmp;
+//                     ql_iso[ijk] = ql_iso_tmp;
+//                     qi_iso[ijk] = qi_iso_tmp;
+//                 } // End k loop
+//             } // End j loop
+//         } // End i loop
+//     return;
+// }
 
 // ===========<<< 1M tracer scheme for Arctic_1M Microphysics scheme >>> ============
 
 void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-    double (*L_fp)(double, double), double* restrict density, double* restrict p0,
-    double* restrict temperature,  double* restrict qt, double ccn, double n0_ice,
-    double* restrict qv, double* restrict ql, double* restrict qi, double* restrict qrain, double* restrict nrain,
-    double* restrict qsnow, double* restrict nsnow, double dt,
+    double (*L_fp)(double, double), double* restrict density, double* restrict p0, double ccn, double n0_ice, double dt,
+    double* restrict temperature,  double* restrict qt, double* restrict qv, double* restrict ql, double* restrict qi, 
+    double* restrict qrain, double* restrict nrain, double* restrict qsnow, double* restrict nsnow, 
     double* restrict ql_std, double* restrict qi_std, double* restrict qrain_tendency_micro, double* restrict qrain_tendency,
     double* restrict qsnow_tendency_micro, double* restrict qsnow_tendency,
     double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate,
