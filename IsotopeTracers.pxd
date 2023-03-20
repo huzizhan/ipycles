@@ -25,16 +25,16 @@ include "parameters.pxi"
 import cython
 
 cdef class IsotopeTracersNone:
+    cdef public bint isotope_tracer
 
     cpdef initialize(self, namelist, Grid.Grid Gr,  PrognosticVariables.PrognosticVariables PV,
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
-    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref,
-            Microphysics.No_Microphysics_Dry Micro_Dry, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
-            DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
+    cpdef update(self)
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
 cdef class IsotopeTracers_NoMicrophysics:
+    cdef public bint isotope_tracer
 
     cpdef initialize(namelist, self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
@@ -45,6 +45,7 @@ cdef class IsotopeTracers_NoMicrophysics:
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
 cdef class IsotopeTracers_SB_Liquid:
+    cdef public bint isotope_tracer
     
     cdef:
         bint cloud_sedimentation
@@ -61,6 +62,7 @@ cdef class IsotopeTracers_Arctic_1M:
 
     cdef:
         bint cloud_sedimentation
+        public bint isotope_tracer
 
     cpdef initialize(namelist, self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
@@ -73,6 +75,7 @@ cdef class IsotopeTracers_Arctic_1M:
 cdef class IsotopeTracers_SBSI:
     
     cdef:
+        public bint isotope_tracer
         bint cloud_sedimentation
 
     cpdef initialize(namelist, self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 

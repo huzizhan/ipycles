@@ -162,7 +162,10 @@ class Simulation3d:
                 self.Ke.update(self.Gr,PV_)
                 self.Th.update(self.Gr,self.Ref,PV_,DV_)
                 self.Micro.update(self.Gr, self.Ref, self.Th, PV_, DV_, self.TS, self.Pa)
-                self.IsoTracer.update(self.Gr, self.PV, self.Ref, self.Micro, self.Th, self.DV, self.TS, self.Pa)
+
+                if self.IsoTracer.isotope_tracer:
+                    self.IsoTracer.update(self.Gr, self.PV, self.Ref, self.Micro, self.Th, self.DV, self.TS, self.Pa)
+
                 self.Tr.update(self.Gr, self.Ref, PV_, DV_, self.TS, self.Pa)
                 self.SA.update(self.Gr,self.Ref,PV_, DV_,  self.Pa)
                 self.MA.update(self.Gr,self.Ref,PV_,self.Pa)
