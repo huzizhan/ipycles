@@ -43,25 +43,36 @@ double microphysics_g(struct LookupStruct *LT, double (*lam_fp)(double), double 
     return g_therm;
 }
 
-double microphysics_g_vi(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
-    double lam = lam_fp(temperature);
-    double L = L_fp(temperature,lam);
-    double pv_sat = lookup(LT, temperature);
-    double G_iv = 1.0/(Rv*temperature/DVAPOR/pv_sat + L_IV/KT/temperature * (L_IV/Rv/temperature - 1.0));
-    // double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
-    return G_iv;
+double microphysics_g_liq(double temperature, double dvapor, double kappa_t){
+    // double pv_sat = lookup(LT, temperature);
+    double pv_sat = saturation_vapor_pressure_water(temperature);
+    double rho_sat = pv_sat/Rv/temperature;
+
+    /*blossey's scheme for evaporation*/
+    // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); 
+    
+    /*Straka 2009 (6.13)*/
+    double b_l = (dvapor*rho_sat)*(L_LV/kappa_t/temperature)*(L_LV/Rv/temperature - 1.0);
+
+    double g_therm_liq = dvapor*rho_sat/(1.0+b_l);
+    return g_therm_liq;
 }
 
-double microphysics_saturation_ratio_liq(struct LookupStruct *LT,  double temperature, double  p0, double qt){
-    // double pv_sat = lookup(LT, temperature);
+double microphysics_g_ice(double temperature, double dvapor, double kappa_t){
+    double pv_sat = saturation_vapor_pressure_ice(temperature);
+    double g_therm_ice = 1.0/(Rv*temperature/dvapor/pv_sat + L_IV/kappa_t/temperature * (L_IV/Rv/temperature - 1.0));
+    // double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
+    return g_therm_ice;
+}
+
+double microphysics_saturation_ratio_liq(double temperature, double  p0, double qt){
     double pv_sat_liq = saturation_vapor_pressure_water(temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat_liq);
     double saturation_ratio = qt/qv_sat - 1.0;
     return saturation_ratio;
 }
 
-double microphysics_saturation_ratio_ice(struct LookupStruct *LT,  double temperature, double  p0, double qt){
-    // double pv_sat = lookup(LT, temperature);
+double microphysics_saturation_ratio_ice(double temperature, double  p0, double qt){
     double pv_sat_ice = saturation_vapor_pressure_ice(temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat_ice);
     double saturation_ratio = qt/qv_sat - 1.0;

@@ -84,7 +84,6 @@ def default_arctic():
     parameters["D_L1"] = 4e-5 # 40μm 
     parameters["D_I0"] = 1.5e-4 # 150μm 
     parameters["SIGMA_ICE"] = 0.2 # m/s
-    parameters["L_IV"] = 2.834e6 #J kg^-1, latent heat of sublimation;
 
     #############################
     # Users shouldn't modify below

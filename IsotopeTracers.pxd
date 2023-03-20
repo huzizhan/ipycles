@@ -75,13 +75,21 @@ cdef class IsotopeTracers_Arctic_1M:
 cdef class IsotopeTracers_SBSI:
     
     cdef:
-        public bint isotope_tracer
+        double (*compute_rain_shape_parameter)(double density, double qr, double Dm) nogil
+        double (*compute_droplet_nu)(double density, double ql) nogil
+
+        double ccn
+
         bint cloud_sedimentation
+        bint stokes_sedimentation
+        Py_ssize_t order
+
+        public bint isotope_tracer
 
     cpdef initialize(namelist, self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
-            Microphysics_SB_SI.Microphysics_SB_SI Micro_SB_SI, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+            Microphysics_Arctic_1M.Microphysics_Arctic_1M Micro_Arctic_1M, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
             DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)

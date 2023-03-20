@@ -15,14 +15,16 @@ cdef class Microphysics_SB_SI:
     cdef:
         double (*L_fp)(double T, double Lambda) nogil
         double (*Lambda_fp)(double T) nogil
+        ClausiusClapeyron CC
+
         double (*compute_rain_shape_parameter)(double density, double qr, double Dm) nogil
         double (*compute_droplet_nu)(double density, double ql) nogil
-        ClausiusClapeyron CC
+
         double ccn
+        
         Py_ssize_t order
         bint cloud_sedimentation
         bint stokes_sedimentation
-        bint isotope_tracers
         
         double [:] evap_rate
         double [:] precip_rate

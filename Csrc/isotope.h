@@ -561,8 +561,8 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
                     double diff_HDO = vapor_diff*0.9723;
 
                     double gtherm_iso_O18_liq, gtherm_iso_O18_ice, gtherm_iso_HDO_liq, gtherm_iso_HDO_ice, sat_ratio_liq, sat_ratio_ice;
-                    sat_ratio_liq = microphysics_saturation_ratio_liq(LT, temperature[ijk], p0[k], qt_tmp);
-                    sat_ratio_ice = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], qt_tmp); // sat_ratio_ice > 0.0 when super saturated over ice water
+                    sat_ratio_liq = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt_tmp);
+                    sat_ratio_ice = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt_tmp); // sat_ratio_ice > 0.0 when super saturated over ice water
                                                                                                             //
                     gtherm_iso_O18_liq = microphysics_g_iso_tmp(LT, lam_fp, L_fp, temperature[ijk], p0[k], qrain_tmp, qrain_iso_O18_tmp, 
                         qv_tmp, qv_iso_O18_tmp, sat_ratio_liq, diff_O18, therm_cond);
@@ -782,7 +782,7 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                 double qi_tmp = fmax(qi[ijk],0.0);
                 double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
 
-                double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
+                // double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
                 double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, sifi_av, sifi_bv, sb_beta_ice, ice_mass;
                 
                 precip_rate[ijk] = 0.0;
@@ -812,8 +812,8 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     ql_tendency_tmp   = 0.0;
 
                     iter_count       += 1;
-                    double sat_ratio_liq    = microphysics_saturation_ratio_liq(LT, temperature[ijk], p0[k], qt_tmp);
-                    double sat_ratio_ice    = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], qt_tmp);
+                    double sat_ratio_liq    = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt_tmp);
+                    double sat_ratio_ice    = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt_tmp);
                     double sat_ratio_lookup = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt_tmp);
                     ql_tendency_frez  = 0.0;
 
@@ -859,20 +859,23 @@ void tracer_sb_si_microphysics_sources(const struct DimStruct *dims, struct Look
                     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
                     velocity_ice  = sifi_av * pow(Dm_i, sifi_bv);
 
+                    double g_therm_liq = microphysics_g_liq(temperature[ijk], DVAPOR, KT);
+                    double g_therm_ice = microphysics_g_ice(temperature[ijk], DVAPOR, KT);
+
                     //compute the source terms
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
-                    sb_evaporation_rain(g_therm, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
+                    sb_evaporation_rain(g_therm_liq, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
 
                     sb_nucleation_ice(temperature[ijk], sat_ratio_ice, dt_, ni_tmp, density[k], &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, 
                             nr_tmp, &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &qi_tendency_frez, &ni_tendency_frez);
                     sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, 
                             ni_tmp, qi_tmp, sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc);
-                    sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
+                    sb_deposition_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
-                    sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
+                    sb_sublimation_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
                     sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, 
                             &ni_tendency_melt, &qi_tendency_melt);

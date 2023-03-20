@@ -138,15 +138,6 @@ cdef class Microphysics_SB_Liquid:
         else:
             self.stokes_sedimentation = False
 
-        # define the isotope tracers components 
-        try:
-            if namelist['isotopetracers']['use_tracers']:
-                self.isotope_tracers = True
-            else:
-                self.isotope_tracers = False
-        except:
-            self.isotope_tracers = False
-
         return
 
     cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):

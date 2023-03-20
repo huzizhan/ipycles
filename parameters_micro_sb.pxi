@@ -49,5 +49,4 @@ cdef double D_L0 = 1.5e-05
 cdef double D_L1 = 4e-05
 cdef double D_I0 = 0.00015
 cdef double SIGMA_ICE = 0.2
-cdef double L_IV = 2834000.0
 #End Generated Code

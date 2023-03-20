@@ -92,6 +92,13 @@ cdef extern from "microphysics.h":
     void microphysics_stokes_sedimentation_velocity(Grid.DimStruct *dims, double* density, double ccn, double*  ql, double*  qt_velocity) nogil
 
 cdef extern from "microphysics_sb.h":
+    double sb_rain_shape_parameter_0(double density, double qr, double Dm) nogil
+    double sb_rain_shape_parameter_1(double density, double qr, double Dm) nogil
+    double sb_rain_shape_parameter_2(double density, double qr, double Dm) nogil
+    double sb_rain_shape_parameter_4(double density, double qr, double Dm) nogil
+    double sb_droplet_nu_0(double density, double ql) nogil
+    double sb_droplet_nu_1(double density, double ql) nogil
+    double sb_droplet_nu_2(double density, double ql) nogil
     void sb_sedimentation_velocity_rain(Grid.DimStruct *dims, double (*rain_mu)(double,double,double),
         double* density, double* nr, double* qr, double* nr_velocity, double* qr_velocity) nogil
     void sb_sedimentation_velocity_liquid(Grid.DimStruct *dims, double*  density, double ccn, 
@@ -108,7 +115,7 @@ cdef extern from "microphysics_arctic_1m.h":
     void qt_source_formation(Grid.DimStruct *dims, double* qt_tendency, double* precip_rate, double* evap_rate) nogil
     
 cdef extern from "microphysics_sb_si.h":
-    void sb_si_microphysics_sources(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+    void sb_si_microphysics_sources(Grid.DimStruct *dims,
             double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
             double* density, double* p0, double* temperature,  double* qt, double ccn,
             double* ql, double* nr, double* qr, double* qisi, double* nisi, double dt, 
@@ -600,7 +607,65 @@ cdef class IsotopeTracers_Arctic_1M:
 
 cdef class IsotopeTracers_SBSI:
     def __init__(self, namelist):
+
         self.isotope_tracer = True
+
+        self.ccn = 100.0e6
+        if namelist['meta']['casename'] == 'DYCOMS_RF02':
+            self.ccn = 55.0e6
+        elif namelist['meta']['casename'] == 'Rico':
+            self.ccn = 70.0e6
+        try:
+            self.ccn = namelist['microphysics']['ccn']
+        except:
+            pass
+        # Set option for calculation of mu (distribution shape parameter)
+        try:
+            mu_opt = namelist['microphysics']['SB_Liquid']['mu_rain']
+            if mu_opt == 1:
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_1
+            elif mu_opt == 2:
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_2
+            elif mu_opt == 4:
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_4
+            elif mu_opt == 0:
+                self.compute_rain_shape_parameter  = sb_rain_shape_parameter_0
+            else:
+                # Par.root_print("SB_Liquid mu_rain option not recognized, defaulting to option 1")
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_1
+        except:
+            # Par.root_print("SB_Liquid mu_rain option not selected, defaulting to option 1")
+            self.compute_rain_shape_parameter = sb_rain_shape_parameter_1
+        # Set option for calculation of nu parameter of droplet distribution
+        try:
+            nu_opt = namelist['microphysics']['SB_Liquid']['nu_droplet']
+            if nu_opt == 0:
+                self.compute_droplet_nu = sb_droplet_nu_0
+            elif nu_opt == 1:
+                self.compute_droplet_nu = sb_droplet_nu_1
+            elif nu_opt ==2:
+                self.compute_droplet_nu = sb_droplet_nu_2
+            else:
+                # Par.root_print("SB_Liquid nu_droplet_option not recognized, defaulting to option 0")
+                self.compute_droplet_nu = sb_droplet_nu_0
+        except:
+            # Par.root_print("SB_Liquid nu_droplet_option not selected, defaulting to option 0")
+            self.compute_droplet_nu = sb_droplet_nu_0
+
+        try:
+            self.order = namelist['scalar_transport']['order_sedimentation']
+        except:
+            self.order = namelist['scalar_transport']['order']
+
+        try:
+            self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
+        except:
+            self.cloud_sedimentation = False
+        if namelist['meta']['casename'] == 'DYCOMS_RF02':
+            self.stokes_sedimentation = True
+        else:
+            self.stokes_sedimentation = False
+
         return
     cpdef initialize(self, namelist, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
                     DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -664,15 +729,13 @@ cdef class IsotopeTracers_SBSI:
         return
 
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
-        Microphysics_SB_SI.Microphysics_SB_SI Micro_SB_SI, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+        Microphysics_Arctic_1M.Microphysics_Arctic_1M Micro_Arctic_1M, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
         DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
             Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
             Py_ssize_t qv_shift     = DV.get_varshift(Gr,'qv')
             Py_ssize_t ql_shift     = DV.get_varshift(Gr,'ql')
-            Py_ssize_t qr_shift     = PV.get_varshift(Gr,'qr')
-            Py_ssize_t nr_shift     = PV.get_varshift(Gr,'nr')
             Py_ssize_t s_shift      = PV.get_varshift(Gr,'s')
             Py_ssize_t alpha_shift  = DV.get_varshift(Gr, 'alpha')
             Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
@@ -695,23 +758,6 @@ cdef class IsotopeTracers_SBSI:
             Py_ssize_t ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
             Py_ssize_t wqt_std_shift
 
-            # double[:] qv_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] ql_std_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] qv_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] ql_iso_O18_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] qv_iso_HDO_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] ql_iso_HDO_tmp        = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            #
-            # double[:] qt_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] qv_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] ql_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            #
-            # double[:] qt_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] qv_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] ql_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] qt_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] qv_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] ql_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] precip_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] evap_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] melt_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
@@ -729,10 +775,9 @@ cdef class IsotopeTracers_SBSI:
         #     &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
         #     &DV.values[qv_shift], &DV.values[ql_shift])
 
-        sb_si_microphysics_sources(&Gr.dims, &Micro_SB_SI.CC.LT.LookupStructC, Micro_SB_SI.Lambda_fp, Micro_SB_SI.L_fp, 
-            Micro_SB_SI.compute_rain_shape_parameter, Micro_SB_SI.compute_droplet_nu, 
-            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], Micro_SB_SI.ccn, 
-            &DV.values[ql_shift], &PV.values[nr_shift], &PV.values[qr_std_shift], &PV.values[qisi_std_shift], &PV.values[nisi_std_shift], TS.dt,   
+        sb_si_microphysics_sources(&Gr.dims, self.compute_rain_shape_parameter, self.compute_droplet_nu, 
+            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, 
+            &DV.values[ql_shift], &PV.values[nr_std_shift], &PV.values[qr_std_shift], &PV.values[qisi_std_shift], &PV.values[nisi_std_shift], TS.dt,   
             &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
             &nisi_std_tend_micro[0], &qisi_std_tend_micro[0], &PV.tendencies[nisi_std_shift], &PV.tendencies[qisi_std_shift],
             &precip_rate[0], &evap_rate[0], &melt_rate[0])
@@ -740,7 +785,7 @@ cdef class IsotopeTracers_SBSI:
         sb_si_qt_source_formation(&Gr.dims, &qisi_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[qt_shift])
 
         # sedimentation processes of rain and single_ice: w_qr and w_qisi
-        sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_SI.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_std_shift],
+        sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_std_shift],
             &PV.values[qr_std_shift], &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
         sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_std_shift], &PV.values[qisi_std_shift], &Ref.rho0_half[0], 
             &DV.values[wnisi_std_shift], &DV.values[wqisi_std_shift])
@@ -748,9 +793,9 @@ cdef class IsotopeTracers_SBSI:
         if self.cloud_sedimentation:
             wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
             if self.stokes_sedimentation:
-                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_SI.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
             else:
-                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_SI.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
         return 
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,

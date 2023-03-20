@@ -48,5 +48,4 @@
 #define D_L1 4e-05
 #define D_I0 0.00015
 #define SIGMA_ICE 0.2
-#define L_IV 2834000.0
 //End generated code

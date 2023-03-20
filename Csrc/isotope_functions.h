@@ -93,22 +93,6 @@ static inline double iso_vapor_diffusivity(const double temperature, const doubl
 
 // ===========<<<  SB_Warm Scheme  >>> ============
 
-double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature, double dvap, double kt){
-    double lam = lam_fp(temperature);
-    double L = L_fp(temperature,lam);
-    // double pv_sat = lookup(LT, temperature);
-    double pv_sat = saturation_vapor_pressure_water(temperature);
-    double rho_sat = pv_sat/Rv/temperature;
-
-    /*blossey's scheme for evaporation*/
-    // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); 
-    
-    /*Straka 2009 (6.13)*/
-    double b_l = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0);
-
-    double g_therm = dvap*rho_sat/(1.0+b_l);
-    return g_therm;
-}
 
 double microphysics_g_iso_tmp(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                              double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
@@ -531,7 +515,7 @@ void arc1m_std_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
     if( satratio < 1.0 && qrain > 1.0e-15){
         re = rain_diam*rain_vel/VISC_AIR;
         vent = 0.78 + 0.27*sqrt(re);
-        gtherm = microphysics_g_std(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
+        gtherm = microphysics_g_liq(temperature, vapor_diff, therm_cond);
         *qrain_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm*nrain/(rain_lam*rain_lam)/density;
     }
 

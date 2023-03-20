@@ -299,8 +299,7 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
     return;
 }
 
-void sb_deposition_ice(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-        double temperature, double Dm_i, double S_i, double ice_mass, double velocity_ice,
+void sb_deposition_ice(double g_therm_ice,double temperature, double Dm_i, double S_i, double ice_mass, double velocity_ice,
         double qi, double ni, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
     //-------------------------------------------------------------
     // INPUT VARIABLES
@@ -318,9 +317,8 @@ void sb_deposition_ice(struct LookupStruct *LT, double (*lam_fp)(double), double
     //-------------------------------------------------------------
     
     if(qi > 1e-12 && ni > 1e-12 && S_i >= 0.0){
-        double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature);
         double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, velocity_ice, ice_mass, 1, sb_b_ice, sb_beta_ice);
-        double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
+        double qi_tendency_tmp  = 4 * g_therm_ice * Dm_i * F_v_mass * S_i;
         *qi_tendency = qi_tendency_tmp;
     }
     else{
@@ -329,8 +327,7 @@ void sb_deposition_ice(struct LookupStruct *LT, double (*lam_fp)(double), double
     return;
 }
 
-void sb_sublimation_ice(struct LookupStruct *LT,  double (*lam_fp)(double), double (*L_fp)(double, double),
-        double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
+void sb_sublimation_ice(double g_therm_ice, double temperature, double Dm_i, double S_i, double ice_mass, double fall_vel,
         double qi, double ni, double sb_b_ice, double sb_beta_ice, double* qi_tendency){
     // ========IN PUT ================
     // Dm_i: mass-weighted diameter of ice;
@@ -343,9 +340,8 @@ void sb_sublimation_ice(struct LookupStruct *LT,  double (*lam_fp)(double), doub
     // qi_tendency: ∂qᵢ/∂t of sublimation, based on Equ 42 in SB06
 
     if(qi > 1e-11 && ni > 1e-11 && S_i < 0.0){
-        double G_iv = microphysics_g_vi(LT, lam_fp, L_fp, temperature);
         double F_v_mass  = microphysics_ventilation_coefficient_ice(Dm_i, fall_vel, ice_mass, 1, sb_b_ice, sb_beta_ice);
-        double qi_tendency_tmp  = 4 * G_iv * Dm_i * F_v_mass * S_i;
+        double qi_tendency_tmp  = 4 * g_therm_ice * Dm_i * F_v_mass * S_i;
         *qi_tendency = qi_tendency_tmp;
     }
     else{
