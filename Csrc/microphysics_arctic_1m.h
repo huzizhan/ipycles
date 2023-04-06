@@ -42,8 +42,7 @@ double microphysics_g_arctic_rain(struct LookupStruct *LT, double (*lam_fp)(doub
                              double temperature, double dvap, double kt){
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
-    // double pv_sat = lookup(LT, temperature);
-    double pv_sat_l = saturation_vapor_pressure_water(temperature);
+    double pv_sat_l = lookup(LT, temperature);
     /*Straka 2009 (6.13)*/
     double g_therm = 1.0/(Rv*temperature/dvap/pv_sat_l + L/kt/temperature * (L/Rv/temperature - 1.0));
     return g_therm;
@@ -53,8 +52,7 @@ double microphysics_g_arctic_snow(struct LookupStruct *LT, double (*lam_fp)(doub
                              double temperature, double dvap, double kt){
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
-    // double pv_sat = lookup(LT, temperature);
-    double pv_sat_i = saturation_vapor_pressure_ice(temperature);
+    double pv_sat_i = lookup(LT, temperature);
     /*Straka 2009 (6.13)*/
     double g_therm = 1.0/(Rv*temperature/dvap/pv_sat_i + L/kt/temperature * (L/Rv/temperature - 1.0));
     return g_therm;
@@ -230,8 +228,7 @@ void autoconversion_snow(struct LookupStruct *LT, double (*lam_fp)(double), doub
                          double density, const double p0, double temperature, double qt,
                          double qi, double ni, double* qsnow_tendency){
     /* Harrington 1995 snow autoconversion model */
-    // double pv_star = lookup(LT, temperature);
-    double pv_star = saturation_vapor_pressure_ice(temperature);
+    double pv_star = lookup(LT, temperature);
     //double pv_star = pv_star_ice_c(temperature);
     double qv_star = qv_star_c(p0, qt, pv_star);
     //double satratio = qt_/qv_star;
@@ -258,8 +255,7 @@ void evaporation_rain(struct LookupStruct *LT, double (*lam_fp)(double), double 
                       double density, const double p0, double temperature,
                       double qt, double qrain, double nrain, double* qrain_tendency){
     double beta = 2.0;
-    // double pv_star = lookup(LT, temperature);
-    double pv_star = saturation_vapor_pressure_water(temperature);
+    double pv_star = lookup(LT, temperature);
     double qv_star = qv_star_c(p0, qt, pv_star);
     double satratio = qt/qv_star;
     double vapor_diff = vapor_diffusivity(temperature, p0);
@@ -286,8 +282,7 @@ void evaporation_snow(struct LookupStruct *LT, double (*lam_fp)(double), double 
                         double density, double p0, double temperature, double qt,
                         double qsnow, double nsnow, double* qsnow_tendency){
     double beta = 3.0;
-    // double pv_star = lookup(LT, temperature);
-    double pv_star = saturation_vapor_pressure_ice(temperature);
+    double pv_star = lookup(LT, temperature);
     //double pv_star = pv_star_ice_c(temperature);
     double qv_star = qv_star_c(p0, qt, pv_star);
     double satratio = qt/qv_star;
@@ -413,13 +408,13 @@ void melt_snow(double density, double temperature, double qsnow, double nsnow, d
 };
 
 void microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-                             double (*L_fp)(double, double), double* restrict density, double* restrict p0,
-                             double* restrict temperature,  double* restrict qt, double ccn, double n0_ice,
-                             double* restrict ql, double* restrict qi, double* restrict qrain, double* restrict nrain,
-                             double* restrict qsnow, double* restrict nsnow, double dt,
-                             double* restrict qrain_tendency_micro, double* restrict qrain_tendency,
-                             double* restrict qsnow_tendency_micro, double* restrict qsnow_tendency,
-                             double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate){
+        double (*L_fp)(double, double), double* restrict density, double* restrict p0,
+        double* restrict temperature,  double* restrict qt, double ccn, double n0_ice,
+        double* restrict ql, double* restrict qi, double* restrict qrain, double* restrict nrain,
+        double* restrict qsnow, double* restrict nsnow, double dt,
+        double* restrict qrain_tendency_micro, double* restrict qrain_tendency,
+        double* restrict qsnow_tendency_micro, double* restrict qsnow_tendency,
+        double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate){
 
     const double b1 = 650.1466922699631;
     const double b2 = -1.222222222222222;

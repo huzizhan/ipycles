@@ -225,7 +225,6 @@ void sb_si_microphysics_sources(const struct DimStruct *dims,
                     iter_count       += 1;
                     sat_ratio_liq     = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt_tmp);
                     sat_ratio_ice     = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt_tmp);
-                    // double sat_ratio_lookup  = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt_tmp);
                     ql_tendency_frez  = 0.0;
 
                     nr_tendency_au    = 0.0;
@@ -269,8 +268,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims,
                     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
                     velocity_ice  = si_av * pow(Dm_i, si_bv);
 
-                    double g_therm_liq = microphysics_g_liq(temperature[ijk], DVAPOR, KT);
-                    double g_therm_ice = microphysics_g_ice(temperature[ijk], DVAPOR, KT);
+                    double g_therm_liq = microphysics_g_liq_SBSI(temperature[ijk], DVAPOR, KT);
+                    double g_therm_ice = microphysics_g_ice_SBSI(temperature[ijk], DVAPOR, KT);
 
                     //compute the source terms
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);

@@ -35,16 +35,17 @@ double microphysics_diameter_from_mass(double mass, double prefactor, double exp
 
 // Seifert & Beheng 2006: Equ 23.
 double microphysics_g(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
+    // this is only used in SB_Liquid scheme and related isotope tracer schemes
+
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
-    // double pv_sat = lookup(LT, temperature);
-    double pv_sat = saturation_vapor_pressure_water(temperature);
+    double pv_sat = lookup(LT, temperature);
     double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
     return g_therm;
 }
 
-double microphysics_g_liq(double temperature, double dvapor, double kappa_t){
-    // double pv_sat = lookup(LT, temperature);
+double microphysics_g_liq_SBSI(double temperature, double dvapor, double kappa_t){
+
     double pv_sat = saturation_vapor_pressure_water(temperature);
     double rho_sat = pv_sat/Rv/temperature;
 
@@ -58,7 +59,7 @@ double microphysics_g_liq(double temperature, double dvapor, double kappa_t){
     return g_therm_liq;
 }
 
-double microphysics_g_ice(double temperature, double dvapor, double kappa_t){
+double microphysics_g_ice_SBSI(double temperature, double dvapor, double kappa_t){
     double pv_sat = saturation_vapor_pressure_ice(temperature);
     double g_therm_ice = 1.0/(Rv*temperature/dvapor/pv_sat + L_IV/kappa_t/temperature * (L_IV/Rv/temperature - 1.0));
     // double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
@@ -80,8 +81,10 @@ double microphysics_saturation_ratio_ice(double temperature, double  p0, double 
 }
 
 double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperature, double  p0, double qt){
+    // This section is only used under SB_Liquid scheme,
+    // for calculation of super saturtation ratio over liquid water
+
     double pv_sat = lookup(LT, temperature);
-    // double pv_sat = saturation_vapor_pressure_water(temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat);
     double saturation_ratio = qt/qv_sat - 1.0;
     return saturation_ratio;
@@ -164,8 +167,7 @@ double microphysics_heterogenous_freezing_rate(double temperature){
 double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, const double qt, const double T){
     double Twet = T;
     double T_1 = T;
-    // double pv_star_1  = lookup(LT, T_1);
-    double pv_star_1  = saturation_vapor_pressure_water(T_1);
+    double pv_star_1  = lookup(LT, T_1);
     double qv_star_1 = qv_star_c(p0,qt,pv_star_1);
     ssize_t iter = 0;
     /// If not saturated
@@ -181,8 +183,7 @@ double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, 
         double delta_T  = fabs(T_2 - T_1);
 
         do{
-            // double pv_star_2 = lookup(LT, T_2);
-            double pv_star_2 = saturation_vapor_pressure_water(T_2);
+            double pv_star_2 = lookup(LT, T_2);
             double qv_star_2 = pv_star_2/(eps_vi * (p0 - pv_star_2) + pv_star_2);
             double pd_2 = p0 - pv_star_2;
             double s_2 = sd_c(pd_2,T_2) * (1.0 - qv_star_2) + sv_c(pv_star_2,T_2) * qv_star_2;
