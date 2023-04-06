@@ -125,6 +125,8 @@ cdef extern from "microphysics_sb_si.h":
     void sb_si_qt_source_formation(Grid.DimStruct *dims, double* qisi_tendency, double* qr_tendency, double* qt_tendency)nogil
     void sb_sedimentation_velocity_ice(Grid.DimStruct *dims, double* nisi, double* qisi, double* density, double* nisi_velocity, 
             double* qisi_velocity) nogil
+    void sbsi_NI(Grid.DimStruct *dims, double* qt, double* p0, double* rho0_half, double* temperature, double* NI_Mayer,
+            double* NI_Flecher, double* NI_Copper, double* NI_Phillips, double* NI_contact_Young, double* NI_contact_Mayer)
 
 def IsotopeTracersFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
     try:
@@ -718,14 +720,33 @@ cdef class IsotopeTracers_SBSI:
             NS.add_profile('qt_iso_O18_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
             NS.add_profile('qt_iso_HDO_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
 
+        # diagnose number density results from different microphysics scheme
+        self.NI_Mayer    = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.NI_Flecher  = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.NI_Copper   = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.NI_Phillips = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.NI_contact_Young = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.NI_contact_Mayer = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        NS.add_profile('NI_Mayer', Gr, Pa, 'unit', '', 'NI_Mayer')
+        NS.add_profile('NI_Flecher', Gr, Pa, 'unit', '', 'NI_Flecher')
+        NS.add_profile('NI_Copper', Gr, Pa, 'unit', '', 'NI_Copper')
+        NS.add_profile('NI_Phillips', Gr, Pa, 'unit', '', 'NI_Phillips')
+        NS.add_profile('NI_contact_Young', Gr, Pa, 'unit', '', 'NI_contact_Young')
+        NS.add_profile('NI_contact_Mayer', Gr, Pa, 'unit', '', 'NI_contact_Mayer')
         NS.add_profile('qr_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer rain')
+
         NS.add_profile('qr_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
         NS.add_profile('qr_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
         NS.add_profile('qisi_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer of single ice')
         NS.add_profile('qisi_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of single ice isotopic sepcific humidity')
         NS.add_profile('qisi_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of single ice isotopic sepcific humidity')
 
+        NS.add_profile('qisi_mean_mask', Gr, Pa, 'kg/kg', '', 'qisi mean in domain')
+        NS.add_profile('qsnow_mean_mask', Gr, Pa, 'kg/kg', '', 'qsnow mean in domain')
+
         initialize_NS_base(NS, Gr, Pa)
+
         return
 
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
@@ -774,33 +795,62 @@ cdef class IsotopeTracers_SBSI:
         #     &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], 
         #     &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], 
         #     &DV.values[qv_shift], &DV.values[ql_shift])
+        
+        sbsi_NI(&Gr.dims, &PV.values[qt_shift], &Ref.p0_half[0], &Ref.rho0_half[0], &DV.values[t_shift], 
+            &self.NI_Mayer[0], &self.NI_Flecher[0], &self.NI_Copper[0], &self.NI_Phillips[0], &self.NI_contact_Young[0],
+            &self.NI_contact_Mayer[0])
 
-        sb_si_microphysics_sources(&Gr.dims, self.compute_rain_shape_parameter, self.compute_droplet_nu, 
-            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, 
-            &DV.values[ql_shift], &PV.values[nr_std_shift], &PV.values[qr_std_shift], &PV.values[qisi_std_shift], &PV.values[nisi_std_shift], TS.dt,   
-            &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
-            &nisi_std_tend_micro[0], &qisi_std_tend_micro[0], &PV.tendencies[nisi_std_shift], &PV.tendencies[qisi_std_shift],
-            &precip_rate[0], &evap_rate[0], &melt_rate[0])
+        # sb_si_microphysics_sources(&Gr.dims, self.compute_rain_shape_parameter, self.compute_droplet_nu, 
+        #     &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, 
+        #     &DV.values[ql_shift], &PV.values[nr_std_shift], &PV.values[qr_std_shift], &PV.values[qisi_std_shift], &PV.values[nisi_std_shift], TS.dt,   
+        #     &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
+        #     &nisi_std_tend_micro[0], &qisi_std_tend_micro[0], &PV.tendencies[nisi_std_shift], &PV.tendencies[qisi_std_shift],
+        #     &precip_rate[0], &evap_rate[0], &melt_rate[0])
 
-        sb_si_qt_source_formation(&Gr.dims, &qisi_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[qt_shift])
+        # sb_si_qt_source_formation(&Gr.dims, &qisi_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[qt_shift])
 
         # sedimentation processes of rain and single_ice: w_qr and w_qisi
-        sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_std_shift],
-            &PV.values[qr_std_shift], &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
-        sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_std_shift], &PV.values[qisi_std_shift], &Ref.rho0_half[0], 
-            &DV.values[wnisi_std_shift], &DV.values[wqisi_std_shift])
 
-        if self.cloud_sedimentation:
-            wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
-            if self.stokes_sedimentation:
-                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
-            else:
-                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+        # sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_std_shift],
+        #     &PV.values[qr_std_shift], &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
+        # sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_std_shift], &PV.values[qisi_std_shift], &Ref.rho0_half[0], 
+        #     &DV.values[wnisi_std_shift], &DV.values[wqisi_std_shift])
+
+        # if self.cloud_sedimentation:
+        #     wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
+        #     if self.stokes_sedimentation:
+        #         microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+        #     else:
+        #         sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+
         return 
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+
+        cdef:
+            double[:] tmp 
+
+        tmp = Pa.HorizontalMean(Gr, &self.NI_Mayer[0])
+        NS.write_profile('NI_Mayer', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        tmp = Pa.HorizontalMean(Gr, &self.NI_Flecher[0])
+        NS.write_profile('NI_Flecher', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        tmp = Pa.HorizontalMean(Gr, &self.NI_Copper[0])
+        NS.write_profile('NI_Copper', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        tmp = Pa.HorizontalMean(Gr, &self.NI_Phillips[0])
+        NS.write_profile('NI_Phillips', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+
+        tmp = Pa.HorizontalMean(Gr, &self.NI_contact_Young[0])
+        NS.write_profile('NI_contact_Young', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        tmp = Pa.HorizontalMean(Gr, &self.NI_contact_Mayer[0])
+        NS.write_profile('NI_contact_Mayer', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+
         iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
+
         return
 
 cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,

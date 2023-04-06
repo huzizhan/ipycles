@@ -90,7 +90,7 @@ double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperatur
     return saturation_ratio;
 }
 
-double microphysics_ice_nuclei_Mayer(double temperature, double S_i){
+double microphysics_ice_nuclei_cond_immer_Mayer(double temperature, double S_i){
     if (temperature < 268.15){
         return exp(-0.639 + 12.96*S_i); // scheme adopted from SB06, Equ 36, adopted from MY92, unit m^3
     }
@@ -99,7 +99,7 @@ double microphysics_ice_nuclei_Mayer(double temperature, double S_i){
     }
 }
 
-double microphysics_ice_nuclei_Fletcher(double temperature){
+double microphysics_ice_nuclei_cond_immer_Fletcher(double temperature){
     double T_celsius = temperature - 273.15; 
     if (T_celsius < 0.0 && T_celsius >= -27.0){
         return 1.0e-5 * exp(-0.6*T_celsius); // scheme adopted from Fletcher1962
@@ -109,7 +109,7 @@ double microphysics_ice_nuclei_Fletcher(double temperature){
     }
 }
 
-double microphysics_ice_nuclei_Copper(double temperature){
+double microphysics_ice_nuclei_cond_immer_Copper(double temperature){
     double T_celsius = temperature - 273.15; 
     if (T_celsius < 0.0 && T_celsius >= -40.0){
         return 0.005 * exp(-0.304*T_celsius); // scheme adopted from Copper1986
@@ -119,7 +119,7 @@ double microphysics_ice_nuclei_Copper(double temperature){
     }
 }
 
-double microphysics_ice_nuclei_Phillips(double temperature, double S_i){
+double microphysics_ice_nuclei_cond_immer_Phillips(double temperature, double S_i){
     if (temperature < 268.15 && temperature >= 243.15){
         return exp(-0.639 + 12.96*S_i)*0.06; // Adopted from Phillips 2008
     }
@@ -129,6 +129,32 @@ double microphysics_ice_nuclei_Phillips(double temperature, double S_i){
     else{
         return 0.0;
     }
+}
+
+double microphysics_ice_nuclei_contact_Levkov(double temperature, double nl, double ql, double rl){
+    double D_ap; // Brownian aerosol diffusivity
+    double N_a_cnt; // number of contact nuclei following Young (1974)
+    double N_a0 = 2.0e5; // m^-3
+    
+    if (nl > 1e-13 && ql > 1e-13){
+        N_a_cnt = N_a0 * pow((270.15 - temperature), 1.3); // the number of activa ice nuclei at 269.15K.
+        D_ap = 1.0;
+        return D_ap * 4.0 * pi * rl * N_a_cnt * (nl*nl)/ql;
+    }
+    else{
+        return 0.0;
+    }
+}
+
+double microphysics_ice_nuclei_contact_Young(double temperature){
+    double N_a0 = 2.0e2; // the number of activa ice nuclei at 269.15K, unit is L^-1
+    return N_a0 * pow((270.15 - temperature), 1.3); 
+}
+
+double microphysics_ice_nuclei_contact_Mayer(double temperature){
+    double A_mayer = -2.80;
+    double B_mayer = 0.262;
+    return exp(A_mayer + B_mayer*(273.15 - temperature));
 }
 
 double microphysics_homogenous_freezing_rate(double temperature){

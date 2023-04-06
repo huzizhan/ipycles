@@ -277,7 +277,7 @@ void sb_nucleation_ice(double temperature, double S_i, double dt, double ni, dou
         // double N_nc = 0.005 * exp(0.304*(273.15 - temperature)) * 1e3; // scheme from MS08(Coper62);
         // double N_nc = exp(-2.8 + 0.262*(273.15 - temperature)); // scheme from MY92;
         // double N_dn = 1.0e3 * exp(-0.639 + 12.96*S_i); // scheme adopted from SB06, Equ 36, adopted from MY92, unit m^3
-        double N_in_L = microphysics_ice_nuclei_Mayer(temperature, S_i); // unit is L^-1
+        double N_in_L = microphysics_ice_nuclei_cond_immer_Mayer(temperature, S_i); // unit is L^-1
         double N_in = N_in_L * 1000.0 / density; // convert L^-1 to m^3, then to kg^-1
 
         N_in = fmax(N_in, 0.0);

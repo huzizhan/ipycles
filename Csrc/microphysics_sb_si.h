@@ -365,6 +365,47 @@ void sb_si_microphysics_sources(const struct DimStruct *dims,
     return;
 }
 
+void sbsi_NI(const struct DimStruct *dims,
+                double *restrict qt, 
+                double *restrict p0, 
+                double *restrict density,
+                double *restrict temperature,
+                double *restrict NI_Mayer,
+                double *restrict NI_Flecher,
+                double *restrict NI_Copper,
+                double *restrict NI_Phillips,
+                double *restrict NI_contact_Young,
+                double *restrict NI_contact_Mayer) {
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                double sat_ratio_ice = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
+
+                NI_Mayer[ijk]    = microphysics_ice_nuclei_cond_immer_Mayer(temperature[ijk], sat_ratio_ice) * 1000.0 / density[k];
+                NI_Flecher[ijk]  = microphysics_ice_nuclei_cond_immer_Fletcher(temperature[ijk]) * 1000.0 / density[k];
+                NI_Copper[ijk]   = microphysics_ice_nuclei_cond_immer_Copper(temperature[ijk]) * 1000.0 / density[k];
+                NI_Phillips[ijk] = microphysics_ice_nuclei_cond_immer_Phillips(temperature[ijk], sat_ratio_ice) * 1000.0 / density[k];
+                NI_contact_Young[ijk]  = microphysics_ice_nuclei_contact_Young(temperature[ijk]) * 1000.0 / density[k];
+                NI_contact_Mayer[ijk]  = microphysics_ice_nuclei_contact_Mayer(temperature[ijk]) * 1000.0 / density[k];
+            }
+        }
+    }
+    return;
+}
+
 void sb_si_qt_source_formation(const struct DimStruct *dims, double* restrict qi_tendency,
                                double* restrict qr_tendency, double* restrict qt_tendency){
 

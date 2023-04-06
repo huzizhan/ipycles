@@ -84,6 +84,13 @@ cdef class IsotopeTracers_SBSI:
         bint stokes_sedimentation
         Py_ssize_t order
 
+        double [:] NI_Mayer
+        double [:] NI_Flecher
+        double [:] NI_Copper
+        double [:] NI_Phillips
+        double [:] NI_contact_Young
+        double [:] NI_contact_Mayer
+
         public bint isotope_tracer
 
     cpdef initialize(namelist, self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
