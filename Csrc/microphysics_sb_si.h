@@ -283,8 +283,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims,
 
                     sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
                             sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_liq);
-                    sb_accretion_rain_ice(rain_mass, Dm_r, velocity_rain, ice_mass, Dm_i, velocity_ice, nr_tmp, qr_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_rain);
+                    // sb_accretion_rain_ice(rain_mass, Dm_r, velocity_rain, ice_mass, Dm_i, velocity_ice, nr_tmp, qr_tmp, ni_tmp, qi_tmp, 
+                    //         sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_rain);
 
                     sb_deposition_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   

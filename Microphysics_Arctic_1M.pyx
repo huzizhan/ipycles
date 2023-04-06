@@ -192,8 +192,8 @@ cdef class Microphysics_Arctic_1M:
         return
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th,
-                 PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
-                 TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+            PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
+            TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
 
         #Get parameters
         cdef:
