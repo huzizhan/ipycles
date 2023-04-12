@@ -88,7 +88,7 @@ double sb_Dp(double Dm, double mu){
     return Dp;
 }
 
-double single_micro_Fn(double diameter, double velocity){
+double F_v_simple(double diameter, double velocity){
     //-------------------------------------------------------------
     // INPUT VARIABLES
     //-------------------------------------------------------------

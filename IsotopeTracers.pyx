@@ -825,6 +825,227 @@ cdef class IsotopeTracers_SBSI:
 
         return 
 
+cdef class IsotopeTracers_SB_Ice:
+
+    def __init__(self, namelist):
+
+        self.isotope_tracer = True
+
+        self.ccn = 100.0e6
+
+        # Set option for calculation of mu (distribution shape parameter)
+        try:
+            mu_opt = namelist['microphysics']['SB_Liquid']['mu_rain']
+            if mu_opt == 1:
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_1
+            elif mu_opt == 2:
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_2
+            elif mu_opt == 4:
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_4
+            elif mu_opt == 0:
+                self.compute_rain_shape_parameter  = sb_rain_shape_parameter_0
+            else:
+                # Par.root_print("SB_Liquid mu_rain option not recognized, defaulting to option 1")
+                self.compute_rain_shape_parameter = sb_rain_shape_parameter_1
+        except:
+            # Par.root_print("SB_Liquid mu_rain option not selected, defaulting to option 1")
+            self.compute_rain_shape_parameter = sb_rain_shape_parameter_1
+        # Set option for calculation of nu parameter of droplet distribution
+        try:
+            nu_opt = namelist['microphysics']['SB_Liquid']['nu_droplet']
+            if nu_opt == 0:
+                self.compute_droplet_nu = sb_droplet_nu_0
+            elif nu_opt == 1:
+                self.compute_droplet_nu = sb_droplet_nu_1
+            elif nu_opt ==2:
+                self.compute_droplet_nu = sb_droplet_nu_2
+            else:
+                # Par.root_print("SB_Liquid nu_droplet_option not recognized, defaulting to option 0")
+                self.compute_droplet_nu = sb_droplet_nu_0
+        except:
+            # Par.root_print("SB_Liquid nu_droplet_option not selected, defaulting to option 0")
+            self.compute_droplet_nu = sb_droplet_nu_0
+
+        try:
+            self.order = namelist['scalar_transport']['order_sedimentation']
+        except:
+            self.order = namelist['scalar_transport']['order']
+
+        try:
+            self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
+        except:
+            self.cloud_sedimentation = False
+        if namelist['meta']['casename'] == 'DYCOMS_RF02':
+            self.stokes_sedimentation = True
+        else:
+            self.stokes_sedimentation = False
+
+        return
+
+    cpdef initialize(self, namelist, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
+                    DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        Pa.root_print('initialized with IsotopeTracer with SB_Ice scheme')
+        
+        # Prognostic variable: q_iso, isotopic specific humidity of qt, qv, ql, qi, qr and qs
+        # defined as the ratio of isotopic mass of H2O18 to moist air.
+
+        PV.add_variable('qt_iso_O18', 'kg/kg','qt_iso_O18_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso_O18', 'kg/kg','qv_iso_O18_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso_O18', 'kg/kg','ql_iso_O18_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qi_iso_O18', 'kg/kg','qi_iso_O18_isotope','Cloud Ice water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qr_iso_O18', 'kg/kg','qr_iso_O18_isotope','Rain droplets water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qs_iso_O18', 'kg/kg','qs_iso_O18_isotope','Snow isotopic specific humidity','sym', 'scalar', Pa)
+
+        PV.add_variable('qt_iso_HDO', 'kg/kg','qt_iso_HDO_isotope','Total water isotopic specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_iso_HDO', 'kg/kg','qv_iso_HDO_isotope','Vapor water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_iso_HDO', 'kg/kg','ql_iso_HDO_isotope','Cloud liquid water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qi_iso_HDO', 'kg/kg','qi_iso_HDO_isotope','Cloud ice isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qr_iso_HDO', 'kg/kg','qr_iso_HDO_isotope','Rain droplets water isotopic specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qs_iso_HDO', 'kg/kg','qr_iso_HDO_isotope','Snow isotopic specific humidity','sym', 'scalar', Pa)
+
+        PV.add_variable('qt_std', 'kg/kg','qt_std','Total water std specific humidity','sym', "scalar", Pa)
+        PV.add_variable('qv_std', 'kg/kg','qv_std','Vapor water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ql_std', 'kg/kg','ql_std','Cloud liquid water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qi_std', 'kg/kg','ql_std','Cloud ice water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qr_std', 'kg/kg','ql_std','Rain water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('qs_std', 'kg/kg','ql_std','Snow std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('nr_std', '','nr_std','Rain water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ns_std', '','ns_std','Snow water std number density','sym', 'scalar', Pa)
+
+        # following velocity calculation of rain and single-ice 
+        # sedimentation velocity of qt_iso_O18(w_qt_iso_O18) and qr_iso_O18(w_qr_iso_O18),
+        # which should be same as qt, qr and qs, as DVs w_qt, w_qr, w_qs;
+
+        DV.add_variables('w_qr_std', 'unit', r'w_qr_std','sedimentation velocity of rain mass', 'sym', Pa)
+        DV.add_variables('w_nr_std', 'unit', r'w_nr_std','sedimentation velocity of rain number density', 'sym', Pa)
+        DV.add_variables('w_qs_std', 'unit', r'w_qs_std','sedimentation velocity of snow mass', 'sym', Pa)
+        DV.add_variables('w_ns_std', 'unit', r'w_ns_std','sedimentation velocity of snow number density', 'sym', Pa)
+
+        DV.add_variables('w_qr_iso_O18', 'unit', r'w_qrain_iso_O18','', 'sym', Pa)
+        DV.add_variables('w_qr_iso_HDO', 'unit', r'w_qrain_iso_O18','', 'sym', Pa)
+        DV.add_variables('w_nr_iso', 'unit', r'w_nr_iso','', 'sym', Pa)
+
+        DV.add_variables('w_qs_iso_O18', 'unit', r'w_qsnow_iso_O18','', 'sym', Pa)
+        DV.add_variables('w_qs_iso_HDO', 'unit', r'w_qsnow_iso_O18','', 'sym', Pa)
+        DV.add_variables('w_ns_iso', 'unit', r'w_ns_iso','', 'sym', Pa)
+        try:
+            self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
+        except:
+            self.cloud_sedimentation = False
+        
+        if self.cloud_sedimentation:
+            DV.add_variables('w_qt_iso_O18', 'm/s', r'w_{qt_iso_O18}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
+            DV.add_variables('w_qt_iso_HDO', 'm/s', r'w_{qt_iso_HDO}', 'cloud liquid water isotopic sedimentation velocity', 'sym', Pa)
+            DV.add_variables('w_qt_std', 'm/s', r'w_{qt_iso_O18}', 'cloud liquid water std sedimentation velocity', 'sym', Pa)
+            NS.add_profile('qt_std_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
+            NS.add_profile('qt_iso_O18_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
+            NS.add_profile('qt_iso_HDO_sedimentation_flux', Gr, Pa, 'kg/kg', '', '')
+
+        # diagnose number density results from different microphysics scheme
+
+        NS.add_profile('qr_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer rain')
+        NS.add_profile('qr_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
+        NS.add_profile('qr_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity')
+
+        NS.add_profile('qs_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer of snow')
+        NS.add_profile('qs_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of snow isotopic sepcific humidity')
+        NS.add_profile('qs_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of snow isotopic sepcific humidity')
+
+        NS.add_profile('qs_mean_mask', Gr, Pa, 'kg/kg', '', 'qs mean in domain')
+        NS.add_profile('qs_mean_mask', Gr, Pa, 'kg/kg', '', 'qs mean in domain')
+
+        initialize_NS_base(NS, Gr, Pa)
+
+        return
+
+    cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
+        Microphysics_Arctic_1M.Microphysics_Arctic_1M Micro_Arctic_1M, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
+        DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+
+        cdef:
+            Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
+            Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
+            Py_ssize_t qv_shift     = DV.get_varshift(Gr,'qv')
+            Py_ssize_t ql_shift     = DV.get_varshift(Gr,'ql')
+            Py_ssize_t qi_shift     = DV.get_varshift(Gr,'qi')
+            Py_ssize_t s_shift      = PV.get_varshift(Gr,'s')
+            Py_ssize_t alpha_shift  = DV.get_varshift(Gr, 'alpha')
+
+            Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
+            Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
+            Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
+            Py_ssize_t qi_std_shift = PV.get_varshift(Gr,'qi_std')
+            Py_ssize_t qr_std_shift = PV.get_varshift(Gr,'qr_std')
+            Py_ssize_t nr_std_shift = PV.get_varshift(Gr,'nr_std')
+            Py_ssize_t qs_std_shift = PV.get_varshift(Gr,'qs_std')
+            Py_ssize_t ns_std_shift = PV.get_varshift(Gr,'ns_std')
+
+            Py_ssize_t wqr_std_shift = DV.get_varshift(Gr, 'w_qr_std')
+            Py_ssize_t wnr_std_shift = DV.get_varshift(Gr, 'w_nr_std')
+            Py_ssize_t wqs_std_shift = DV.get_varshift(Gr, 'w_qs_std')
+            Py_ssize_t wns_std_shift = DV.get_varshift(Gr, 'w_ns_std')
+            Py_ssize_t wqt_std_shift
+            
+            # TMP avoid isotope index component defination
+
+            Py_ssize_t qt_iso_O18_shift = PV.get_varshift(Gr,'qt_iso_O18')
+            Py_ssize_t qv_iso_O18_shift = PV.get_varshift(Gr,'qv_iso_O18')
+            Py_ssize_t ql_iso_O18_shift = PV.get_varshift(Gr,'ql_iso_O18')
+            Py_ssize_t qi_iso_O18_shift = PV.get_varshift(Gr,'qi_iso_O18')
+            
+            Py_ssize_t qt_iso_HDO_shift = PV.get_varshift(Gr,'qt_iso_HDO')
+            Py_ssize_t qv_iso_HDO_shift = PV.get_varshift(Gr,'qv_iso_HDO')
+            Py_ssize_t ql_iso_HDO_shift = PV.get_varshift(Gr,'ql_iso_HDO')
+            Py_ssize_t qi_iso_HDO_shift = PV.get_varshift(Gr,'qi_iso_HDO')
+
+            double[:] precip_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] evap_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] melt_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            
+            double[:] qr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qs_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ns_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        
+        iso_mix_phase_fractionation(&Gr.dims, &Micro_Arctic_1M.CC.LT.LookupStructC, 
+            Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp, &DV.values[t_shift], &Ref.p0_half[0],
+            &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[qi_std_shift], 
+            &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qi_iso_O18_shift], 
+            &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
+            &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
+        
+        sb_si_microphysics_sources(&Gr.dims, self.compute_rain_shape_parameter, self.compute_droplet_nu, 
+            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, 
+            &DV.values[ql_shift], &PV.values[nr_std_shift], &PV.values[qr_std_shift], &PV.values[qs_std_shift], &PV.values[ns_std_shift], TS.dt,   
+            &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
+            &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift],
+            &precip_rate[0], &evap_rate[0], &melt_rate[0])
+
+        sb_si_qt_source_formation(&Gr.dims, &qs_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[qt_shift])
+
+        # sedimentation processes of rain and single_ice: w_qr and w_qs
+
+        sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_std_shift],
+            &PV.values[qr_std_shift], &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
+        sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[ns_std_shift], &PV.values[qs_std_shift], &Ref.rho0_half[0], 
+            &DV.values[wns_std_shift], &DV.values[wqs_std_shift])
+
+        if self.cloud_sedimentation:
+            wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
+            if self.stokes_sedimentation:
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+            else:
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
+
+        return 
+
+    cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
+            ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+
+        iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
+
+        return
+
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
 
