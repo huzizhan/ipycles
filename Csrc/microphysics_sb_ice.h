@@ -215,15 +215,15 @@ void sb_aggretion_snow(
         double velocity_ice, // falling velocity of cloud ice particle
         double velocity_snow, // falling velocity of snow
         // OUTPUT VARIABLES INDEX
-        // double* qi_tendency, double* ql_tendency, 
-        // double* qr_tendency, double* nr_tendency,
+        double* ql_tendency, double* qi_tendency, 
+        double* nl_tendency, double* ni_tendency,
         double* ns_tendency, double* qs_tendency){
 
     // The aggretion component include:
     // - ice aggretion to snow (i+i=s);
     // - snow aggretion ice particles (s+i=s);
     // - riming of cloud droplet (s+l=s);
-    // - snow self aggretion (s+s=s)
+    // - snow  elf aggretion (s+s=s)
     
     // define collection parameter delta and varthera
     double delta_i_0, delta_s_0, delta_l_0, delta_ii_0, delta_si_0, delta_sl_0, delta_ss_0;
@@ -256,7 +256,7 @@ void sb_aggretion_snow(
 
         q_ii_tend = pi/4.0 * E_ii * ni * qi * (delta_i_0*Dm_i*Dm_i + delta_ii_1*Dm_i*Dm_i + delta_i_1*Dm_i*Dm_i) * 
             pow((vartheta_i_0*velocity_ice*velocity_ice - vartheta_ii_1*velocity_ice*velocity_ice + vartheta_i_1*velocity_ice*velocity_ice + epsilon_a + epsilon_b), 0.5);
-        n_ii_tend = pi/4.0 * E_ii * ni * qi * (delta_i_0*Dm_i*Dm_i + delta_ii_0*Dm_i*Dm_i + delta_i_0*Dm_i*Dm_i) * 
+        n_ii_tend = pi/4.0 * E_ii * ni * ni * (delta_i_0*Dm_i*Dm_i + delta_ii_0*Dm_i*Dm_i + delta_i_0*Dm_i*Dm_i) * 
             pow((vartheta_i_0*velocity_ice*velocity_ice - vartheta_ii_0*velocity_ice*velocity_ice + vartheta_i_0*velocity_ice*velocity_ice + epsilon_a + epsilon_b), 0.5);
     }
     else{
@@ -290,7 +290,7 @@ void sb_aggretion_snow(
     
         q_si_tend = pi/4.0 * E_si * ns * qi * (delta_s_0*Dm_s*Dm_s + delta_si_1*Dm_s*Dm_i + delta_i_1*Dm_i*Dm_i) * 
             pow((vartheta_s_0*velocity_snow*velocity_snow - vartheta_si_1*velocity_snow*velocity_ice + vartheta_i_1*velocity_ice*velocity_ice + epsilon_a + epsilon_b), 0.5);
-        n_si_tend = pi/4.0 * E_si * ns * qi * (delta_s_0*Dm_s*Dm_s + delta_si_0*Dm_s*Dm_i + delta_i_0*Dm_i*Dm_i) * 
+        n_si_tend = pi/4.0 * E_si * ns * ni * (delta_s_0*Dm_s*Dm_s + delta_si_0*Dm_s*Dm_i + delta_i_0*Dm_i*Dm_i) * 
             pow((vartheta_s_0*velocity_snow*velocity_snow - vartheta_si_0*velocity_snow*velocity_ice + vartheta_i_0*velocity_ice*velocity_ice + epsilon_a + epsilon_b), 0.5);
     }
     else{
@@ -323,7 +323,7 @@ void sb_aggretion_snow(
         
         q_sl_tend = pi/4.0 * E_si * ns * ql * (delta_s_0*Dm_s*Dm_s + delta_sl_1*Dm_s*Dm_i + delta_l_1*Dm_i*Dm_i) * 
             pow((vartheta_s_0*velocity_snow*velocity_snow - vartheta_sl_1*velocity_snow*velocity_ice + vartheta_l_1*velocity_ice*velocity_ice + epsilon_a + epsilon_b), 0.5);
-        n_sl_tend = pi/4.0 * E_si * ns * ql * (delta_s_0*Dm_s*Dm_s + delta_sl_0*Dm_s*Dm_i + delta_l_0*Dm_i*Dm_i) * 
+        n_sl_tend = pi/4.0 * E_si * ns * nl * (delta_s_0*Dm_s*Dm_s + delta_sl_0*Dm_s*Dm_i + delta_l_0*Dm_i*Dm_i) * 
             pow((vartheta_s_0*velocity_snow*velocity_snow - vartheta_sl_0*velocity_snow*velocity_ice + vartheta_l_0*velocity_ice*velocity_ice + epsilon_a + epsilon_b), 0.5);
     }
     else{
@@ -339,11 +339,6 @@ void sb_aggretion_snow(
         vartheta_s_0 = sb_collection_vartheta_b(0.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
         vartheta_ss_0 = sb_collection_vartheta_ab(0.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
         
-        delta_s_1 = sb_collection_delta_b(1.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu);
-        delta_ss_1 = sb_collection_delta_ab(1.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu);
-        vartheta_s_0 = sb_collection_vartheta_b(1.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
-        vartheta_ss_1 = sb_collection_vartheta_ab(1.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
-        
         epsilon_a = 0.2; // m s^-1 for snow 
         epsilon_b = 0.2; // m s^-1 for snow
         
@@ -352,9 +347,7 @@ void sb_aggretion_snow(
         // see equation 61-63 in SB06
         // with SNOW as species "a" and SNOW as species "b"
 
-        q_ss_tend = pi/4.0 * E_ss * ni * qi * (delta_s_0*Dm_s*Dm_s + delta_ss_1*Dm_s*Dm_s + delta_s_1*Dm_s*Dm_s) * 
-            pow((vartheta_s_0*velocity_snow*velocity_snow - vartheta_ss_1*velocity_snow*velocity_snow + vartheta_s_1*velocity_snow*velocity_snow + epsilon_a + epsilon_b), 0.5);
-        n_ss_tend = pi/4.0 * E_ss * ni * qi * (delta_s_0*Dm_s*Dm_s + delta_ss_0*Dm_s*Dm_s + delta_s_0*Dm_s*Dm_s) * 
+        n_ss_tend = pi/4.0 * E_ss * ns * ns * (delta_s_0*Dm_s*Dm_s + delta_ss_0*Dm_s*Dm_s + delta_s_0*Dm_s*Dm_s) * 
             pow((vartheta_s_0*velocity_snow*velocity_snow - vartheta_ss_0*velocity_snow*velocity_snow + vartheta_s_0*velocity_snow*velocity_snow + epsilon_a + epsilon_b), 0.5);
     }
     else{
@@ -364,8 +357,14 @@ void sb_aggretion_snow(
     // ================================================
     // ToDo: find out the number density effect of aggretion
     // ================================================
-    *qs_tendency = q_ii_tend + q_si_tend + q_sl_tend + q_ss_tend;
-    *ns_tendency = n_ii_tend + n_si_tend + n_sl_tend + n_ss_tend;
+    *qs_tendency = q_ii_tend + q_si_tend + q_sl_tend;
+    *qi_tendency = -q_ii_tend -q_si_tend;
+    *ql_tendency = -q_sl_tend;
+
+    *ni_tendency = -n_ii_tend -n_si_tend;
+    *nl_tendency = -n_sl_tend;
+    *ns_tendency = n_ss_tend;
+
     return;
 }
 
@@ -415,11 +414,6 @@ void sb_diffusion_snow(
         }
         qs_tendency_diff = qs_tendency_dep + qs_tendency_sub;
         *qs_tendency = qs_tendency_diff;
-        // *ns_tendency = qs_tendency_diff/snow_mass;
-        // ================================================
-        // ToDo: weather the tendency of vapor diffusion of 
-        // number density is needed?
-        // ================================================
     }
     else{
         *qs_tendency = 0.0;
@@ -501,11 +495,11 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
     //Here we compute the source terms for nr, qr and ns, qs (number and mass of rain and snow)
     //Temporal substepping is used to help ensure boundedness of moments
     
-    double nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp;
+    double nr_tendency_tmp, qr_tendency_tmp,ql_tendency_tmp, ql_tendency_agg, nl_tendency_tmp;
     double nr_tendency_au, nr_tendency_scbk, nr_tendency_evp;
     double qr_tendency_au, qr_tendency_ac, qr_tendency_evp;
     
-    double ns_tendency_tmp, qs_tendency_tmp, qi_tendency_tmp;
+    double ns_tendency_tmp, qs_tendency_tmp, qi_tendency_tmp, qi_tendency_agg, ni_tendency_tmp;
     double ns_tendency_agg, ns_tendency_diff, ns_tendency_dep, ns_tendency_sub, ns_tendency_melt;
     double qs_tendency_agg, qs_tendency_diff, qs_tendency_dep, qs_tendency_sub, qs_tendency_melt;
     
@@ -611,13 +605,15 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
 
                     sb_aggretion_snow(ql_tmp, qi_tmp, qs_tmp, nl, ni, ns_tmp, temperature[ijk],
                             Dm_l, Dm_i, Dm_s, velocity_liquid, velocity_ice, velocity_snow,
+                            &ql_tendency_agg, &qi_tendency_agg, 
+                            &nl_tendency_tmp, &ni_tendency_tmp, 
                             &ns_tendency_agg, &qs_tendency_agg);
                     sb_diffusion_snow(LT, lam_fp, L_fp, temperature[ijk], qt_tmp, p0[k], 
                             Dm_s, snow_mass, velocity_snow, qs_tmp, ns_tmp, 
                             &ns_tendency_diff, &qs_tendency_diff);
-                    // sb_melting_snow(LT, lam_fp, L_fp, p0[k], qt_tmp, qv_tmp, temperature[ijk],
-                    //         qs_tmp, ns_tmp, snow_mass, Dm_s, velocity_snow,
-                    //         &ns_tendency_melt, &qs_tendency_melt);
+                    sb_melting_snow(LT, lam_fp, L_fp, p0[k], qt_tmp, qv_tmp, temperature[ijk],
+                            qs_tmp, ns_tmp, snow_mass, Dm_s, velocity_snow,
+                            &ns_tendency_melt, &qs_tendency_melt);
 
                     //find the maximum substep time
                     dt_ = dt - time_added;
@@ -628,11 +624,14 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     ns_tendency_tmp = ns_tendency_agg + ns_tendency_diff + ns_tendency_melt;
                     qs_tendency_tmp = qs_tendency_agg + qs_tendency_diff + qs_tendency_melt;
                     
-                    ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac;
-                    qi_tendency_tmp = 0.0;
+                    // ql_tendency_agg is negative
+                    ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac + ql_tendency_agg;
+                    // qi_tendency_agg is negative
+                    qi_tendency_tmp = qi_tendency_agg;
 
                     //Factor of 1.05 is ad-hoc
                     rate = 1.05 * ql_tendency_tmp * dt_ /(- fmax(ql_tmp,SB_EPS));
+                    rate = fmax(1.05 * qi_tendency_tmp * dt_ /(-fmax(qi_tmp,SB_EPS)), rate);
                     rate = fmax(1.05 * nr_tendency_tmp * dt_ /(-fmax(nr_tmp,SB_EPS)), rate);
                     rate = fmax(1.05 * qr_tendency_tmp * dt_ /(-fmax(qr_tmp,SB_EPS)), rate);
                     rate = fmax(1.05 * ns_tendency_tmp * dt_ /(-fmax(ns_tmp,SB_EPS)), rate);
@@ -646,6 +645,9 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     //Integrate forward in time
                     ql_tmp += ql_tendency_tmp * dt_;
                     qi_tmp += qi_tendency_tmp * dt_;
+                    
+                    nl += ql_tendency_tmp * dt_;
+                    ni += qi_tendency_tmp * dt_;
 
                     qr_tmp += qr_tendency_tmp * dt_;
                     nr_tmp += nr_tendency_tmp * dt_;
@@ -653,13 +655,16 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qs_tmp += qs_tendency_tmp * dt_;
                     ns_tmp += ns_tendency_tmp * dt_;
 
-                    qv_tmp += -(qr_tendency_evp + qs_tendency_dep - qs_tendency_dep) * dt_;
+                    qv_tmp += -(qr_tendency_evp + qs_tendency_diff) * dt_;
 
                     qr_tmp = fmax(qr_tmp,0.0);
                     nr_tmp = fmax(fmin(nr_tmp, qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
                     qs_tmp = fmax(qs_tmp,0.0);
                     ns_tmp = fmax(fmin(ns_tmp, qs_tmp/SB_SNOW_MIN_MASS),qs_tmp/SB_SNOW_MAX_MASS);
                     ql_tmp = fmax(ql_tmp,0.0);
+                    nl = fmax(fmin(nl, ql_tmp/LIQUID_MIN_MASS),ql_tmp/LIQUID_MAX_MASS);
+                    qi_tmp = fmax(qi_tmp,0.0);
+                    ni = fmax(fmin(ni, qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
 
                     qi_tmp = fmax(qi_tmp,0.0);
                     qt_tmp = ql_tmp + qv_tmp + qi_tmp;

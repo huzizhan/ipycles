@@ -38,11 +38,6 @@ def default_arctic():
 
     # Liquid parameters
     
-    # ToDo:  <11-10-22, huzizhan> #
-    # find the right value of LIQUID_DM_PREFACTOR and LIQUID_DM_EXPONENT
-
-    parameters["LIQUID_DM_PREFACTOR"] = 1.0
-    parameters["LIQUID_DM_EXPONENT"] = 1.0
     parameters["LIQUID_MIN_MASS"] = 4.20e-15 # kg
     parameters["LIQUID_MAX_MASS"] = 2.6e-10 #1.0e-11  // kg
     parameters["C_LIQUID_SED"] =702780.63036 #1.19e8 *(3.0/(4.0*pi*rho_liq))**(2.0/3.0)*np.exp(5.0*np.log(1.34)**2.0)
