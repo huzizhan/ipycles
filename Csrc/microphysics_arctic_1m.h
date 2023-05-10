@@ -545,7 +545,6 @@ void microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT,
                 precip_rate[ijk] = precip_rate[ijk]/dt;
                 evap_rate[ijk] = evap_rate[ijk]/dt;
                 melt_rate[ijk] = melt_rate[ijk]/dt;
-
             }
         }
     }

@@ -231,14 +231,14 @@ double microphysics_g_sb_ice(
 
 // see equation 43 and Appendix B in SB06
 double sb_ventilation_coefficient(
-        double n, // n-th moment;
-        double Dm, // mass weighted diameter
+        double n,        // n-th moment;
+        double Dm,       // mass weighted diameter
         double velocity, // falling velocity of particle
-        double mass, // mass
-        double sb_b, // mass-related parameter b of particle
-        double sb_beta, // mass-related parameter beta of particle
-        double nu, // ν of particle
-        double mu // μ of particle
+        double mass,     // mass
+        double sb_b,     // mass-related parameter b of particle
+        double sb_beta,  // mass-related parameter beta of particle
+        double nu,       // ν of particle
+        double mu        // μ of particle
         ){
 
     // see the definition of N_re in equation 42 in SB06
@@ -261,10 +261,10 @@ double sb_ventilation_coefficient(
 
 // following the equation 90 in SB06
 double sb_collection_delta_b(
-        double k, // k-th moment
-        double sb_b, // mass-related parameter b of particle 
-        double nu, // ν of particle
-        double mu // μ of particle
+        double k,    // k-th moment
+        double sb_b, // mass-related parameter b of particle
+        double nu,   // ν of particle
+        double mu    // μ of particle
         ){
 
     double var_1 = tgamma( (2.0*sb_b + nu + 1.0 + k) / mu );
@@ -277,13 +277,13 @@ double sb_collection_delta_b(
 
 // following the equation 91 in SB06
 double sb_collection_delta_ab(
-        double k, // k-th moment
+        double k,      // k-th moment
         double sb_b_a, // mass-related parameter b of particle a
-        double nu_a, // ν of particle a
-        double mu_a, // μ of particle a
+        double nu_a,   // ν of particle a
+        double mu_a,   // μ of particle a
         double sb_b_b, // mass-related parameter b of particle b
-        double nu_b, // ν of particle b
-        double mu_b // μ of particle b
+        double nu_b,   // ν of particle b
+        double mu_b    // μ of particle b
         ){
     
     double var_a_1 = tgamma( (sb_b_a + nu_a + 1.0 + k) / mu_a );
@@ -301,11 +301,11 @@ double sb_collection_delta_ab(
 
 // following the equation 92 in SB06
 double sb_collection_vartheta_b(
-        double k, // k-th moment
-        double sb_b, // mass-related parameter b of particle 
-        double sb_beta, // mass-related parameter β of particle 
-        double nu, // ν of particle
-        double mu // μ of particle
+        double k,       // k-th moment
+        double sb_b,    // mass-related parameter b of particle
+        double sb_beta, // mass-related parameter β of particle
+        double nu,      // ν of particle
+        double mu       // μ of particle
         ){
 
     double var_1 = tgamma( (2.0*sb_beta + 2.0*sb_b + nu + 1.0 + k) / mu );
@@ -318,15 +318,15 @@ double sb_collection_vartheta_b(
 
 // following the equation 93 in SB06
 double sb_collection_vartheta_ab(
-        double k, // k-th moment
-        double sb_b_a, // mass-related parameter b of particle a
+        double k,         // k-th moment
+        double sb_b_a,    // mass-related parameter b of particle a
         double sb_beta_a, // mass-related parameter β of particle a
-        double nu_a, // ν of particle a
-        double mu_a, // μ of particle a
-        double sb_b_b, // mass-related parameter b of particle b
+        double nu_a,      // ν of particle a
+        double mu_a,      // μ of particle a
+        double sb_b_b,    // mass-related parameter b of particle b
         double sb_beta_b, // mass-related parameter β of particle b
-        double nu_b, // ν of particle b
-        double mu_b // μ of particle b
+        double nu_b,      // ν of particle b
+        double mu_b       // μ of particle b
         ){
     
     double var_a_1 = tgamma( (sb_beta_a + sb_b_a + nu_a + 1.0 + k) / mu_a );
@@ -378,10 +378,10 @@ double collection_efficiencies_cloud(double Dm_e, double Dm_l){
 
 void sb_ice_self_collection(
     // INPUT variables 
-    double T, // ambient atmosphere temperature 
-    double qi, // ice specific content
-    double ni, // ice number density
-    double Dm_i, // ice diameter
+    double T,          // ambient atmosphere temperature
+    double qi,         // ice specific content
+    double ni,         // ice number density
+    double Dm_i,       // ice diameter
     double velocity_i, // ice falling velocity
     double dt,
     // OUTPUT variable indexs
@@ -437,10 +437,10 @@ void sb_ice_self_collection(
 
 void sb_snow_self_collection(
     // INPUT variables 
-    double T, // ambient atmosphere temperature 
-    double qs, // snow specific humidity
-    double ns, // snow number density 
-    double Dm_s, // snow diameter
+    double T,          // ambient atmosphere temperature
+    double qs,         // snow specific humidity
+    double ns,         // snow number density
+    double Dm_s,       // snow diameter
     double velocity_s, // snow falling velocity
     double dt,
     // OUTPUT variable indexs
@@ -831,12 +831,12 @@ void sb_snow_deposition(
         struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
         // INPUT VARIABLES
         double T, 
-        double qt, // total water specific humidity
-        double p0, // air pressure
-        double qs, // snow specific humidity
-        double ns, // snow number density
-        double Dm_s, // mass-weighted diameter of snow
-        double mass_s, // average mass of snow
+        double qt,         // total water specific humidity
+        double p0,         // air pressure
+        double qs,         // snow specific humidity
+        double ns,         // snow number density
+        double Dm_s,       // mass-weighted diameter of snow
+        double mass_s,     // average mass of snow
         double velocity_s, // falling velocity of snow
         double dt, 
         // OUTPUT VARIABLES INDEX
@@ -896,14 +896,14 @@ void sb_snow_melting(
         // thermodynamic settings
         struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
         // INPUT VARIABLES
-        double p0, // air pressure
+        double p0,         // air pressure
         double T,
-        double qt, // total water specific humidity
-        double qv, // vapor specific humidity
-        double qs, // snow specific humidity
-        double ns, // snow number density
-        double mass_s, // average mass of snow
-        double Dm_s, // mass-weighted diameter of snow
+        double qt,         // total water specific humidity
+        double qv,         // vapor specific humidity
+        double qs,         // snow specific humidity
+        double ns,         // snow number density
+        double mass_s,     // average mass of snow
+        double Dm_s,       // mass-weighted diameter of snow
         double velocity_s, // falling velocity of snow
         double dt,
         // OUTPUT VARIABLES INDEX
@@ -959,24 +959,25 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
         // two-moment specific settings based on SB08
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         // INPUT VARIABLES ARRAY
-        double* restrict density, // reference air density
-        double* restrict p0, // reference air pressure
-        double* restrict temperature,  // temperature of air parcel
-        double* restrict qt, // total water specific humidity
-        double ccn, // given cloud condensation nuclei
-        double in, // given ice nuclei
-        double* restrict ql, // cloud liquid water specific humidity
-        double* restrict qi, // cloud ice water specific humidity
-        double* restrict nr, // rain droplet number density
-        double* restrict qr, // rain droplet specific humidity
-        double* restrict qs, // snow specific humidity
-        double* restrict ns, // snow number density
-        double dt, // timestep
+        double* restrict density,     // reference air density
+        double* restrict p0,          // reference air pressure
+        double dt,                    // timestep
+        double ccn,                   // cloud condensation nuclei (given)
+        double in,                    // ice nuclei (given)
+        double* restrict temperature, // temperature of air parcel
+        double* restrict qt,          // total water specific humidity
+        double* restrict ql,          // cloud liquid water specific humidity (diagnosed)
+        double* restrict qi,          // cloud ice water specific humidity (diagnosed)
+        double* restrict nr,          // rain droplet number density
+        double* restrict qr,          // rain droplet specific humidity
+        double* restrict qs,          // snow specific humidity
+        double* restrict ns,          // snow number density
         //OUTPUT ARRAYS 
         double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, 
         double* restrict nr_tendency, double* restrict qr_tendency, 
         double* restrict ns_tendency_micro, double* restrict qs_tendency_micro, 
-        double* restrict ns_tendency, double* restrict qs_tendency 
+        double* restrict ns_tendency, double* restrict qs_tendency,
+        double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate
     ){
 
     //Here we compute the source terms for nr, qr and ns, qs (number and mass of rain and snow)
@@ -1024,7 +1025,10 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
     double ns_tendency_melt, qs_tendency_melt;
     double nr_tendency_melt, qr_tendency_melt;
     // -------------------------------------------------
-    
+
+    // precipitation and evaporation rate tmp variable
+    double precip_tmp, evap_tmp;
+
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
     const ssize_t imin = dims->gw;
@@ -1156,26 +1160,26 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     sb_ice_self_collection(temperature[ijk], qi_tmp, ni, Dm_i, velocity_ice, dt_,
                             &qs_tendency_ice_selcol, &ns_tendency_ice_selcol,
                             &qi_tendency_ice_selcol, &ni_tendency_ice_selcol);
-                    // sb_snow_self_collection(temperature[ijk], qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
-                    //         &ns_tendency_snow_selcol);
-                    // sb_snow_ice_collection(temperature[ijk], qi_tmp, ni, Dm_i, velocity_ice, 
-                    //         qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
-                    //         &qs_tendency_si_col, &qi_tendency_si_col, &ni_tendency_si_col);
-                    //
-                    // // ice phase riming processes
-                    // sb_snow_riming(temperature[ijk], ql_tmp, nl, Dm_l, velocity_liquid, 
-                    //         qr_tmp, nr_tmp, Dm_r, velocity_rain, rain_mass, 
-                    //         qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_, qs_tendency_dep,
-                    //         &ql_tendency_snow_rime, &nl_tendency_snow_rime, 
-                    //         &qi_tendency_snow_mult, &ni_tendency_snow_mult,
-                    //         &qr_tendency_snow_rime, &nr_tendency_snow_rime,
-                    //         &qs_tendency_rime, &ns_tendency_rime);
-                    //
-                    // sb_snow_melting(LT, lam_fp, L_fp, p0[k], temperature[ijk], 
-                    //         qt_tmp, qv_tmp, qs_tmp, ns_tmp, snow_mass, Dm_s, velocity_snow, dt_,
-                    //         &ns_tendency_melt, &qs_tendency_melt,
-                    //         &nr_tendency_melt, &qr_tendency_melt);
-                    // 
+                    sb_snow_self_collection(temperature[ijk], qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
+                            &ns_tendency_snow_selcol);
+                    sb_snow_ice_collection(temperature[ijk], qi_tmp, ni, Dm_i, velocity_ice, 
+                            qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
+                            &qs_tendency_si_col, &qi_tendency_si_col, &ni_tendency_si_col);
+
+                    // ice phase riming processes
+                    sb_snow_riming(temperature[ijk], ql_tmp, nl, Dm_l, velocity_liquid, 
+                            qr_tmp, nr_tmp, Dm_r, velocity_rain, rain_mass, 
+                            qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_, qs_tendency_dep,
+                            &ql_tendency_snow_rime, &nl_tendency_snow_rime, 
+                            &qi_tendency_snow_mult, &ni_tendency_snow_mult,
+                            &qr_tendency_snow_rime, &nr_tendency_snow_rime,
+                            &qs_tendency_rime, &ns_tendency_rime);
+
+                    sb_snow_melting(LT, lam_fp, L_fp, p0[k], temperature[ijk], 
+                            qt_tmp, qv_tmp, qs_tmp, ns_tmp, snow_mass, Dm_s, velocity_snow, dt_,
+                            &ns_tendency_melt, &qs_tendency_melt,
+                            &nr_tendency_melt, &qr_tendency_melt);
+
                     //compute the source terms of warm phase process: rain
                     sb_autoconversion_rain_tmp(droplet_nu, density[k], nl, ql_tmp, qr_tmp, 
                             &nr_tendency_au, &qr_tendency_au, &nl_tendency_au, &ql_tendency_au);
@@ -1222,6 +1226,14 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                         //Don't adjust if we have reached the maximum iteration number
                         dt_ = fmax(dt_/rate, 1.0e-3);
                     }
+                    
+                    precip_tmp = qr_tendency_au + qr_tendency_ac + qs_tendency_rime +
+                                 qs_tendency_ice_selcol + qs_tendency_si_col; // keep POSITIVE when precipation formed
+                    evap_tmp = -(qv_tendency_dep + qv_tendency_evp); // keep POSITIVE when evap/sub formed
+                    
+                    precip_rate[ijk] += precip_tmp * dt_;
+                    evap_rate[ijk]   += evap_tmp * dt_;
+                    melt_rate[ijk]   += qs_tendency_melt * dt_;
 
                     //Integrate forward in time
                     ql_tmp += ql_tendency_tmp * dt_;
@@ -1261,6 +1273,10 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                 qr_tendency[ijk] += qr_tendency_micro[ijk];
                 ns_tendency[ijk] += ns_tendency_micro[ijk];
                 qs_tendency[ijk] += qs_tendency_micro[ijk];
+                
+                precip_rate[ijk] = precip_rate[ijk]/dt;
+                evap_rate[ijk]   = evap_rate[ijk]/dt;
+                melt_rate[ijk]   = melt_rate[ijk]/dt;
             }
         }
     }
@@ -1269,12 +1285,13 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
 
 void sb_sedimentation_velocity_snow(const struct DimStruct *dims, 
         // INPUT VARIABLES ARRAY
-        double* restrict ns, // snow number density 
-        double* restrict qs, // snow specific humidity
         double* restrict density, // reference density of air
+        double* restrict ns,      // snow number density
+        double* restrict qs,      // snow specific humidity
         // OUTPUT VARIABLES 
         double* restrict ns_velocity, 
-        double* restrict qs_velocity){
+        double* restrict qs_velocity
+    ){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -1317,7 +1334,7 @@ void sb_sedimentation_velocity_snow(const struct DimStruct *dims,
     return;
 }
 
-void sb_ice_qt_source_formation(const struct DimStruct *dims, 
+void sb_2m_qt_source_formation(const struct DimStruct *dims, 
         double* restrict qr_tendency,
         double* restrict qs_tendency, 
         double* restrict qt_tendency){
@@ -1343,3 +1360,447 @@ void sb_ice_qt_source_formation(const struct DimStruct *dims,
     }
     return;
 }
+
+// ========== Entropy Source Of SB Microphysics Scheme =============
+
+void sb_entropy_source_precip(
+        double L,
+        double p0, 
+        double T,
+        double qt, 
+        double qv,
+        double precip_rate, 
+        double* entropy_tendency
+    ){
+
+    double pd = pd_c(p0, qt, qv); // dry air pressure
+    double pv = pv_c(p0, qt, qv); // vapor pressure
+    double sd = sd_c(pd, T); // s_d(T): specific entropy of dry air
+    double sv = sv_c(pv, T); // s_v(T): specific entropy of vapor 
+    double sc = sc_c(L, T); // sc_c = -L/T
+
+    *entropy_tendency = (sd - sv - sc) * precip_rate;
+
+    return;
+};
+
+void sb_entropy_source_evap(
+        // INPUT
+        double pv_star_T,
+        double L,
+        double p0, 
+        double T, 
+        double Twet, 
+        double qt, 
+        double qv,
+        double evap_rate, 
+        // OUTPUT
+        double* entropy_tendency
+    ){
+
+    const double pd = pd_c(p0, qt, qv); // dry air pressure
+    const double pv = pv_c(p0, qt, qv); // vapor pressure
+    const double sd = sd_c(pd, T); // s_d(T), specific entropy of dry air
+    const double sv = sv_c(pv, Twet); // s_v^*(Twet): specific entropy of vapor under wetbuble temperature
+    const double sc = sc_c(L, Twet); // sc_c = -L/T
+    // equation 50 in Pressel15, evap/sub term
+    double S_E = (sv + sc - sd);
+    // equation 51 in Pressel15, vapor diffusivity term
+    double S_D = -Rv*log(pv/pv_star_T) + cpv*log(T/Twet); 
+    
+    *entropy_tendency = (S_E + S_D)*evap_rate;
+
+    return;
+};
+
+void sb_entropy_source_melt(
+        double T,
+        double melt_rate, 
+        double *entropy_tendency
+    ){
+    if(abs(melt_rate) > SB_EPS){
+        *entropy_tendency = melt_rate * lhf / T;
+    }
+    else{
+        *entropy_tendency = 0.0;
+    }
+    return;
+};
+
+void sb_entropy_source_heating_func(
+        double T, 
+        double Twet, 
+        double Twet_up, // Twet[ijk + 1], should be Twet in the upper level 
+        double q,
+        double w_q, 
+        double w,
+        double c_tpye, // specific heat of falling precipitation species
+        double dzi,
+        double* entropy_tendency
+    ){
+    
+    if(q > SB_EPS){
+        *entropy_tendency += q * (fabs(w_q)-w) * c_tpye * (Twet_up - Twet)*dzi / T;
+    }
+    else{
+        *entropy_tendency += 0.0;
+    }
+    return;
+};
+
+void sb_entropy_source_drag_func(
+        double T, 
+        double q,
+        double w_q, 
+        double* entropy_tendency
+    ){
+    if(q > SB_EPS){
+        *entropy_tendency += g*q*fabs(w_q) / T;
+    }
+    else{
+        *entropy_tendency += 0.0;
+    }
+    return;
+};
+
+void sb_2m_entropy_source(
+        const struct DimStruct *dims, 
+        // Thermo Variables
+        struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double* restrict p0, 
+        double* restrict temperature,
+        double* restrict Twet, 
+        double* restrict w, 
+        double* restrict qt, 
+        double* restrict qv,
+        double* restrict qr,
+        double* restrict w_qr, 
+        double* restrict qs,
+        double* restrict w_qs, 
+        double* restrict precip_rate, 
+        double* restrict evap_rate, 
+        double* restrict melt_rate, 
+        double* restrict entropy_tendency
+    ){
+    
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    const double dzi = 1.0/dims->dx[2];
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                
+                double S_P, S_E, S_M, S_Q, S_W;
+                const double lam = lam_fp(temperature[ijk]);
+                const double L = L_fp(temperature[ijk],lam);
+                const double pv_star_T = lookup(LT, temperature[ijk]); // saturation vapor pressure
+
+                // precipitation entropy source
+                if (qr[ijk] > SB_EPS && qs[ijk] > SB_EPS){
+                    sb_entropy_source_precip(L, p0[k], temperature[ijk], qt[ijk], qv[ijk], precip_rate[ijk], &S_P);
+                    // evaporation entropy source
+                    sb_entropy_source_evap(pv_star_T, L, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], evap_rate[ijk], &S_E);
+                    // melting entropy source 
+                    sb_entropy_source_melt(temperature[ijk], melt_rate[ijk], &S_M);
+                }
+                else{
+                    S_P = 0.0;
+                    S_E = 0.0;
+                    S_M = 0.0;
+                }
+                // heating entropy source for each specie: rain/snow
+                S_Q = 0.0;
+                sb_entropy_source_heating_func(temperature[ijk], Twet[ijk], Twet[ijk+1], qr[ijk], w_qr[ijk], w[ijk], dzi, cl, &S_Q);
+                sb_entropy_source_heating_func(temperature[ijk], Twet[ijk], Twet[ijk+1], qs[ijk], w_qs[ijk], w[ijk], dzi, ci, &S_Q);
+                // draging entropy source
+                S_W = 0.0;
+                sb_entropy_source_drag_func(temperature[ijk], qr[ijk], w_qr[ijk], &S_W);
+                sb_entropy_source_drag_func(temperature[ijk], qs[ijk], w_qs[ijk], &S_W);
+                
+                entropy_tendency[ijk] += S_P + S_E + S_M + S_Q + S_W;
+            }
+        }
+    }
+    return;
+}
+
+void sb_entropy_source_precipitation(
+        const struct DimStruct *dims, 
+        // Thermo Variables
+        struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double* restrict p0, 
+        double* restrict temperature,
+        double* restrict qt, 
+        double* restrict qv,
+        double* restrict precip_rate, 
+        double* restrict entropy_tendency
+    ){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    // entropy tendencies from formation of rain/snow/graupel
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                double lam = lam_fp(temperature[ijk]);
+                double L = L_fp(temperature[ijk],lam);
+                // define local variables 
+                double pd = pd_c(p0[k], qt[ijk], qv[ijk]); // dry air pressure
+                double pv = pv_c(p0[k], qt[ijk], qv[ijk]); // vapor pressure
+                double sd = sd_c(pd, temperature[ijk]); // s_d(T): specific entropy of dry air
+                double sv = sv_c(pv, temperature[ijk]); // s_v(T): specific entropy of vapor 
+                double sc = sc_c(L, temperature[ijk]); // sc_c = -L/T
+
+                entropy_tendency[ijk] += (sd - sv - sc) * precip_rate[ijk];
+
+            }
+        }
+    }
+    return;
+};
+
+void sb_entropy_source_evap_sub_diff(
+        const struct DimStruct *dims, 
+        // Thermo variables 
+        struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        // INPUT
+        double* restrict p0, 
+        double* restrict temperature,
+        double* restrict Twet, 
+        double* restrict qt, 
+        double* restrict qv,
+        double* restrict evap_rate, 
+        // OUTPUT
+        double* restrict entropy_tendency
+    ){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    // entropy tendencies from evaporation of rain, sublimation of snow/graupel
+    // and vapor diffusivity 
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                double lam = lam_fp(temperature[ijk]);
+                double L = L_fp(temperature[ijk],lam);
+                const double pv_star_T = lookup(LT, temperature[ijk]); 
+                
+                // local variables defination
+                double pd = pd_c(p0[ijk], qt[ijk], qv[ijk]); // dry air pressure
+                double pv = pv_c(p0[ijk], qt[ijk], qv[ijk]); // vapor pressure
+                double sd = sd_c(pd, temperature[ijk]); // s_d(T), specific entropy of dry air
+                double sv = sv_c(pv, Twet[ijk]); // s_v^*(Twet): specific entropy of vapor under wetbuble temperature
+                double sc = sc_c(L, Twet[ijk]); // sc_c = -L/T
+                double S_E = (sv + sc - sd);  // equation 50 in Pressel15
+                double S_D = -Rv*log(pv/pv_star_T) + cpv*log(temperature[ijk]/Twet[ijk]); // equation 51 in Pressel15
+                
+                entropy_tendency[ijk] += (S_E + S_D)*evap_rate[ijk];
+            }
+        }
+    }
+    return;
+};
+
+// void sb_entropy_source_melt(
+//         const struct DimStruct *dims, 
+//         double* restrict temperature,
+//         double* restrict melt_rate, 
+//         double* restrict entropy_tendency
+//     ){
+//
+//     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+//     const ssize_t jstride = dims->nlg[2];
+//     const ssize_t imin = dims->gw;
+//     const ssize_t jmin = dims->gw;
+//     const ssize_t kmin = dims->gw;
+//     const ssize_t imax = dims->nlg[0]-dims->gw;
+//     const ssize_t jmax = dims->nlg[1]-dims->gw;
+//     const ssize_t kmax = dims->nlg[2]-dims->gw;
+//
+//     //entropy tendencies from snow melt
+//     //we use fact that melt_rate is negative when snow becomes rain
+//     for(ssize_t i=imin; i<imax; i++){
+//         const ssize_t ishift = i * istride;
+//         for(ssize_t j=jmin; j<jmax; j++){
+//             const ssize_t jshift = j * jstride;
+//             for(ssize_t k=kmin; k<kmax; k++){
+//                 const ssize_t ijk = ishift + jshift + k;
+//                 entropy_tendency[ijk] += melt_rate[ijk] * lhf / temperature[ijk];
+//             }
+//         }
+//     }
+//     return;
+// };
+
+
+void sb_entropy_source_heating_rain(const struct DimStruct *dims, 
+        double* restrict temperature, 
+        double* restrict Twet, 
+        double* restrict qr,
+        double* restrict w_qr, 
+        double* restrict w, 
+        double* restrict entropy_tendency
+    ){
+
+    //derivative of Twet is upwinded
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    const double dzi = 1.0/dims->dx[2];
+
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                entropy_tendency[ijk]+= qr[ijk]*(fabs(w_qr[ijk]) - w[ijk]) * cl * 
+                        (Twet[ijk+1] - Twet[ijk])*dzi / temperature[ijk];
+            }
+        }
+    }
+    return;
+};
+
+void sb_entropy_source_heating_snow(
+        const struct DimStruct *dims, 
+        double* restrict temperature, 
+        double* restrict Twet, 
+        double* restrict qs,
+        double* restrict w_qs, 
+        double* restrict w, 
+        double* restrict entropy_tendency
+    ){
+
+    //derivative of Twet is upwinded
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    const double dzi = 1.0/dims->dx[2];
+
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                entropy_tendency[ijk]+= qs[ijk]*(fabs(w_qs[ijk]) - w[ijk]) * ci * 
+                        (Twet[ijk+1] - Twet[ijk])*dzi / temperature[ijk];
+            }
+        }
+    }
+    return;
+};
+
+void sb_entropy_source_heating_graupel(
+        const struct DimStruct *dims, 
+        double* restrict temperature, 
+        double* restrict Twet, 
+        double* restrict qg,
+        double* restrict w_qg, 
+        double* restrict w, 
+        double* restrict entropy_tendency
+    ){
+
+    //derivative of Twet is upwinded
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    const double dzi = 1.0/dims->dx[2];
+
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                entropy_tendency[ijk]+= qg[ijk]*(fabs(w_qg[ijk]) - w[ijk]) * ci * 
+                                        (Twet[ijk+1] - Twet[ijk])*dzi / temperature[ijk];
+            }
+        }
+    }
+    return;
+};
+
+// TODO: there is another drag in sb_liquid section, which need to be rearranged
+void sb_entropy_source_drag_tmp(
+        const struct DimStruct *dims, 
+        double* restrict temperature, 
+        double* restrict q,
+        double* restrict w_q, 
+        double* restrict entropy_tendency
+    ){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                entropy_tendency[ijk] += g*q[ijk]*fabs(w_q[ijk]) / temperature[ijk];
+            }
+        }
+    }
+    return;
+};

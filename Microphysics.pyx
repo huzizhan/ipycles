@@ -11,6 +11,7 @@ cimport ParallelMPI
 from Microphysics_Arctic_1M cimport Microphysics_Arctic_1M
 from Microphysics_SB_Liquid cimport Microphysics_SB_Liquid
 from Microphysics_SB_SI cimport Microphysics_SB_SI
+from Microphysics_SB_2M cimport Microphysics_SB_2M
 cimport Grid
 cimport ReferenceState
 cimport PrognosticVariables
@@ -135,3 +136,5 @@ def MicrophysicsFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         return Microphysics_Arctic_1M(Par, LH, namelist)
     elif(namelist['microphysics']['scheme'] == 'SB_SI'):
         return Microphysics_SB_SI(Par, LH, namelist)
+    elif(namelist['microphysics']['scheme'] == 'SB_2M'):
+        return Microphysics_SB_2M(Par, LH, namelist)

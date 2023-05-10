@@ -190,7 +190,13 @@ double microphysics_heterogenous_freezing_rate(double temperature){
     return A_het * exp(var_tmp);
 }
 
-double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, const double qt, const double T){
+double compute_wetbulb(
+        struct LookupStruct *LT,
+        const double p0, 
+        const double s, 
+        const double qt, 
+        const double T 
+    ){
     double Twet = T;
     double T_1 = T;
     double pv_star_1  = lookup(LT, T_1);
@@ -226,8 +232,17 @@ double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, 
     return Twet;
 }
 
-void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruct *LT, double* restrict p0, double* restrict s,
-                                      double* restrict qt,  double* restrict T,  double* restrict Twet ){
+void microphysics_wetbulb_temperature(
+        struct DimStruct *dims,
+        // INPUT
+        struct LookupStruct *LT, 
+        double* restrict p0,  // reference pressre
+        double* restrict s,   // specific entropy
+        double* restrict qt,  // total water specific humidity
+        double* restrict T,   // temperature
+        // OUTPUT 
+        double* restrict Twet // wetbulb temperature
+    ){
     ssize_t i,j,k;
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -244,8 +259,7 @@ void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruc
             const ssize_t jshift = j * jstride;
             for (k=kmin;k<kmax;k++){
                 const ssize_t ijk = ishift + jshift + k;
-                Twet[ijk] = compute_wetbulb(LT, p0[k], s[ijk], qt[ijk],  T[ijk]);
-
+                Twet[ijk] = compute_wetbulb(LT, p0[k], s[ijk], qt[ijk], T[ijk]);
             } // End k loop
         } // End j loop
     } // End i loop

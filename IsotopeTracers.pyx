@@ -859,16 +859,22 @@ cdef extern from "microphysics_sb_ice.h":
     void sb_ice_microphysics_sources(Grid.DimStruct *dims, 
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-        double* density, double* p0, double* temperature, double* qt, double ccn, double n_ice,
-        double* ql, double* qi, double* nr, double* qr, double* ns, double* qs, double dt,
-        double* nr_tendency_micro, double* qr_tendency_micro,
-        double* nr_tendency, double* qr_tendency_micro,
-        double* ns_tendency_micro, double* qs_tendency_micro,
-        double* ns_tendency, double* qs_tendency) nogil
-    void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, 
-        double* ns, double* qs, double* rho0,
-        double* ns_velocity, double* qs_velocity) nogil
-    void sb_ice_qt_source_formation(Grid.DimStruct *dims, 
+        double* density, double* p0, double dt, 
+        double CCN, double IN, 
+        double* temperature, double* qt, 
+        double* ql, double* qi, 
+        double* nr, double* qr, 
+        double* ns, double* qs, 
+        double* nr_tend_micro, double* qr_tend_micro,
+        double* nr_tend, double* qr_tend_micro,
+        double* ns_tend_micro, double* qs_tend_micro,
+        double* ns_tend, double* qs_tend,
+        double* precip_rate, double* evap_rate, double* melt_rate)nogil
+
+    void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, double* density, 
+        double* ns, double* qs, double* ns_velocity, double* qs_velocity)nogil
+
+    void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
         double* qr_tendency, double* qs_tendency, double* qt_tendency) nogil
 
 cdef class IsotopeTracers_SB_Ice:
@@ -1060,14 +1066,17 @@ cdef class IsotopeTracers_SB_Ice:
         sb_ice_microphysics_sources(&Gr.dims, 
             &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp,
             self.compute_rain_shape_parameter, self.compute_droplet_nu, 
-            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], self.ccn, Micro_Arctic_1M.n0_ice_input,
+            &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
+            self.ccn, Micro_Arctic_1M.n0_ice_input,
+            &DV.values[t_shift], &PV.values[qt_shift], 
             &DV.values[ql_shift], &DV.values[qi_shift],
             &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
-            &PV.values[qs_std_shift], &PV.values[ns_std_shift], TS.dt,   
+            &PV.values[qs_std_shift], &PV.values[ns_std_shift], 
             &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
-            &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift])
+            &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift],
+            &precip_rate[0], &evap_rate[0], &melt_rate[0])
 
-        sb_ice_qt_source_formation(&Gr.dims, &qr_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[qt_std_shift])
+        sb_2m_qt_source_formation(&Gr.dims, &qr_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[qt_std_shift])
 
         # sedimentation processes of rain and single_ice: w_qr and w_qs
 
