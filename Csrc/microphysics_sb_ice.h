@@ -310,10 +310,10 @@ double sb_collection_vartheta_b(
 
     double var_1 = tgamma( (2.0*sb_beta + 2.0*sb_b + nu + 1.0 + k) / mu );
     double var_2 = tgamma( (2.0*sb_b + nu + 1.0 + k) / mu  );
-    double var_3 = tgamma( (nu + 1.0) / mu );
-    double var_4 = tgamma( (nu + 2.0) / mu );
+    double var_3 = tgamma( (nu + 1.0) / mu ) / tgamma( (nu + 2.0) / mu );
+    double exponent = 2.0*sb_beta;
 
-    return (var_1/var_2) * pow((var_3/var_4), 2*sb_beta);
+    return (var_1/var_2) * pow(var_3, exponent);
 }
 
 // following the equation 93 in SB06
@@ -1123,10 +1123,9 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[k]);
 
                     //obtain some parameters of cloud ice particles
-                    ice_mass = microphysics_mean_mass(ni, qi_tmp, ICE_MAX_MASS, ICE_MAX_MASS);// average mass of cloud droplets
+                    ice_mass = microphysics_mean_mass(ni, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);// average mass of cloud droplets
                     Dm_i = SB_ICE_A * pow(ice_mass, SB_ICE_B);
-                    velocity_snow = SB_ICE_alpha * pow(ice_mass, SB_ICE_beta) * sqrt(DENSITY_SB/density[k]);
-                    velocity_ice = 
+                    velocity_ice = SB_ICE_alpha * pow(ice_mass, SB_ICE_beta) * sqrt(DENSITY_SB/density[k]);
 
                     //obtain some parameters of rain droplets
                     rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS); //average mass of rain droplet
@@ -1156,26 +1155,26 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     sb_ice_self_collection(temperature[ijk], qi_tmp, ni, Dm_i, velocity_ice, dt_,
                             &qs_tendency_ice_selcol, &ns_tendency_ice_selcol,
                             &qi_tendency_ice_selcol, &ni_tendency_ice_selcol);
-                    // sb_snow_self_collection(temperature[ijk], qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
-                    //         &ns_tendency_snow_selcol);
-                    // sb_snow_ice_collection(temperature[ijk], qi_tmp, ni, Dm_i, velocity_ice, 
-                    //         qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
-                    //         &qs_tendency_si_col, &qi_tendency_si_col, &ni_tendency_si_col);
-                    //
-                    // // ice phase riming processes
-                    // sb_snow_riming(temperature[ijk], ql_tmp, nl, Dm_l, velocity_liquid, 
-                    //         qr_tmp, nr_tmp, Dm_r, velocity_rain, rain_mass, 
-                    //         qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_, qs_tendency_dep,
-                    //         &ql_tendency_snow_rime, &nl_tendency_snow_rime, 
-                    //         &qi_tendency_snow_mult, &ni_tendency_snow_mult,
-                    //         &qr_tendency_snow_rime, &nr_tendency_snow_rime,
-                    //         &qs_tendency_rime, &ns_tendency_rime);
-                    //
-                    // sb_snow_melting(LT, lam_fp, L_fp, p0[k], temperature[ijk], 
-                    //         qt_tmp, qv_tmp, qs_tmp, ns_tmp, snow_mass, Dm_s, velocity_snow, dt_,
-                    //         &ns_tendency_melt, &qs_tendency_melt,
-                    //         &nr_tendency_melt, &qr_tendency_melt);
-                    // 
+                    sb_snow_self_collection(temperature[ijk], qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
+                            &ns_tendency_snow_selcol);
+                    sb_snow_ice_collection(temperature[ijk], qi_tmp, ni, Dm_i, velocity_ice, 
+                            qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_,
+                            &qs_tendency_si_col, &qi_tendency_si_col, &ni_tendency_si_col);
+                    
+                    // ice phase riming processes
+                    sb_snow_riming(temperature[ijk], ql_tmp, nl, Dm_l, velocity_liquid, 
+                            qr_tmp, nr_tmp, Dm_r, velocity_rain, rain_mass, 
+                            qs_tmp, ns_tmp, Dm_s, velocity_snow, dt_, qs_tendency_dep,
+                            &ql_tendency_snow_rime, &nl_tendency_snow_rime, 
+                            &qi_tendency_snow_mult, &ni_tendency_snow_mult,
+                            &qr_tendency_snow_rime, &nr_tendency_snow_rime,
+                            &qs_tendency_rime, &ns_tendency_rime);
+                    
+                    sb_snow_melting(LT, lam_fp, L_fp, p0[k], temperature[ijk], 
+                            qt_tmp, qv_tmp, qs_tmp, ns_tmp, snow_mass, Dm_s, velocity_snow, dt_,
+                            &ns_tendency_melt, &qs_tendency_melt,
+                            &nr_tendency_melt, &qr_tendency_melt);
+                    
                     //compute the source terms of warm phase process: rain
                     sb_autoconversion_rain_tmp(droplet_nu, density[k], nl, ql_tmp, qr_tmp, 
                             &nr_tendency_au, &qr_tendency_au, &nl_tendency_au, &ql_tendency_au);
@@ -1294,10 +1293,10 @@ void sb_sedimentation_velocity_snow(const struct DimStruct *dims,
 
                 double qs_tmp = fmax(qs[ijk],0.0);
                 double ns_tmp = fmax(fmin(ns[ijk], qs_tmp/SB_SNOW_MIN_MASS),qs_tmp/SB_SNOW_MAX_MASS);
-                double ice_mass = microphysics_mean_mass(ns_tmp, qs_tmp, SB_SNOW_MIN_MASS, SB_SNOW_MAX_MASS);
+                double snow_mass = microphysics_mean_mass(ns_tmp, qs_tmp, SB_SNOW_MIN_MASS, SB_SNOW_MAX_MASS);
                 
-                double ns_vel_tmp = SB_SNOW_alpha * tgamma(6.0 + 3.0*SB_SNOW_beta)/tgamma(6.0) * pow(tgamma(6.0)/tgamma(9.0), SB_SNOW_beta) * pow(ice_mass, SB_SNOW_beta);
-                double qs_vel_tmp = SB_SNOW_alpha * tgamma(9.0 + 3.0*SB_SNOW_beta)/tgamma(9.0) * pow(tgamma(6.0)/tgamma(9.0), SB_SNOW_beta) * pow(ice_mass, SB_SNOW_beta);
+                double ns_vel_tmp = SB_SNOW_alpha * tgamma(6.0 + 3.0*SB_SNOW_beta)/tgamma(6.0) * pow(tgamma(6.0)/tgamma(9.0), SB_SNOW_beta) * pow(snow_mass, SB_SNOW_beta);
+                double qs_vel_tmp = SB_SNOW_alpha * tgamma(9.0 + 3.0*SB_SNOW_beta)/tgamma(9.0) * pow(tgamma(6.0)/tgamma(9.0), SB_SNOW_beta) * pow(snow_mass, SB_SNOW_beta);
                 ns_velocity[ijk] = -fmin(fmax(ns_vel_tmp, 0.0),10.0);
                 qs_velocity[ijk] = -fmin(fmax(qs_vel_tmp, 0.0),10.0);
             }
