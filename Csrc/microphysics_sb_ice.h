@@ -59,7 +59,9 @@
 
 // ------Snow Riming Coefficients------------
 #define LIQUID_CRIT_RIMING 8.3e-7 // specific humidity threshold for ice_cloud_riming and snow_cloud_riming
-#define LIQUID_D_CRIT_RIMING 10.0e-6 // specific humidity threshold for ice_cloud_riming and snow_cloud_riming
+#define LIQUID_D_CRIT_RIMING 15.0e-6 // diameter threshold for ice_cloud_riming and snow_cloud_riming
+#define SNOW_D_CRIT_RIMING 150.0-6 // diameter threshold for ice_cloud_riming and snow_cloud_riming
+#define SNOW_E_MAX 0.8; // max collision efficiencies for snow to collect other species
 #define RAIN_CRIT_RIMING 8.3e-6 // specific humidity threshold for ice_rain_riming and snow_rain_riming
 #define RAIN_D_CRIT_RIMING 100.0e-6 // D-threshold for ice_rain_riming and snow_rain_riming
 #define D_CONV_SG 200.0e-6 // D-threshold for conversion of snow to graupel
@@ -556,19 +558,22 @@ void sb_snow_cloud_riming(
     double epsilon_s, epsilon_l;
 
     if (ql > LIQUID_CRIT_RIMING && qs > LIQUID_CRIT_RIMING && Dm_l > LIQUID_D_CRIT_RIMING && Dm_s > LIQUID_D_CRIT_RIMING){
-        double delta_s_0 = sb_collection_delta_b(0.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu);
-        double delta_l_0 = sb_collection_delta_b(0.0, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
-        double delta_sl_0 = sb_collection_delta_ab(0.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
-        double delta_l_1 = sb_collection_delta_b(1.0, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
-        double delta_sl_1 = sb_collection_delta_ab(1.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double delta_s_0 = sb_collection_delta_b(0.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu);
+        const double delta_l_0 = sb_collection_delta_b(0.0, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double delta_sl_0 = sb_collection_delta_ab(0.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double delta_l_1 = sb_collection_delta_b(1.0, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double delta_sl_1 = sb_collection_delta_ab(1.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_nu, SB_LIQUID_mu);
 
-        double vartheta_s_0 = sb_collection_vartheta_b(0.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
-        double vartheta_l_0 = sb_collection_vartheta_b(0.0, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
-        double vartheta_sl_0 = sb_collection_vartheta_ab(0.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
-        double vartheta_l_1 = sb_collection_vartheta_b(1.0, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
-        double vartheta_sl_1 = sb_collection_vartheta_ab(1.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double vartheta_s_0 = sb_collection_vartheta_b(0.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
+        const double vartheta_l_0 = sb_collection_vartheta_b(0.0, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double vartheta_sl_0 = sb_collection_vartheta_ab(0.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double vartheta_l_1 = sb_collection_vartheta_b(1.0, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
+        const double vartheta_sl_1 = sb_collection_vartheta_ab(1.0, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu, SB_LIQUID_B, SB_LIQUID_beta, SB_LIQUID_nu, SB_LIQUID_mu);
+    
+        const double const_0 = 1.0/(40.0e-6 - 15.0e-6);
+        const double const_1 = const_0 * SNOW_E_MAX;
+        E_sl = fmin(0.8, fmax(const_1*(Dm_l - LIQUID_D_CRIT_RIMING), 0.1));
 
-        E_sl = collection_efficiencies_cloud(Dm_s, Dm_l);
         epsilon_s = 0.2;
         epsilon_l = 0.0;
 
@@ -593,16 +598,16 @@ void sb_snow_rain_riming(
     double qs,
     double Dm_s,
     double velocity_s,
-    double* q_sr_tend,
-    double* q_rs_tend,
-    double* n_sr_tend
+    double* q_sr_tend, // snow collect rain
+    double* q_rs_tend, // rain collect snow
+    double* n_sr_tend 
 ){
     // snow riming raindrops: s+r -> s (and r+s -> g)
     // define local variables
     double E_sr; // collection efficience
     double epsilon_s, epsilon_r;
 
-    if (qr > RAIN_CRIT_RIMING && qs > RAIN_CRIT_RIMING){
+    if (qr > SB_EPS && qs > RAIN_CRIT_RIMING && Dm_s > RAIN_D_CRIT_RIMING){
         double delta_s_0 = sb_collection_delta_b(0.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu);
         double delta_r_0 = sb_collection_delta_b(0.0, SB_RAIN_B, SB_RAIN_nu, SB_RAIN_mu);
         double delta_sr_0 = sb_collection_delta_ab(0.0, SB_SNOW_B, SB_SNOW_nu, SB_SNOW_mu, SB_RAIN_B, SB_RAIN_nu, SB_RAIN_mu);
@@ -627,7 +632,7 @@ void sb_snow_rain_riming(
             sqrt(vartheta_s_0*velocity_s*velocity_s - vartheta_sr_0*velocity_s*velocity_r + vartheta_r_0*velocity_r*velocity_r + epsilon_s + epsilon_r);
         *q_sr_tend = pi/4.0 * E_sr * ns * qr * (delta_s_0*Dm_s*Dm_s + delta_sr_1*Dm_s*Dm_r + delta_r_1*Dm_r*Dm_r) * 
             sqrt(vartheta_s_0*velocity_s*velocity_s - vartheta_sr_1*velocity_s*velocity_r + vartheta_r_1*velocity_r*velocity_r + epsilon_s + epsilon_r);
-        *q_sr_tend = pi/4.0 * E_sr * nr * qs * (delta_r_0*Dm_r*Dm_r + delta_rs_1*Dm_r*Dm_s + delta_s_1*Dm_s*Dm_s) * 
+        *q_rs_tend = pi/4.0 * E_sr * nr * qs * (delta_r_0*Dm_r*Dm_r + delta_rs_1*Dm_r*Dm_s + delta_s_1*Dm_s*Dm_s) * 
             sqrt(vartheta_r_0*velocity_r*velocity_r - vartheta_rs_1*velocity_r*velocity_s + vartheta_s_1*velocity_s*velocity_s + epsilon_r + epsilon_s);
     }
     else{
@@ -635,7 +640,6 @@ void sb_snow_rain_riming(
         *q_sr_tend = 0.0;
         *q_rs_tend = 0.0;
     }
-
     return;
 }
 
@@ -707,13 +711,14 @@ void sb_snow_riming(
     double q_rs_tend;
     double q_sr, n_sr, q_rs;
     double q_mult, n_mult;
+    double q_rime_all;
 
     // first do the riming core calculation for snow of cloud droplet and snow
     // same treatment like collection
     sb_snow_cloud_riming(nl, ql, Dm_l, velocity_l, ns, qs, Dm_s, velocity_s, &q_sl_tend, &n_sl_tend);
-    sb_snow_rain_riming(nr, qr, Dm_r, velocity_r, ns, qs, Dm_s, velocity_s, &q_sr_tend, &n_sr_tend, &q_rs_tend);
+    sb_snow_rain_riming(nr, qr, Dm_r, velocity_r, ns, qs, Dm_s, velocity_s, &q_sr_tend, &q_rs_tend, &n_sr_tend);
 
-    double q_rime_all = q_sl_tend + q_sr_tend;
+    q_rime_all = q_sl_tend + q_sr_tend;
 
     // Depositional growth is stronger than riming growth, therefore snow stays snow:
     if (qs_tend_dep > 0.0 && qs_tend_dep > q_rime_all){
@@ -842,6 +847,8 @@ void sb_snow_deposition(
         // OUTPUT VARIABLES INDEX
         double* ns_tendency, 
         double* qs_tendency,
+        double* dep_tend,
+        double* sub_tend,
         double* qv_tendency
     ){
 
@@ -849,9 +856,9 @@ void sb_snow_deposition(
     // - deposition if sat_ratio > 0.0 (over saturated);
     // - sublimation if sat_ratio < 0.0 (under saturated)
 
-    double qs_tendency_dep = 0.0;
-    double qs_tendency_sub = 0.0;
-    double qs_tendency_diff =0.0;
+    double qs_tendency_dep;
+    double qs_tendency_sub;
+    double qs_tendency_diff;
     double qs_dep = 0.0;
     double ns_dep = 0.0;
     
@@ -870,10 +877,12 @@ void sb_snow_deposition(
         double F_v_snow = 0.78 + 0.308*NSC_3*sqrt(Dm_s*velocity_s/KIN_VISC_AIR);
 
         if(satratio >= 0.0){
-            double qs_tendency_dep = 4.0*pi/c_i * g_therm_ice * Dm_s * F_v_snow * satratio;
+            qs_tendency_dep = 4.0*pi/c_i * g_therm_ice * Dm_s * F_v_snow * satratio;
+            *dep_tend = qs_tendency_dep;
         }
         else{
-            double qs_tendency_sub = 4.0*pi/c_i * g_therm_ice * Dm_s * F_v_snow * satratio;
+            qs_tendency_sub = 4.0*pi/c_i * g_therm_ice * Dm_s * F_v_snow * satratio;
+            *sub_tend = qs_tendency_sub;
         }
         qs_tendency_diff = qs_tendency_dep + qs_tendency_sub;
 
@@ -887,6 +896,8 @@ void sb_snow_deposition(
     else{
         *qs_tendency = 0.0;
         *ns_tendency = 0.0;
+        *dep_tend = 0.0;
+        *sub_tend = 0.0;
         *qv_tendency += 0.0;
     }
     return;
@@ -913,7 +924,6 @@ void sb_snow_melting(
     // define local varialbes
     double lam, L, pv_sat;
     double lam_3, L_3, pv_sat_3;
-    double F_v_q, F_v_n, thermo_melt;
     double qs_melt_tend, ns_melt_tend;
     double qs_melt, ns_melt;
 
@@ -927,12 +937,12 @@ void sb_snow_melting(
         L_3 = L_fp(T_3,lam);
         pv_sat_3 = lookup(LT, T_3); // saturated vapor pressure at T_3;
 
-        F_v_q = 0.78 + 0.308*NSC_3*sqrt(Dm_s*velocity_s/KIN_VISC_AIR);
-        F_v_n = 0.78 + 0.308*NSC_3*sqrt(Dm_s*velocity_s/KIN_VISC_AIR);
+        const double F_v_q = 0.78 + 0.308*NSC_3*sqrt(Dm_s*velocity_s/KIN_VISC_AIR);
+        const double F_v_n = 0.78 + 0.308*NSC_3*sqrt(Dm_s*velocity_s/KIN_VISC_AIR);
         // F_v_0 = sb_ventilation_coefficient(0.0, Dm_s, velocity_snow, snow_mass, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
         // F_v_1 = sb_ventilation_coefficient(1.1, Dm_s, velocity_snow, snow_mass, SB_SNOW_B, SB_SNOW_beta, SB_SNOW_nu, SB_SNOW_mu);
 
-        thermo_melt = (KT/DVAPOR)*(T - T_3) + DVAPOR*L/Rv*(pv_sat/T - pv_sat_3/T_3);
+        const double thermo_melt = (KT/DVAPOR)*(T - T_3) + DVAPOR*L/Rv*(pv_sat/T - pv_sat_3/T_3);
 
         qs_melt_tend = 2.0*pi/L_MELTING * thermo_melt * ns * Dm_s * F_v_q;
         ns_melt_tend = 2.0*pi/L_MELTING * thermo_melt * ns * Dm_s * F_v_n / mass_s;
@@ -959,20 +969,24 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
         // two-moment specific settings based on SB08
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         // INPUT VARIABLES ARRAY
-        double* restrict density,     // reference air density
-        double* restrict p0,          // reference air pressure
-        double dt,                    // timestep
-        double ccn,                   // cloud condensation nuclei (given)
-        double in,                    // ice nuclei (given)
-        double* restrict temperature, // temperature of air parcel
-        double* restrict qt,          // total water specific humidity
-        double* restrict ql,          // cloud liquid water specific humidity (diagnosed)
-        double* restrict qi,          // cloud ice water specific humidity (diagnosed)
-        double* restrict nr,          // rain droplet number density
-        double* restrict qr,          // rain droplet specific humidity
-        double* restrict qs,          // snow specific humidity
-        double* restrict ns,          // snow number density
-        //OUTPUT ARRAYS 
+        double* restrict density, // reference air density
+        double* restrict p0, // reference air pressure
+        double dt, // timestep
+        double ccn, // given cloud condensation nuclei
+        double in, // given ice nuclei
+        double* restrict temperature,  // temperature of air parcel
+        double* restrict qt, // total water specific humidity
+        double* restrict ql, // cloud liquid water specific humidity
+        double* restrict qi, // cloud ice water specific humidity
+        double* restrict nr, // rain droplet number density
+        double* restrict qr, // rain droplet specific humidity
+        double* restrict qs, // snow specific humidity
+        double* restrict ns, // snow number density
+        //OUTPUT ARRAYS: diagnose variables
+        double* restrict Dm, double* restrict mass,
+        double* restrict ice_self_col, double* restrict snow_ice_col,
+        double* restrict snow_riming, double* restrict snow_dep, double* restrict snow_sub,
+        //OUTPUT ARRAYS: q and n tendency
         double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, 
         double* restrict nr_tendency, double* restrict qr_tendency, 
         double* restrict ns_tendency_micro, double* restrict qs_tendency_micro, 
@@ -1073,6 +1087,8 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                 double time_added = 0.0, dt_, rate;
                 ssize_t iter_count = 0;
 
+                double dep_tend, sub_tend;
+
                 do{
                     iter_count       += 1;
                     sat_ratio         = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt_tmp);
@@ -1153,7 +1169,9 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     sb_snow_deposition(LT, lam_fp, L_fp, 
                             temperature[ijk], qt_tmp, p0[k], qs_tmp, ns_tmp, 
                             Dm_s, snow_mass, velocity_snow, dt_, 
-                            &ns_tendency_dep, &qs_tendency_dep, &qv_tendency_dep);
+                            &ns_tendency_dep, &qs_tendency_dep, 
+                            &dep_tend, &sub_tend,
+                            &qv_tendency_dep);
 
                     // ice phase collection processes
                     sb_ice_self_collection(temperature[ijk], qi_tmp, ni, Dm_i, velocity_ice, dt_,
@@ -1269,6 +1287,15 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                 qr_tendency[ijk] += qr_tendency_micro[ijk];
                 ns_tendency[ijk] += ns_tendency_micro[ijk];
                 qs_tendency[ijk] += qs_tendency_micro[ijk];
+
+                // diagnose
+                Dm[ijk] = Dm_s;
+                mass[ijk] = snow_mass;
+                ice_self_col[ijk] = qs_tendency_ice_selcol;
+                snow_ice_col[ijk] = qs_tendency_si_col;
+                snow_riming[ijk] = qs_tendency_rime;
+                snow_dep[ijk] = dep_tend;
+                snow_sub[ijk] = sub_tend;
                 
                 precip_rate[ijk] = precip_rate[ijk]/dt;
                 evap_rate[ijk]   = evap_rate[ijk]/dt;

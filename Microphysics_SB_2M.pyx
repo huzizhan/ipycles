@@ -62,6 +62,9 @@ cdef extern from "microphysics_sb_ice.h":
         double* ql, double* qi, 
         double* nr, double* qr, 
         double* ns, double* qs, 
+        double* Dm, double* mass,
+        double* ice_self_col, double* snow_ice_col,
+        double* snow_riming, double* snow_dep, double* snow_sub,
         double* nr_tend_micro, double* qr_tend_micro,
         double* nr_tend, double* qr_tend_micro,
         double* ns_tend_micro, double* qs_tend_micro,
@@ -194,6 +197,22 @@ cdef class Microphysics_SB_2M:
         NS.add_profile('wqs_mean', Gr, Pa, 'unit', '', 'wqs_mean')
         NS.add_profile('wqr_mean', Gr, Pa, 'unit', '', 'wqr_mean')
         
+        self.Dm            = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.mass          = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.ice_self_col  = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_ice_col = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_riming   = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_dep      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_sub      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        
+        NS.add_profile('Dm', Gr, Pa, '','','')
+        NS.add_profile('mass', Gr, Pa, '','','')
+        NS.add_profile('ice_self_col', Gr, Pa, '','','')
+        NS.add_profile('snow_ice_col', Gr, Pa, '','','')
+        NS.add_profile('snow_riming', Gr, Pa, '','','')
+        NS.add_profile('snow_dep', Gr, Pa, '','','')
+        NS.add_profile('snow_sub', Gr, Pa, '','','')
+
         return
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
@@ -233,6 +252,9 @@ cdef class Microphysics_SB_2M:
             &DV.values[ql_shift], &DV.values[qi_shift], 
             &PV.values[nr_shift], &PV.values[qr_shift], 
             &PV.values[qs_shift], &PV.values[ns_shift],   
+            &self.Dm[0], &self.mass[0],
+            &self.ice_self_col[0], &self.snow_ice_col[0],
+            &self.snow_riming[0], &self.snow_dep[0], &self.snow_sub[0],
             &nr_tend_micro[0], &qr_tend_micro[0], 
             &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
             &ns_tend_micro[0], &qs_tend_micro[0], 
@@ -281,4 +303,23 @@ cdef class Microphysics_SB_2M:
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, 
             PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
             NetCDFIO_Stats NS, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+
+        cdef:
+            double[:] tmp
+        
+        tmp = Pa.HorizontalMean(Gr, &self.Dm[0])
+        NS.write_profile('Dm', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.mass[0])
+        NS.write_profile('mass', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.ice_self_col[0])
+        NS.write_profile('ice_self_col', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_ice_col[0])
+        NS.write_profile('snow_ice_col', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_riming[0])
+        NS.write_profile('snow_riming', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_dep[0])
+        NS.write_profile('snow_dep', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_sub[0])
+        NS.write_profile('snow_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
         return

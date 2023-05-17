@@ -865,14 +865,18 @@ cdef extern from "microphysics_sb_ice.h":
         double* ql, double* qi, 
         double* nr, double* qr, 
         double* ns, double* qs, 
+        double* Dm, double* mass,
+        double* ice_self_col, double* snow_ice_col,
+        double* snow_riming, double* snow_dep, double* snow_sub,
         double* nr_tend_micro, double* qr_tend_micro,
         double* nr_tend, double* qr_tend_micro,
         double* ns_tend_micro, double* qs_tend_micro,
         double* ns_tend, double* qs_tend,
         double* precip_rate, double* evap_rate, double* melt_rate)nogil
 
-    void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, double* density, 
-        double* ns, double* qs, double* ns_velocity, double* qs_velocity)nogil
+    void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, 
+        double* ns, double* qs, double* rho0,
+        double* ns_velocity, double* qs_velocity) nogil
 
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
         double* qr_tendency, double* qs_tendency, double* qt_tendency) nogil
@@ -1003,6 +1007,22 @@ cdef class IsotopeTracers_SB_Ice:
         NS.add_profile('qs_iso_O18', Gr, Pa, 'kg/kg', '', 'Finial result of snow isotopic sepcific humidity')
         NS.add_profile('qs_iso_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of snow isotopic sepcific humidity')
 
+        self.Dm            = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.mass          = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.ice_self_col  = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_ice_col = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_riming   = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_dep      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.snow_sub      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        
+        NS.add_profile('Dm', Gr, Pa, '','','')
+        NS.add_profile('mass', Gr, Pa, '','','')
+        NS.add_profile('ice_self_col', Gr, Pa, '','','')
+        NS.add_profile('snow_ice_col', Gr, Pa, '','','')
+        NS.add_profile('snow_riming', Gr, Pa, '','','')
+        NS.add_profile('snow_dep', Gr, Pa, '','','')
+        NS.add_profile('snow_sub', Gr, Pa, '','','')
+
         initialize_NS_base(NS, Gr, Pa)
 
         return
@@ -1072,6 +1092,9 @@ cdef class IsotopeTracers_SB_Ice:
             &DV.values[ql_shift], &DV.values[qi_shift],
             &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
             &PV.values[qs_std_shift], &PV.values[ns_std_shift], 
+            &self.Dm[0], &self.mass[0],
+            &self.ice_self_col[0], &self.snow_ice_col[0],
+            &self.snow_riming[0], &self.snow_dep[0], &self.snow_sub[0],
             &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
             &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift],
             &precip_rate[0], &evap_rate[0], &melt_rate[0])
@@ -1098,6 +1121,24 @@ cdef class IsotopeTracers_SB_Ice:
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
 
         iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
+
+        cdef:
+            double[:] tmp
+        
+        tmp = Pa.HorizontalMean(Gr, &self.Dm[0])
+        NS.write_profile('Dm', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.mass[0])
+        NS.write_profile('mass', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.ice_self_col[0])
+        NS.write_profile('ice_self_col', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_ice_col[0])
+        NS.write_profile('snow_ice_col', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_riming[0])
+        NS.write_profile('snow_riming', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_dep[0])
+        NS.write_profile('snow_dep', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.snow_sub[0])
+        NS.write_profile('snow_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
 
         return
 

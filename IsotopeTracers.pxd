@@ -116,6 +116,14 @@ cdef class IsotopeTracers_SB_Ice:
 
         public bint isotope_tracer
 
+        double [:] Dm
+        double [:] mass
+        double [:] ice_self_col
+        double [:] snow_ice_col
+        double [:] snow_riming
+        double [:] snow_dep
+        double [:] snow_sub
+
     cpdef initialize(namelist, self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
