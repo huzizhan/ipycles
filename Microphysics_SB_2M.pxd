@@ -4,6 +4,7 @@ cimport DiagnosticVariables
 cimport ReferenceState
 cimport ParallelMPI
 cimport TimeStepping
+from libc.math cimport pow, exp
 from NetCDFIO cimport NetCDFIO_Stats
 from Thermodynamics cimport LatentHeat, ClausiusClapeyron
 
@@ -51,6 +52,26 @@ cdef inline double latent_heat_variable(double T, double Lambda) nogil:
         double TC = T - 273.15
     return (2500.8 - 2.36 * TC + 0.0016 * TC *
             TC - 0.00006 * TC * TC * TC) * 1000.0
+
+cdef inline double lambda_Arctic(double T) nogil:
+    cdef:
+        double Twarm = 273.0
+        double Tcold = 235.0
+        # double pow_n = 0.1 --> initial setting for pycles
+        # if pow_n < 0.3, caes Sheba and IsdacCC will stuck in at about T=3700, and 
+        # T = 6600 respectively, after sevel tests, we think for Sheba and IsdacCC, 
+        # pow_n = 0.35 is a better option.
+        double pow_n = 0.35 
+        double Lambda = 0.0
+
+    if T >= Tcold and T <= Twarm:
+        Lambda = pow((T - Tcold)/(Twarm - Tcold), pow_n)
+    elif T > Twarm:
+        Lambda = 1.0
+    else:
+        Lambda = 0.0
+
+    return Lambda
 
 # adopte from arctic-1m scheme 
 cdef inline double latent_heat_Arctic(double T, double Lambda) nogil:

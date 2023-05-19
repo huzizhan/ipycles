@@ -61,12 +61,12 @@ cdef extern from "microphysics_sb_ice.h":
         double* temperature, double* qt, 
         double* ql, double* qi, 
         double* nr, double* qr, 
-        double* ns, double* qs, 
+        double* qs, double* ns, 
         double* Dm, double* mass,
         double* ice_self_col, double* snow_ice_col,
         double* snow_riming, double* snow_dep, double* snow_sub,
         double* nr_tend_micro, double* qr_tend_micro,
-        double* nr_tend, double* qr_tend_micro,
+        double* nr_tend, double* qr_tend,
         double* ns_tend_micro, double* qs_tend_micro,
         double* ns_tend, double* qs_tend,
         double* precip_rate, double* evap_rate, double* melt_rate)nogil
@@ -89,13 +89,17 @@ cdef extern from "microphysics_sb_ice.h":
 cdef class Microphysics_SB_2M:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
 
-        # Create the appropriate linkages to the bulk thermodynamics
-        LH.Lambda_fp = lambda_constant
-        LH.L_fp = latent_heat_variable
         self.thermodynamics_type = 'SA'
-        #also set local versions
-        self.Lambda_fp = lambda_constant
-        self.L_fp = latent_heat_variable
+
+        # Create the appropriate linkages to the bulk thermodynamics
+        # use the saturation adjustment method from Kaul et al. 2015
+        LH.Lambda_fp = lambda_Arctic
+        self.Lambda_fp = lambda_Arctic
+        LH.L_fp = latent_heat_Arctic
+        self.L_fp = latent_heat_Arctic
+
+        Par.root_print('Using Arctic specific liquid fraction by Kaul et al. 2015!')
+
         self.CC = ClausiusClapeyron()
         self.CC.initialize(namelist, LH, Par)
 

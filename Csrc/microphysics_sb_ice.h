@@ -1529,7 +1529,7 @@ void sb_2m_entropy_source(
                 const double pv_star_T = lookup(LT, temperature[ijk]); // saturation vapor pressure
 
                 // precipitation entropy source
-                if (qr[ijk] > SB_EPS && qs[ijk] > SB_EPS){
+                if (qr[ijk] > 1.0e-10 && qs[ijk] > 1.0e-10){
                     sb_entropy_source_precip(L, p0[k], temperature[ijk], qt[ijk], qv[ijk], precip_rate[ijk], &S_P);
                     // evaporation entropy source
                     sb_entropy_source_evap(pv_star_T, L, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], evap_rate[ijk], &S_E);
