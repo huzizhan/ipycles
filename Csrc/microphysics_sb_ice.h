@@ -1278,9 +1278,9 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
 
                 }while(time_added < dt);
 
-                nr_tendency_micro[ijk] = (nr_tmp - nr[ijk] )/dt;
+                nr_tendency_micro[ijk] = (nr_tmp - nr[ijk])/dt;
                 qr_tendency_micro[ijk] = (qr_tmp - qr[ijk])/dt;
-                ns_tendency_micro[ijk] = (ns_tmp - ns[ijk] )/dt;
+                ns_tendency_micro[ijk] = (ns_tmp - ns[ijk])/dt;
                 qs_tendency_micro[ijk] = (qs_tmp - qs[ijk])/dt;
 
                 nr_tendency[ijk] += nr_tendency_micro[ijk];
