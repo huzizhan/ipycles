@@ -1088,7 +1088,7 @@ cdef class IsotopeTracers_SB_Ice:
             self.compute_rain_shape_parameter, self.compute_droplet_nu, 
             &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
             self.ccn, Micro_Arctic_1M.n0_ice_input,
-            &DV.values[t_shift], &PV.values[qt_shift], 
+            &DV.values[t_shift], &PV.values[qt_std_shift], 
             &DV.values[ql_shift], &DV.values[qi_shift],
             &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
             &PV.values[qs_std_shift], &PV.values[ns_std_shift], 
@@ -1099,7 +1099,7 @@ cdef class IsotopeTracers_SB_Ice:
             &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift],
             &precip_rate[0], &evap_rate[0], &melt_rate[0])
 
-        sb_2m_qt_source_formation(&Gr.dims, &qr_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[qt_std_shift])
+        qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], &precip_rate[0], &evap_rate[0])
 
         # sedimentation processes of rain and single_ice: w_qr and w_qs
 
