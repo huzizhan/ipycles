@@ -1040,9 +1040,6 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
     double nr_tendency_melt, qr_tendency_melt;
     // -------------------------------------------------
 
-    // precipitation and evaporation rate tmp variable
-    double precip_tmp, evap_tmp;
-
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
     const ssize_t imin = dims->gw;
@@ -1083,6 +1080,13 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                 double ice_mass, Dm_i, velocity_ice;
                 double rain_mass, Dm_r, mu, Dp, velocity_rain;
                 double snow_mass, Dm_s, velocity_snow;
+
+                // precipitation and evaporation rate tmp variable
+                double precip_tmp = 0.0;
+                double precip_tend = 0.0;
+                double evap_tmp = 0.0;
+                double evap_tend = 0.0;
+                double melt_tmp= 0.0;
 
                 double time_added = 0.0, dt_, rate;
                 ssize_t iter_count = 0;
@@ -1241,13 +1245,13 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                         dt_ = fmax(dt_/rate, 1.0e-3);
                     }
                     
-                    precip_tmp = qr_tendency_au + qr_tendency_ac + qs_tendency_rime +
-                                 qs_tendency_ice_selcol + qs_tendency_si_col; // keep POSITIVE when precipation formed
-                    evap_tmp = -(qv_tendency_dep + qv_tendency_evp); // keep POSITIVE when evap/sub formed
+                    precip_tend = qr_tendency_au + qr_tendency_ac + qs_tendency_rime +
+                                 qs_tendency_ice_selcol + qs_tendency_si_col + dep_tend; // keep POSITIVE when precipation formed
+                    evap_tend = -(sub_tend + qv_tendency_evp); // keep POSITIVE when evap/sub formed
                     
-                    precip_rate[ijk] += precip_tmp * dt_;
-                    evap_rate[ijk]   += evap_tmp * dt_;
-                    melt_rate[ijk]   += qs_tendency_melt * dt_;
+                    precip_tmp += precip_tend * dt_;
+                    evap_tmp   += evap_tend * dt_;
+                    melt_tmp   += qr_tendency_melt * dt_;
 
                     //Integrate forward in time
                     ql_tmp += ql_tendency_tmp * dt_;
@@ -1288,7 +1292,7 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                 ns_tendency[ijk] += ns_tendency_micro[ijk];
                 qs_tendency[ijk] += qs_tendency_micro[ijk];
 
-                // diagnose
+                // diagnose snow varialbes
                 Dm[ijk] = Dm_s;
                 mass[ijk] = snow_mass;
                 ice_self_col[ijk] = qs_tendency_ice_selcol;
@@ -1297,9 +1301,9 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                 snow_dep[ijk] = dep_tend;
                 snow_sub[ijk] = sub_tend;
                 
-                precip_rate[ijk] = precip_rate[ijk]/dt;
-                evap_rate[ijk]   = evap_rate[ijk]/dt;
-                melt_rate[ijk]   = melt_rate[ijk]/dt;
+                precip_rate[ijk] = precip_tmp/dt;
+                evap_rate[ijk]   = evap_tmp/dt;
+                melt_rate[ijk]   = melt_tmp/dt;
             }
         }
     }
@@ -1358,9 +1362,9 @@ void sb_sedimentation_velocity_snow(const struct DimStruct *dims,
 }
 
 void sb_2m_qt_source_formation(const struct DimStruct *dims, 
-        double* restrict qr_tendency,
-        double* restrict qs_tendency, 
-        double* restrict qt_tendency){
+        double* restrict qt_tendency,
+        double* restrict precip_rate, 
+        double* restrict evap_rate){
 
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -1377,7 +1381,7 @@ void sb_2m_qt_source_formation(const struct DimStruct *dims,
             const ssize_t jshift = j * jstride;
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
-                qt_tendency[ijk] += -qr_tendency[ijk] - qs_tendency[ijk];
+                qt_tendency[ijk] += evap_rate[ijk] - precip_rate[ijk];
             }
         }
     }
@@ -1418,7 +1422,8 @@ void sb_entropy_source_evap(
         double qv,
         double evap_rate, 
         // OUTPUT
-        double* entropy_tendency
+        double* sd_tend,
+        double* se_tend
     ){
 
     const double pd = pd_c(p0, qt, qv); // dry air pressure
@@ -1427,11 +1432,12 @@ void sb_entropy_source_evap(
     const double sv = sv_c(pv, Twet); // s_v^*(Twet): specific entropy of vapor under wetbuble temperature
     const double sc = sc_c(L, Twet); // sc_c = -L/T
     // equation 50 in Pressel15, evap/sub term
-    double S_E = (sv + sc - sd);
+    const double s_E = (sv + sc - sd);
     // equation 51 in Pressel15, vapor diffusivity term
-    double S_D = -Rv*log(pv/pv_star_T) + cpv*log(T/Twet); 
+    const double s_D = -Rv*log(pv/pv_star_T) + cpv*log(T/Twet); 
     
-    *entropy_tendency = (S_E + S_D)*evap_rate;
+    *se_tend = s_E*evap_rate;
+    *sd_tend = s_D*evap_rate;
 
     return;
 };
@@ -1503,6 +1509,14 @@ void sb_2m_entropy_source(
         double* restrict precip_rate, 
         double* restrict evap_rate, 
         double* restrict melt_rate, 
+        // DIAGNOSE
+        double* restrict sp, // entropy source of precipitation
+        double* restrict se, // entropy source of evaporation
+        double* restrict sd, // entropy source of vapor diffusion
+        double* restrict sm, // entropy source of melting
+        double* restrict sq, // entropy source of heating
+        double* restrict sw, // entropy source of draging
+        // OUTPUT
         double* restrict entropy_tendency
     ){
     
@@ -1523,34 +1537,44 @@ void sb_2m_entropy_source(
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
                 
-                double S_P, S_E, S_M, S_Q, S_W;
+                double S_P, S_E, S_D, S_M, S_Q, S_W;
                 const double lam = lam_fp(temperature[ijk]);
                 const double L = L_fp(temperature[ijk],lam);
                 const double pv_star_T = lookup(LT, temperature[ijk]); // saturation vapor pressure
 
                 // precipitation entropy source
-                if (qr[ijk] > 1.0e-10 && qs[ijk] > 1.0e-10){
+                if (qr[ijk] > SB_EPS && qs[ijk] > 1.0e-10){
                     sb_entropy_source_precip(L, p0[k], temperature[ijk], qt[ijk], qv[ijk], precip_rate[ijk], &S_P);
                     // evaporation entropy source
-                    sb_entropy_source_evap(pv_star_T, L, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], evap_rate[ijk], &S_E);
+                    sb_entropy_source_evap(pv_star_T, L, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], evap_rate[ijk], &S_D, &S_E);
                     // melting entropy source 
                     sb_entropy_source_melt(temperature[ijk], melt_rate[ijk], &S_M);
                 }
                 else{
                     S_P = 0.0;
                     S_E = 0.0;
+                    S_D = 0.0;
                     S_M = 0.0;
                 }
                 // heating entropy source for each specie: rain/snow
                 S_Q = 0.0;
                 sb_entropy_source_heating_func(temperature[ijk], Twet[ijk], Twet[ijk+1], qr[ijk], w_qr[ijk], w[ijk], dzi, cl, &S_Q);
                 sb_entropy_source_heating_func(temperature[ijk], Twet[ijk], Twet[ijk+1], qs[ijk], w_qs[ijk], w[ijk], dzi, ci, &S_Q);
+
                 // draging entropy source
                 S_W = 0.0;
                 sb_entropy_source_drag_func(temperature[ijk], qr[ijk], w_qr[ijk], &S_W);
                 sb_entropy_source_drag_func(temperature[ijk], qs[ijk], w_qs[ijk], &S_W);
                 
-                entropy_tendency[ijk] += S_P + S_E + S_M + S_Q + S_W;
+                entropy_tendency[ijk] += S_P + S_E + S_D + S_M + S_Q + S_W;
+
+                // diagnosed each entropy source
+                sp[ijk] = S_P;
+                se[ijk] = S_E;
+                sd[ijk] = S_D;
+                sm[ijk] = S_M;
+                sq[ijk] = S_Q;
+                sw[ijk] = S_W;
             }
         }
     }

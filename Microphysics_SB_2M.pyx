@@ -78,13 +78,15 @@ cdef extern from "microphysics_sb_ice.h":
         double* qr, double* w_qr, 
         double* qs, double* w_qs,
         double* precip_rate, double* evap_rate, double* melt_rate,
+        double* sp, double* se, double* sd, 
+        double* sm, double* sq, double* sw, 
         double* s_tend)nogil
 
     void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, double* density, 
         double* ns, double* qs, double* ns_velocity, double* qs_velocity)nogil
 
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
-        double* qr_tendency, double* qs_tendency, double* qt_tendency) nogil
+        double* qt_tendency, double* precip_rate, double* evap_rate) nogil
 
 cdef class Microphysics_SB_2M:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -172,10 +174,6 @@ cdef class Microphysics_SB_2M:
     cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, 
             NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
-        # Define the precip_rate, evap_rate and melt_rate for entropy source calculation. 
-        self.precip_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
-        self.evap_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
-        self.melt_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
         
         # add prognostic variables for mass and number of rain
         PV.add_variable('nr', '1/kg', r'n_r', 'rain droplet number concentration','sym','scalar',Pa)
@@ -201,6 +199,16 @@ cdef class Microphysics_SB_2M:
         NS.add_profile('wqs_mean', Gr, Pa, 'unit', '', 'wqs_mean')
         NS.add_profile('wqr_mean', Gr, Pa, 'unit', '', 'wqr_mean')
         
+        # Define the precip_rate, evap_rate and melt_rate for entropy source calculation. 
+        self.precip_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
+        self.evap_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
+        self.melt_rate = np.zeros((Gr.dims.npg,), dtype=np.double, order='c') 
+
+        NS.add_profile('precip_rate', Gr, Pa, '','','')
+        NS.add_profile('evap_rate', Gr, Pa, '','','')
+        NS.add_profile('melt_rate', Gr, Pa, '','','')
+
+        # Define the snow diagnosed variables
         self.Dm            = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         self.mass          = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         self.ice_self_col  = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
@@ -216,6 +224,21 @@ cdef class Microphysics_SB_2M:
         NS.add_profile('snow_riming', Gr, Pa, '','','')
         NS.add_profile('snow_dep', Gr, Pa, '','','')
         NS.add_profile('snow_sub', Gr, Pa, '','','')
+
+        # Define the entropy source diagnosed variables
+        self.sp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.se = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.sd = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.sm = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.sq = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.sw = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        NS.add_profile('sp', Gr, Pa, '', '', '')
+        NS.add_profile('se', Gr, Pa, '', '', '')
+        NS.add_profile('sd', Gr, Pa, '', '', '')
+        NS.add_profile('sm', Gr, Pa, '', '', '')
+        NS.add_profile('sq', Gr, Pa, '', '', '')
+        NS.add_profile('sw', Gr, Pa, '', '', '')
 
         return
 
@@ -248,24 +271,29 @@ cdef class Microphysics_SB_2M:
 
         # SB 2 moment microphysics source calculation
         sb_ice_microphysics_sources(&Gr.dims, 
-            &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, # thermodynamics setting
-            self.compute_rain_shape_parameter, self.compute_droplet_nu, # two moment rain droplet mu variable setting
+            # thermodynamics setting
+            &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
+            # two moment rain droplet mu variable setting
+            self.compute_rain_shape_parameter, self.compute_droplet_nu, 
+            # INPUT ARRAY INDEX
             &Ref.rho0_half[0],  &Ref.p0_half[0], dt,
             self.CCN, self.IN,
             &DV.values[t_shift], &PV.values[qt_shift], 
             &DV.values[ql_shift], &DV.values[qi_shift], 
             &PV.values[nr_shift], &PV.values[qr_shift], 
             &PV.values[qs_shift], &PV.values[ns_shift],   
+            # ------ DIAGNOSED VARIABLES ---------
             &self.Dm[0], &self.mass[0],
             &self.ice_self_col[0], &self.snow_ice_col[0],
             &self.snow_riming[0], &self.snow_dep[0], &self.snow_sub[0],
+            # ------------------------------------
             &nr_tend_micro[0], &qr_tend_micro[0], 
             &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
             &ns_tend_micro[0], &qs_tend_micro[0], 
             &PV.tendencies[ns_shift], &PV.tendencies[qs_shift],
             &self.precip_rate[0], &self.evap_rate[0], &self.melt_rate[0])
         
-        sb_2m_qt_source_formation(&Gr.dims, &qs_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[qt_shift])
+        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_shift], &self.precip_rate[0], &self.evap_rate[0])
         
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, 
@@ -301,7 +329,12 @@ cdef class Microphysics_SB_2M:
             &PV.values[qr_shift], &DV.values[wqr_shift], 
             &PV.values[qs_shift], &DV.values[wqs_shift],
             &self.precip_rate[0], &self.evap_rate[0], &self.melt_rate[0],
+            # ------ DIAGNOSED VARIABLES ---------
+            &self.sp[0], &self.se[0], &self.sd[0], 
+            &self.sm[0], &self.sq[0], &self.sw[0], 
+            # ------------------------------------
             &PV.values[s_shift])
+
         return
     
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, 
@@ -311,6 +344,13 @@ cdef class Microphysics_SB_2M:
         cdef:
             double[:] tmp
         
+        tmp = Pa.HorizontalMean(Gr, &self.precip_rate[0])
+        NS.write_profile('precip_rate', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.evap_rate[0])
+        NS.write_profile('evap_rate', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.melt_rate[0])
+        NS.write_profile('melt_rate', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
         tmp = Pa.HorizontalMean(Gr, &self.Dm[0])
         NS.write_profile('Dm', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &self.mass[0])
@@ -325,5 +365,18 @@ cdef class Microphysics_SB_2M:
         NS.write_profile('snow_dep', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &self.snow_sub[0])
         NS.write_profile('snow_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        tmp = Pa.HorizontalMean(Gr, &self.sp[0])
+        NS.write_profile('sp', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.se[0])
+        NS.write_profile('se', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.sd[0])
+        NS.write_profile('sd', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.sm[0])
+        NS.write_profile('sm', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.sq[0])
+        NS.write_profile('sq', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &self.sw[0])
+        NS.write_profile('sw', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
 
         return

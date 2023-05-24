@@ -879,7 +879,7 @@ cdef extern from "microphysics_sb_ice.h":
         double* ns_velocity, double* qs_velocity) nogil
 
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
-        double* qr_tendency, double* qs_tendency, double* qt_tendency) nogil
+        double* qt_tendency, double* precip_rate, double* evap_rate) nogil
 
 cdef class IsotopeTracers_SB_Ice:
 
@@ -1084,25 +1084,29 @@ cdef class IsotopeTracers_SB_Ice:
             &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
         
         sb_ice_microphysics_sources(&Gr.dims, 
+            # thermodynamics setting
             &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp,
+            # two moment rain droplet mu variable setting
             self.compute_rain_shape_parameter, self.compute_droplet_nu, 
+            # INPUT ARRAY INDEX
             &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
             self.ccn, Micro_Arctic_1M.n0_ice_input,
             &DV.values[t_shift], &PV.values[qt_std_shift], 
             &DV.values[ql_shift], &DV.values[qi_shift],
             &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
             &PV.values[qs_std_shift], &PV.values[ns_std_shift], 
+            # ------ DIAGNOSED VARIABLES ---------
             &self.Dm[0], &self.mass[0],
             &self.ice_self_col[0], &self.snow_ice_col[0],
             &self.snow_riming[0], &self.snow_dep[0], &self.snow_sub[0],
+            # ------------------------------------
             &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
             &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift],
             &precip_rate[0], &evap_rate[0], &melt_rate[0])
 
-        qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], &precip_rate[0], &evap_rate[0])
+        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], &precip_rate[0], &evap_rate[0])
 
         # sedimentation processes of rain and single_ice: w_qr and w_qs
-
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_std_shift],
             &PV.values[qr_std_shift], &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
         sb_sedimentation_velocity_snow(&Gr.dims, &PV.values[ns_std_shift], &PV.values[qs_std_shift], &Ref.rho0_half[0], 

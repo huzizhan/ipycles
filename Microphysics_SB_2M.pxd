@@ -31,7 +31,9 @@ cdef class Microphysics_SB_2M:
         double [:] evap_rate
         double [:] precip_rate
         double [:] melt_rate
+        
 
+        # snow diagnosed variables
         double [:] Dm
         double [:] mass
         double [:] ice_self_col
@@ -39,6 +41,15 @@ cdef class Microphysics_SB_2M:
         double [:] snow_riming
         double [:] snow_dep
         double [:] snow_sub
+
+        # entropy source diagnosed variables
+        double [:] sp
+        double [:] se
+        double [:] sd
+        double [:] sm
+        double [:] sq
+        double [:] sw
+
 
     cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
