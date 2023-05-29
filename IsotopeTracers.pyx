@@ -856,18 +856,21 @@ cdef class IsotopeTracers_SBSI:
         return
 
 cdef extern from "microphysics_sb_ice.h":
-    void sb_ice_microphysics_sources(Grid.DimStruct *dims, 
+    void sb_ice_microphysics_sources_tracer(Grid.DimStruct *dims, 
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         double* density, double* p0, double dt, 
         double CCN, double IN, 
         double* temperature, double* qt, 
-        double* ql, double* qi, 
+        double* nl, double* ql,
+        double* ni, double* qi,
         double* nr, double* qr, 
-        double* qs, double* ns, 
+        double* ns, double* qs, 
         double* Dm, double* mass,
         double* ice_self_col, double* snow_ice_col,
         double* snow_riming, double* snow_dep, double* snow_sub,
+        double* nl_tend, double* ql_tend,
+        double* ni_tend, double* qi_tend,
         double* nr_tend_micro, double* qr_tend_micro,
         double* nr_tend, double* qr_tend,
         double* ns_tend_micro, double* qs_tend_micro,
@@ -962,7 +965,9 @@ cdef class IsotopeTracers_SB_Ice:
         PV.add_variable('qt_std', 'kg/kg','qt_std','Total water std specific humidity','sym', "scalar", Pa)
         PV.add_variable('qv_std', 'kg/kg','qv_std','Vapor water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('ql_std', 'kg/kg','ql_std','Cloud liquid water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('nl_std', 'kg/kg','nl_std','Cloud liquid water std number density','sym', 'scalar', Pa)
         PV.add_variable('qi_std', 'kg/kg','ql_std','Cloud ice water std specific humidity','sym', 'scalar', Pa)
+        PV.add_variable('ni_std', 'kg/kg','ni_std','Cloud ice water std number density','sym', 'scalar', Pa)
         PV.add_variable('qr_std', 'kg/kg','ql_std','Rain water std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('qs_std', 'kg/kg','ql_std','Snow std specific humidity','sym', 'scalar', Pa)
         PV.add_variable('nr_std', '','nr_std','Rain water std specific humidity','sym', 'scalar', Pa)
@@ -1049,6 +1054,9 @@ cdef class IsotopeTracers_SB_Ice:
             Py_ssize_t qs_std_shift = PV.get_varshift(Gr,'qs_std')
             Py_ssize_t ns_std_shift = PV.get_varshift(Gr,'ns_std')
 
+            Py_ssize_t nl_std_shift = PV.get_varshift(Gr,'nl_std')
+            Py_ssize_t ni_std_shift = PV.get_varshift(Gr,'ni_std')
+
             Py_ssize_t wqr_std_shift = DV.get_varshift(Gr, 'w_qr_std')
             Py_ssize_t wnr_std_shift = DV.get_varshift(Gr, 'w_nr_std')
             Py_ssize_t wqs_std_shift = DV.get_varshift(Gr, 'w_qs_std')
@@ -1083,7 +1091,7 @@ cdef class IsotopeTracers_SB_Ice:
             &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
             &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
         
-        sb_ice_microphysics_sources(&Gr.dims, 
+        sb_ice_microphysics_sources_tracer(&Gr.dims, 
             # thermodynamics setting
             &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp,
             # two moment rain droplet mu variable setting
@@ -1092,14 +1100,17 @@ cdef class IsotopeTracers_SB_Ice:
             &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
             self.ccn, Micro_Arctic_1M.n0_ice_input,
             &DV.values[t_shift], &PV.values[qt_std_shift], 
-            &DV.values[ql_shift], &DV.values[qi_shift],
-            &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
-            &PV.values[qs_std_shift], &PV.values[ns_std_shift], 
+            &PV.values[nl_std_shift], &PV.values[ql_std_shift],
+            &PV.values[ni_std_shift], &PV.values[qi_std_shift],
+            &PV.values[nr_std_shift], &PV.values[qr_std_shift],
+            &PV.values[ns_std_shift], &PV.values[qs_std_shift], 
             # ------ DIAGNOSED VARIABLES ---------
             &self.Dm[0], &self.mass[0],
             &self.ice_self_col[0], &self.snow_ice_col[0],
             &self.snow_riming[0], &self.snow_dep[0], &self.snow_sub[0],
             # ------------------------------------
+            &PV.tendencies[nl_std_shift], &PV.tendencies[ql_std_shift],
+            &PV.tendencies[ni_std_shift], &PV.tendencies[qi_std_shift],
             &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
             &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift],
             &precip_rate[0], &evap_rate[0], &melt_rate[0])
