@@ -109,6 +109,7 @@ cdef class IsotopeTracers_SB_Ice:
         double (*compute_droplet_nu)(double density, double ql) nogil
 
         double ccn
+        double ice_nucl
 
         bint cloud_sedimentation
         bint stokes_sedimentation

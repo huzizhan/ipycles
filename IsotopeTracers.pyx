@@ -861,7 +861,8 @@ cdef extern from "microphysics_sb_ice.h":
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         double* density, double* p0, double dt, 
         double CCN, double IN, 
-        double* temperature, double* qt, 
+        double* temperature, double* s, double* w,
+        double*S, double* qt,
         double* nl, double* ql,
         double* ni, double* qi,
         double* nr, double* qr, 
@@ -883,6 +884,19 @@ cdef extern from "microphysics_sb_ice.h":
 
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
         double* qt_tendency, double* precip_rate, double* evap_rate) nogil
+    
+    void saturation_ratio(Grid.DimStruct *dims,  
+        Lookup.LookupStruct *LT, double* p0, 
+        double* temperature,  double* qt, double* S)
+
+    void sb_nuc(Grid.DimStruct *dims,  
+        Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double* rho0, double* p0, double dt, double IN, double* w, double* s,
+        double* temperature, double* S, double* qt, double* qv,
+        double* nl, double* ql, double* ni, double* qi, 
+        double* diag_1, double* diag_2, double* diag_3,
+        double* nl_tendency, double* ql_tendency,
+        double* ni_tendency, double* qi_tendency)
 
 cdef class IsotopeTracers_SB_Ice:
 
@@ -891,6 +905,7 @@ cdef class IsotopeTracers_SB_Ice:
         self.isotope_tracer = True
 
         self.ccn = 100.0e6
+        # self.ice_nucl = 2.0e2 # per liter
 
         # Set option for calculation of mu (distribution shape parameter)
         try:
@@ -938,6 +953,11 @@ cdef class IsotopeTracers_SB_Ice:
             self.stokes_sedimentation = True
         else:
             self.stokes_sedimentation = False
+        
+        try:
+            self.ice_nucl = namelist['isotopetracers']['ice_nuclei']
+        except:
+            self.ice_nucl = 2.0e2 # unit: L^-1, Cotton assumption of contact nucleation.
 
         return
 
@@ -976,6 +996,8 @@ cdef class IsotopeTracers_SB_Ice:
         # following velocity calculation of rain and single-ice 
         # sedimentation velocity of qt_iso_O18(w_qt_iso_O18) and qr_iso_O18(w_qr_iso_O18),
         # which should be same as qt, qr and qs, as DVs w_qt, w_qr, w_qs;
+
+        DV.add_variables('S', 'unit', r'S','saturation ratio', 'sym', Pa)
 
         DV.add_variables('w_qr_std', 'unit', r'w_qr_std','sedimentation velocity of rain mass', 'sym', Pa)
         DV.add_variables('w_nr_std', 'unit', r'w_nr_std','sedimentation velocity of rain number density', 'sym', Pa)
@@ -1037,12 +1059,14 @@ cdef class IsotopeTracers_SB_Ice:
         DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
 
         cdef:
-            Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
-            Py_ssize_t qt_shift     = PV.get_varshift(Gr,'qt')
-            Py_ssize_t qv_shift     = DV.get_varshift(Gr,'qv')
-            Py_ssize_t ql_shift     = DV.get_varshift(Gr,'ql')
-            Py_ssize_t qi_shift     = DV.get_varshift(Gr,'qi')
-            Py_ssize_t s_shift      = PV.get_varshift(Gr,'s')
+            Py_ssize_t t_shift  = DV.get_varshift(Gr,'temperature')
+            Py_ssize_t qt_shift = PV.get_varshift(Gr,'qt')
+            Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
+            Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
+            Py_ssize_t qi_shift = DV.get_varshift(Gr,'qi')
+            Py_ssize_t s_shift  = PV.get_varshift(Gr,'s')
+            Py_ssize_t w_shift  = PV.get_varshift(Gr,'w')
+            
             Py_ssize_t alpha_shift  = DV.get_varshift(Gr, 'alpha')
 
             Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
@@ -1061,6 +1085,8 @@ cdef class IsotopeTracers_SB_Ice:
             Py_ssize_t wnr_std_shift = DV.get_varshift(Gr, 'w_nr_std')
             Py_ssize_t wqs_std_shift = DV.get_varshift(Gr, 'w_qs_std')
             Py_ssize_t wns_std_shift = DV.get_varshift(Gr, 'w_ns_std')
+            Py_ssize_t S_shift = DV.get_varshift(Gr,'S')
+            
             Py_ssize_t wqt_std_shift
             
             # TMP avoid isotope index component defination
@@ -1084,12 +1110,30 @@ cdef class IsotopeTracers_SB_Ice:
             double[:] qs_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ns_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         
-        iso_mix_phase_fractionation(&Gr.dims, &Micro_Arctic_1M.CC.LT.LookupStructC, 
-            Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp, &DV.values[t_shift], &Ref.p0_half[0],
-            &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[qi_std_shift], 
-            &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qi_iso_O18_shift], 
-            &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
-            &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
+        saturation_ratio(&Gr.dims, 
+            &Micro_Arctic_1M.CC.LT.LookupStructC,
+            &Ref.p0_half[0], &DV.values[t_shift], 
+            &PV.values[qt_shift], &DV.values[S_shift])
+
+        # sb_nuc(&Gr.dims, 
+        #     &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp,
+        #     &Ref.rho0_half[0], &Ref.p0_half[0], TS.dt, self.ice_nucl,
+        #     &PV.values[w_shift], &PV.values[s_shift],
+        #     &DV.values[t_shift], &DV.values[S_shift], &PV.values[qt_std_shift], &DV.values[qv_shift],
+        #     &PV.values[nl_std_shift], &PV.values[ql_std_shift],
+        #     &PV.values[ni_std_shift], &PV.values[qi_std_shift],
+        #     # Diagnostic Output
+        #     &self.Dm[0], &self.mass[0],&self.ice_self_col[0],
+        #     # tendency output
+        #     &PV.tendencies[nl_std_shift], &PV.tendencies[ql_std_shift],
+        #     &PV.tendencies[ni_std_shift], &PV.tendencies[qi_std_shift])
+
+        # iso_mix_phase_fractionation(&Gr.dims, &Micro_Arctic_1M.CC.LT.LookupStructC, 
+        #     Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp, &DV.values[t_shift], &Ref.p0_half[0],
+        #     &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[qi_std_shift], 
+        #     &PV.values[qt_iso_O18_shift], &PV.values[qv_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qi_iso_O18_shift], 
+        #     &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
+        #     &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
         
         sb_ice_microphysics_sources_tracer(&Gr.dims, 
             # thermodynamics setting
@@ -1098,8 +1142,9 @@ cdef class IsotopeTracers_SB_Ice:
             self.compute_rain_shape_parameter, self.compute_droplet_nu, 
             # INPUT ARRAY INDEX
             &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
-            self.ccn, Micro_Arctic_1M.n0_ice_input,
-            &DV.values[t_shift], &PV.values[qt_std_shift], 
+            self.ccn, self.ice_nucl,
+            &DV.values[t_shift], &PV.values[s_shift], &PV.values[w_shift],
+            &DV.values[S_shift], &PV.values[qt_std_shift], 
             &PV.values[nl_std_shift], &PV.values[ql_std_shift],
             &PV.values[ni_std_shift], &PV.values[qi_std_shift],
             &PV.values[nr_std_shift], &PV.values[qr_std_shift],
@@ -1156,7 +1201,6 @@ cdef class IsotopeTracers_SB_Ice:
         NS.write_profile('snow_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
 
         return
-
 
 cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
