@@ -145,6 +145,11 @@ _ext = Extension('ThermodynamicsSA', ['ThermodynamicsSA.pyx'], include_dirs=incl
                  runtime_library_dirs=library_dirs)
 extensions.append(_ext)
 
+_ext = Extension('ThermodynamicsSB', ['ThermodynamicsSB.pyx'], include_dirs=include_path,
+                 extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
+                 runtime_library_dirs=library_dirs)
+extensions.append(_ext)
+
 _ext = Extension('ReferenceState', ['ReferenceState.pyx'], include_dirs=include_path,
                  extra_compile_args=extra_compile_args, libraries=libraries, library_dirs=library_dirs,
                  runtime_library_dirs=library_dirs)

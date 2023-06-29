@@ -153,7 +153,7 @@ cdef class SurfaceBase:
                         PV.tendencies[s_shift  + ijk] +=  self.s_flux[ij] * tendency_factor
 
         else:
-            ql_shift = DV.get_varshift(Gr,'ql')
+            ql_shift = PV.get_varshift(Gr,'ql')
             qt_shift = PV.get_varshift(Gr, 'qt')
             with nogil:
                 for i in xrange(gw, imax):
@@ -163,8 +163,8 @@ cdef class SurfaceBase:
                         lam = self.Lambda_fp(DV.values[t_shift+ijk])
                         lv = self.L_fp(DV.values[t_shift+ijk],lam)
                         self.lhf[ij] = self.qt_flux[ij] * Ref.rho0_half[gw] * lv
-                        pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
-                        pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
+                        pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - PV.values[ijk + ql_shift])
+                        pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - PV.values[ijk + ql_shift])
                         sv = sv_c(pv,DV.values[t_shift+ijk])
                         sd = sd_c(pd,DV.values[t_shift+ijk])
                         self.shf[ij] = (self.s_flux[ij] * Ref.rho0_half[gw] - self.lhf[ij]/lv * (sv-sd)) * DV.values[t_shift+ijk]
