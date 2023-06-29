@@ -149,7 +149,7 @@ class Simulation3d:
         cdef ParallelMPI.ParallelMPI PA_ = self.Pa
         cdef int rk_step
         # DO First Output
-        self.Th.update(self.Gr, self.Ref, PV_, DV_)
+        self.Th.update(self.Gr, self.Ref, self.TS, PV_, DV_)
         self.Ra.initialize_profiles(self.Gr, self.Ref, self.Th, self.DV, self.Sur, self.Pa)
 
         #Do IO if not a restarted run
@@ -160,7 +160,7 @@ class Simulation3d:
             time1 = time.time()
             for self.TS.rk_step in xrange(self.TS.n_rk_steps):
                 self.Ke.update(self.Gr,PV_)
-                self.Th.update(self.Gr,self.Ref,PV_,DV_)
+                self.Th.update(self.Gr,self.Ref,self.TS,PV_,DV_)
                 self.Micro.update(self.Gr, self.Ref, self.Th, PV_, DV_, self.TS, self.Pa)
 
                 if self.IsoTracer.isotope_tracer:
@@ -223,7 +223,7 @@ class Simulation3d:
             # If time to ouptut fields do output
             if self.FieldsIO.last_output_time + self.FieldsIO.frequency == self.TS.t:
                 self.Pa.root_print('Doing 3D FieldIO')
-                self.Th.update(self.Gr, self.Ref, self.PV, self.DV)
+                self.Th.update(self.Gr, self.Ref,self.TS, self.PV, self.DV)
                 self.FieldsIO.last_output_time = self.TS.t
                 self.FieldsIO.update(self.Gr, self.PV, self.DV, self.TS, self.Pa)
                 self.FieldsIO.dump_prognostic_variables(self.Gr, self.PV)
@@ -302,7 +302,7 @@ class Simulation3d:
         # output stats here
 
         self.Pa.root_print('Doing 3D FieldIO')
-        self.Th.update(self.Gr, self.Ref, self.PV, self.DV)
+        self.Th.update(self.Gr, self.Ref, self.TS,self.PV, self.DV)
         self.FieldsIO.update(self.Gr, self.PV, self.DV, self.TS, self.Pa)
         self.FieldsIO.dump_prognostic_variables(self.Gr, self.PV)
         self.FieldsIO.dump_diagnostic_variables(self.Gr, self.DV, self.Pa)

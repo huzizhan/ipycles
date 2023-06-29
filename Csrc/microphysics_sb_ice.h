@@ -1525,8 +1525,10 @@ void sb_ice_microphysics_sources_tracer(const struct DimStruct *dims,
     double nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp, nl_tendency_tmp;
     // ccn activation
     double nl_tendency_act, ql_tendency_act;
+
     // cloud droplet condensation (saturation adjustment)
-    double nl_tendency_cnd, ql_tendency_cnd;
+    // double nl_tendency_cnd, ql_tendency_cnd;
+
     // autoconversion and accretion tendency of rain and cloud droplet
     double nr_tendency_au, qr_tendency_au, qr_tendency_ac;
     double nl_tendency_au, ql_tendency_au, ql_tendency_ac, nl_tendency_ac;
@@ -1645,8 +1647,8 @@ void sb_ice_microphysics_sources_tracer(const struct DimStruct *dims,
                     qr_tendency_ac = 0.0;
                     nl_tendency_act = 0.0;
                     ql_tendency_act = 0.0;
-                    nl_tendency_cnd = 0.0;
-                    ql_tendency_cnd = 0.0;
+                    // nl_tendency_cnd = 0.0;
+                    // ql_tendency_cnd = 0.0;
                     nl_tendency_au = 0.0; 
                     ql_tendency_au = 0.0; 
                     ql_tendency_ac = 0.0;
@@ -1722,10 +1724,10 @@ void sb_ice_microphysics_sources_tracer(const struct DimStruct *dims,
                     sb_ccn(ccn, S[ijk], dS, dzi, w[ijk], 
                             &ql_tendency_act, &nl_tendency_act);
 
-                    liquid_saturation_adjustment(LT, lam_fp, L_fp,
-                            p0[k], s[ijk], qt_tmp, temperature[ijk],
-                            ql_tmp, nl_tmp, dt_,
-                            &ql_tendency_cnd, &nl_tendency_cnd);
+                    // liquid_saturation_adjustment(LT, lam_fp, L_fp,
+                    //         p0[k], s[ijk], qt_tmp, temperature[ijk],
+                    //         ql_tmp, nl_tmp, dt_,
+                    //         &ql_tendency_cnd, &nl_tendency_cnd);
                     
                     //compute the source terms of warm phase process: rain
                     sb_autoconversion_rain_tmp(droplet_nu, density[k], nl_tmp, ql_tmp, qr_tmp, 
@@ -1802,9 +1804,9 @@ void sb_ice_microphysics_sources_tracer(const struct DimStruct *dims,
                                       qs_tendency_dep + qs_tendency_melt;
                     
                     // cloud droplet tendency sum
-                    ql_tendency_tmp = ql_tendency_act + ql_tendency_cnd + 
+                    ql_tendency_tmp = ql_tendency_act + 
                                       ql_tendency_au + ql_tendency_ac + ql_tendency_snow_rime;
-                    nl_tendency_tmp = nl_tendency_act + nl_tendency_cnd + 
+                    nl_tendency_tmp = nl_tendency_act +
                                       nl_tendency_au + nl_tendency_ac + nl_tendency_snow_rime;
 
                     // ice particle tendency sum

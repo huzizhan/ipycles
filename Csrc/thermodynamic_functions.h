@@ -51,6 +51,7 @@ static inline double thetas_t_c(const double p0, const double T, const double qt
 }
 
 static inline double entropy_from_thetas_c(const double thetas, const double qt){
+    // expression of specific entropy
     return cpm_c(qt) * log(thetas/T_tilde) + (1.0 - qt)*sd_tilde + qt * sv_tilde;
 }
 

@@ -13,7 +13,6 @@ cimport PrognosticVariables
 cimport DiagnosticVariables
 cimport Microphysics
 cimport ParallelMPI
-cimport TimeStepping
 cimport Lookup
 from Thermodynamics cimport LatentHeat, ClausiusClapeyron
 cimport Microphysics_SB_Liquid
