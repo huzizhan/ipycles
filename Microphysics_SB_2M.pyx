@@ -88,6 +88,62 @@ cdef extern from "microphysics_sb_ice.h":
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
         double* qt_tendency, double* precip_rate, double* evap_rate) nogil
 
+cdef class No_Microphysics_SB:
+    def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
+        self.thermodynamics_type = 'SB'
+        
+        # LH.Lambda_fp = lambda_constant
+        # self.Lambda_fp = lambda_constant
+        # LH.L_fp = latent_heat_variable
+        # self.L_fp = latent_heat_variable
+        
+        LH.Lambda_fp = lambda_Arctic
+        self.Lambda_fp = lambda_Arctic
+        LH.L_fp = latent_heat_Arctic
+        self.L_fp = latent_heat_Arctic
+
+        # Extract case-specific parameter values from the namelist
+        # Get number concentration of cloud condensation nuclei (1/m^3)
+        try:
+            self.ccn = namelist['microphysics']['ccn']
+        except:
+            self.ccn = 100.0e6
+        try:
+            self.order = namelist['scalar_transport']['order_sedimentation']
+        except:
+            self.order = namelist['scalar_transport']['order']
+
+        try:
+            self.cloud_sedimentation = namelist['microphysics']['cloud_sedimentation']
+        except:
+            self.cloud_sedimentation = False
+
+        return
+
+    cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV,DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        if self.cloud_sedimentation:
+            DV.add_variables('w_qt', 'm/s', r'w_ql', 'cloud liquid water sedimentation velocity', 'sym', Pa)
+            NS.add_profile('qt_sedimentation_flux', Gr, Pa)
+            NS.add_profile('s_qt_sedimentation_source',Gr,Pa)
+        return
+
+    cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
+            DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS,ParallelMPI.ParallelMPI Pa):
+        cdef:
+            Py_ssize_t wqt_shift
+            Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
+        if self.cloud_sedimentation:
+            wqt_shift = DV.get_varshift(Gr, 'w_qt')
+
+            if self.stokes_sedimentation:
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+            else:
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &PV.values[ql_shift], &DV.values[wqt_shift])
+        return
+        
+    cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
+            DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
+        return
 cdef class Microphysics_SB_2M:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
 
@@ -247,8 +303,8 @@ cdef class Microphysics_SB_2M:
 
         cdef:
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
-            Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
-            Py_ssize_t qi_shift = DV.get_varshift(Gr,'qi')
+            Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
+            Py_ssize_t qi_shift = PV.get_varshift(Gr,'qi')
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
             Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
@@ -279,7 +335,7 @@ cdef class Microphysics_SB_2M:
             &Ref.rho0_half[0],  &Ref.p0_half[0], dt,
             self.CCN, self.IN,
             &DV.values[t_shift], &PV.values[qt_shift], 
-            &DV.values[ql_shift], &DV.values[qi_shift], 
+            &PV.values[ql_shift], &PV.values[qi_shift], 
             &PV.values[nr_shift], &PV.values[qr_shift], 
             &PV.values[qs_shift], &PV.values[ns_shift],   
             # ------ DIAGNOSED VARIABLES ---------
@@ -308,10 +364,10 @@ cdef class Microphysics_SB_2M:
         
             if self.stokes_sedimentation:
                 microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], 
-                    self.CCN, &DV.values[ql_shift], &DV.values[wqt_shift])
+                    self.CCN, &PV.values[ql_shift], &DV.values[wqt_shift])
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], 
-                    self.CCN, &DV.values[ql_shift], &DV.values[wqt_shift])
+                    self.CCN, &PV.values[ql_shift], &DV.values[wqt_shift])
             
         # ========= ENTROPY SOURCE OF MICROPHYSICS PROCESSES ============== 
         cdef:

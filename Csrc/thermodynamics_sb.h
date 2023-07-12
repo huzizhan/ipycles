@@ -40,6 +40,7 @@ void liquid_saturation_adjustment(
         // all cloud droplet evaporate
         *ql_tendency += -ql/dt;
         *nl_tendency += -nl/dt;
+        *T = T_1;
         return;
     }
     else{
@@ -72,26 +73,35 @@ void liquid_saturation_adjustment(
         // *qv = qv_star_2;
         // after saturation adjustment, cloud condensation reach:
 
-        ql_cond = (qt - qv_star_2) - ql;
+        ql_cond = (qt - qv_star_2);
         nl_cond = ql_cond/LIQUID_MIN_MASS;
         
-        // *T  = T_2;
-        // --------------
-        // * qv: qv = qt - ql - qi;
+        *T  = T_2;
         *qv = qt - ql - qi;
+        // *qv = qt - ql - qi;
         // TODO: whether calculate the qv use the updated ql contend.
-        // --------------
-        *ql_tendency += ql_cond/dt;
-        *nl_tendency += nl_cond/dt;
+
+        *ql_tendency += (ql_cond - ql)/dt;
+        *nl_tendency += (nl_cond - nl)/dt;
     }
     return;
 }
 
-void eos_sb_update(struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-    double* restrict p0, double dt,
-    double* restrict s, double* restrict qt, double* restrict T,
-    double* restrict qv, double* restrict ql, double* nl, double* restrict qi, double* restrict alpha,
-    double* restrict ql_tendency, double* restrict nl_tendency){
+void eos_sb_update(struct DimStruct *dims, 
+    struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+    double* restrict p0, 
+    double dt,
+    double* restrict s, 
+    double* restrict qt, 
+    double* restrict T,
+    double* restrict qv, 
+    double* restrict ql, 
+    double* restrict nl, 
+    double* restrict qi, 
+    double* restrict ni,
+    double* restrict alpha,
+    double* restrict ql_tendency, double* restrict nl_tendency,
+    double* restrict qi_tendency, double* restrict ni_tendency){
 
     ssize_t i,j,k;
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
@@ -110,12 +120,27 @@ void eos_sb_update(struct DimStruct *dims, struct LookupStruct *LT, double (*lam
             const ssize_t jshift = j * jstride;
                 for (k=kmin;k<kmax;k++){
                     const ssize_t ijk = ishift + jshift + k;
+                    double nl_tmp, ql_tmp, qi_tmp, ni_tmp, qv_tmp;
+                    
                     ql[ijk] = fmax(ql[ijk],0.0);
                     qi[ijk] = fmax(qi[ijk],0.0);
-                    liquid_saturation_adjustment(LT, lam_fp, L_fp, p0[k], dt,
-                            s[ijk], qt[ijk], ql[ijk], nl[ijk], qi[ijk], 
-                            &qv[ijk], &T[ijk], &ql_tendency[ijk], &nl_tendency[ijk]);
-                    // alpha[ijk] = alpha_c(p0[k], T[ijk],qt[ijk],qv[ijk]);
+                    // *qv = qt - ql - qi;
+                    // TODO: whether calculate the qv use the updated ql contend.
+                    qv[ijk] = qt[ijk] - ql[ijk] - qi[ijk];
+
+                    // only update T[ijk] here
+                    eos_c(LT, lam_fp, L_fp, p0[k], s[ijk],qt[ijk],&T[ijk],&qv_tmp,&ql_tmp,&qi_tmp);
+                    alpha[ijk] = alpha_c(p0[k], T[ijk],qt[ijk],qv[ijk]);
+                    
+                    nl_tmp = ql_tmp/LIQUID_MIN_MASS;
+                    ni_tmp = qi_tmp/ICE_MIN_MASS;
+
+                    ql_tendency[ijk] += (ql_tmp - ql[ijk])/dt;
+                    nl_tendency[ijk] += (nl_tmp - nl[ijk])/dt;
+
+                    qi_tendency[ijk] += (qi_tmp - qi[ijk])/dt;
+                    ni_tendency[ijk] += (ni_tmp - ni[ijk])/dt;
+
                 } // End k loop
             } // End j loop
         } // End i loop

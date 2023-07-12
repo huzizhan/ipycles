@@ -220,12 +220,6 @@ cdef class ThermodynamicsSA:
                 &PV.values[s_shift], &PV.values[qt_shift], &DV.values[t_shift], &DV.values[qv_shift], &DV.values[ql_shift],
                 &DV.values[qi_shift], &DV.values[alpha_shift])
 
-        eos_sb_update(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
-                &RS.p0_half[0], dt, &PV.values[s_shift], &PV.values[qt_std_shift], &DV.values[t_shift], 
-                &PV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[nl_std_shift],
-                &PV.values[qi_std_shift], &DV.values[alpha_shift],
-                &PV.tendencies[ql_std_shift], &PV.tendencies[nl_std_shift])
-
         buoyancy_update_sa(&Gr.dims, &RS.alpha0_half[0], &DV.values[alpha_shift], &DV.values[buoyancy_shift], &PV.tendencies[w_shift])
 
         bvf_sa( &Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, &RS.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], &DV.values[thr_shift], &DV.values[bvf_shift])

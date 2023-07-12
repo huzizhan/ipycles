@@ -25,13 +25,16 @@ cdef extern from "thermodynamics_sa.h":
     void buoyancy_update_sa(Grid.DimStruct *dims, double *alpha0, double *alpha, double *buoyancy, double *wt)
     void bvf_sa(Grid.DimStruct * dims, Lookup.LookupStruct * LT, double(*lam_fp)(double), double(*L_fp)(double, double), double *p0, double *T, double *qt, double *qv, double *theta_rho, double *bvf)
     void clip_qt(Grid.DimStruct *dims, double  *qt, double clip_value)
+    void eos_c(Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double), double p0, double s, double qt, double *T, double *qv, double *ql, double *qi) nogil
 
 cdef extern from "thermodynamics_sb.h":
     void eos_sb_update(Grid.DimStruct * dims, Lookup.LookupStruct * LT, double(*lam_fp)(double), double(*L_fp)(double, double),
             double* p0, double dt,
             double* s, double* qt, double* temperature,
-            double* qv, double* ql, double* nl, double* qi, double* alpha,
-            double* ql_tend, double* nl_tend) nogil
+            double* qv, double* ql, double* nl, 
+            double* qi, double* ni, double* alpha,
+            double* ql_tend, double* nl_tend,
+            double* qi_tend, double* ni_tend) nogil
     void thetali_sb_update(Grid.DimStruct * dims, double(*lam_fp)(double), double(*L_fp)(double, double),
             double* p0, double* T, double* qt, 
             double* ql, double* qi, double* thetali) nogil
@@ -50,7 +53,7 @@ cdef extern from "entropies.h":
     # Specific entropy of condensed water
     double sc_c(double L, double T) nogil
 
-cdef class ThermodynamicsSA:
+cdef class ThermodynamicsSB:
     def __init__(self, dict namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         '''
         Init method saturation adjsutment thermodynamics.
@@ -74,12 +77,11 @@ cdef class ThermodynamicsSA:
 
         return
 
-
     cpdef initialize(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
 
         '''
-        Initialize ThermodynamicsSA class. Adds variables to PrognocitVariables and DiagnosticVariables classes. Add
+        Initialize ThermodynamicsSB class. Adds variables to PrognocitVariables and DiagnosticVariables classes. Add
         output fields to NetCDFIO_Stats.
 
         :param Gr: Grid class instance
@@ -92,8 +94,12 @@ cdef class ThermodynamicsSA:
 
         PV.add_variable('s', 'J kg^-1 K^-1', 's', 'specific entropy', "sym", "scalar", Pa)
         PV.add_variable('qt', 'kg/kg', 'q_t', 'total water mass fraction', "sym", "scalar", Pa)
+
         PV.add_variable('ql', 'kg/kg', r'q_l', 'liquid water specific humidity with prognostic variable', 'sym', 'scalar', Pa)
+        PV.add_variable('nl', 'kg/kg', r'n_l', 'liquid water number density with prognostic variable', 'sym', 'scalar', Pa)
+
         PV.add_variable('qi', 'kg/kg', r'q_i', 'ice water specific humidity with prognostic variable', 'sym', 'scalar', Pa)
+        PV.add_variable('ni', 'kg/kg', r'q_i', 'ice water number density with prognostic variable', 'sym', 'scalar', Pa)
 
         DV.add_variables('qv', 'kg/kg', r'q_v', 'water vapor specific humidity', 'sym', Pa)
 
@@ -141,6 +147,46 @@ cdef class ThermodynamicsSA:
         NS.add_profile('RH_ice', Gr, Pa, 'unit', '', 'supper_saturation_ratio')
 
         return
+    
+    cpdef entropy(self, double p0, double T, double qt, double ql, double qi):
+        '''
+        Provide a python wrapper for the c function that computes the specific entropy
+        consistent with Pressel et al. 2015 equation (40)
+        :param p0: reference state pressure [Pa]
+        :param T: thermodynamic temperature [K]
+        :param qt: total water specific humidity [kg/kg]
+        :param ql: liquid water specific humidity [kg/kg]
+        :param qi: ice water specific humidity [kg/kg]
+        :return: moist specific entropy
+        '''
+        cdef:
+            double qv = qt - ql - qi
+            double qd = 1.0 - qt
+            double pd = pd_c(p0, qt, qv)
+            double pv = pv_c(p0, qt, qv)
+            double Lambda = self.Lambda_fp(T)
+            double L = self.L_fp(T, Lambda)
+
+        return sd_c(pd, T) * (1.0 - qt) + sv_c(pv, T) * qt + sc_c(L, T) * (ql + qi)
+    
+    cpdef alpha(self, double p0, double T, double qt, double qv):
+        '''
+        Provide a python wrapper for the C function that computes the specific volume
+        consistent with Pressel et al. 2015 equation (44).
+
+        :param p0: reference state pressure [Pa]
+        :param T:  thermodynamic temperature [K]
+        :param qt: total water specific humidity [kg/kg]
+        :param qv: water vapor specific humidity [kg/kg]
+        :return: specific volume [m^3/kg]
+        '''
+        return alpha_c(p0, T, qt, qv)
+
+    cpdef eos(self, double p0, double s, double qt):
+        cdef:
+            double T, qv, qc, ql, qi, lam
+        eos_c(&self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, p0, s, qt, &T, &qv, &ql, &qi)
+        return T, ql, qi
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, TimeStepping.TimeStepping TS,
                  PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV):
@@ -150,16 +196,21 @@ cdef class ThermodynamicsSA:
             Py_ssize_t buoyancy_shift = DV.get_varshift(Gr, 'buoyancy')
             Py_ssize_t alpha_shift = DV.get_varshift(Gr, 'alpha')
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
-            Py_ssize_t nl_shift = PV.get_varshift(Gr, 'nl')
-            Py_ssize_t ql_shift = PV.get_varshift(Gr, 'ql')
-            Py_ssize_t qi_shift = PV.get_varshift(Gr, 'qi')
             Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv')
+
+            Py_ssize_t qi_shift = PV.get_varshift(Gr, 'qi')
+            Py_ssize_t ni_shift = PV.get_varshift(Gr, 'ni')
+            Py_ssize_t ql_shift = PV.get_varshift(Gr, 'ql')
+            Py_ssize_t nl_shift = PV.get_varshift(Gr, 'nl')
+
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             Py_ssize_t w_shift = PV.get_varshift(Gr, 'w')
+
             Py_ssize_t bvf_shift = DV.get_varshift(Gr, 'buoyancy_frequency')
             Py_ssize_t thr_shift = DV.get_varshift(Gr, 'theta_rho')
             Py_ssize_t thl_shift = DV.get_varshift(Gr, 'thetali')
+
             double dt = TS.dt
 
         '''Apply qt clipping if requested. Defaults to on. Call this before other thermodynamic routines. Note that this
@@ -169,12 +220,13 @@ cdef class ThermodynamicsSA:
         if self.do_qt_clipping:
             clip_qt(&Gr.dims, &PV.values[qt_shift], 1e-11)
 
-
         eos_sb_update(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
                 &RS.p0_half[0], dt,
                 &PV.values[s_shift], &PV.values[qt_shift], &DV.values[t_shift], 
-                &DV.values[qv_shift], &PV.values[ql_shift], &PV.values[nl_shift], &PV.values[qi_shift], &DV.values[alpha_shift],
-                &PV.tendencies[ql_shift], &PV.tendencies[qi_shift])
+                &DV.values[qv_shift], &PV.values[ql_shift], &PV.values[nl_shift], 
+                &PV.values[qi_shift], &PV.values[ni_shift], &DV.values[alpha_shift],
+                &PV.tendencies[ql_shift], &PV.tendencies[nl_shift],
+                &PV.tendencies[qi_shift], &PV.tendencies[ni_shift])
 
         buoyancy_update_sa(&Gr.dims, &RS.alpha0_half[0], &DV.values[alpha_shift], &DV.values[buoyancy_shift], &PV.tendencies[w_shift])
 
@@ -187,6 +239,13 @@ cdef class ThermodynamicsSA:
                 &DV.values[thl_shift])
 
         return
+    
+    cpdef get_pv_star(self, t):
+        return self.CC.LT.fast_lookup(t)
+
+    cpdef get_lh(self, t):
+        cdef double lam = self.Lambda_fp(t)
+        return self.L_fp(t, lam)
 
     cpdef write_fields(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
                        PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Fields NF, ParallelMPI.ParallelMPI Pa):
@@ -424,7 +483,7 @@ cdef class ThermodynamicsSA:
             Py_ssize_t gw = Gr.dims.gw
             Py_ssize_t pi, k
             ParallelMPI.Pencil z_pencil = ParallelMPI.Pencil()
-            Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
+            Py_ssize_t ql_shift = PV.get_varshift(Gr, 'ql')
             double[:, :] ql_pencils
             # Cloud indicator
             double[:] ci
@@ -442,7 +501,7 @@ cdef class ThermodynamicsSA:
 
         # Initialize the z-pencil
         z_pencil.initialize(Gr, Pa, 2)
-        ql_pencils =  z_pencil.forward_double( &Gr.dims, Pa, &DV.values[ql_shift])
+        ql_pencils =  z_pencil.forward_double( &Gr.dims, Pa, &PV.values[ql_shift])
 
         # Compute cloud fraction profile
         with nogil:
