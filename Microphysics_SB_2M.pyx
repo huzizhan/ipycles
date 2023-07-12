@@ -58,13 +58,17 @@ cdef extern from "microphysics_sb_ice.h":
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         double* density, double* p0, double dt, 
         double CCN, double IN, 
-        double* temperature, double* qt, 
-        double* ql, double* qi, 
+        double* temperature, double* s, double* w,
+        double*S, double* qt,
+        double* nl, double* ql,
+        double* ni, double* qi,
         double* nr, double* qr, 
-        double* qs, double* ns, 
+        double* ns, double* qs, 
         double* Dm, double* mass,
         double* ice_self_col, double* snow_ice_col,
         double* snow_riming, double* snow_dep, double* snow_sub,
+        double* nl_tend, double* ql_tend,
+        double* ni_tend, double* qi_tend,
         double* nr_tend_micro, double* qr_tend_micro,
         double* nr_tend, double* qr_tend,
         double* ns_tend_micro, double* qs_tend_micro,
@@ -81,6 +85,10 @@ cdef extern from "microphysics_sb_ice.h":
         double* sp, double* se, double* sd, 
         double* sm, double* sq, double* sw, 
         double* s_tend)nogil
+    
+    void saturation_ratio(Grid.DimStruct *dims,  
+        Lookup.LookupStruct *LT, double* p0, 
+        double* temperature,  double* qt, double* S)
 
     void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, double* density, 
         double* ns, double* qs, double* ns_velocity, double* qs_velocity)nogil
@@ -92,22 +100,22 @@ cdef class No_Microphysics_SB:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
         self.thermodynamics_type = 'SB'
         
-        # LH.Lambda_fp = lambda_constant
-        # self.Lambda_fp = lambda_constant
-        # LH.L_fp = latent_heat_variable
-        # self.L_fp = latent_heat_variable
+        LH.Lambda_fp = lambda_constant
+        self.Lambda_fp = lambda_constant
+        LH.L_fp = latent_heat_variable
+        self.L_fp = latent_heat_variable
         
-        LH.Lambda_fp = lambda_Arctic
-        self.Lambda_fp = lambda_Arctic
-        LH.L_fp = latent_heat_Arctic
-        self.L_fp = latent_heat_Arctic
+        # LH.Lambda_fp = lambda_Arctic
+        # self.Lambda_fp = lambda_Arctic
+        # LH.L_fp = latent_heat_Arctic
+        # self.L_fp = latent_heat_Arctic
 
         # Extract case-specific parameter values from the namelist
         # Get number concentration of cloud condensation nuclei (1/m^3)
         try:
-            self.ccn = namelist['microphysics']['ccn']
+            self.CCN = namelist['microphysics']['CCN']
         except:
-            self.ccn = 100.0e6
+            self.CCN = 100.0e6
         try:
             self.order = namelist['scalar_transport']['order_sedimentation']
         except:
@@ -136,9 +144,9 @@ cdef class No_Microphysics_SB:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
             if self.stokes_sedimentation:
-                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.CCN, &DV.values[ql_shift], &DV.values[wqt_shift])
             else:
-                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &PV.values[ql_shift], &DV.values[wqt_shift])
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.CCN, &PV.values[ql_shift], &DV.values[wqt_shift])
         return
         
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
@@ -147,14 +155,14 @@ cdef class No_Microphysics_SB:
 cdef class Microphysics_SB_2M:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
 
-        self.thermodynamics_type = 'SA'
+        self.thermodynamics_type = 'SB'
 
         # Create the appropriate linkages to the bulk thermodynamics
-        # use the saturation adjustment method from Kaul et al. 2015
-        LH.Lambda_fp = lambda_Arctic
-        self.Lambda_fp = lambda_Arctic
-        LH.L_fp = latent_heat_Arctic
-        self.L_fp = latent_heat_Arctic
+        # use the saturation adjustment only on cloud droplet
+        LH.Lambda_fp = lambda_constant
+        self.Lambda_fp = lambda_constant
+        LH.L_fp = latent_heat_variable
+        self.L_fp = latent_heat_variable
 
         Par.root_print('Using Arctic specific liquid fraction by Kaul et al. 2015!')
 
@@ -170,13 +178,12 @@ cdef class Microphysics_SB_2M:
             self.CCN = namelist['microphysics']['CCN']
         except:
             pass
-        # default IN values defined in namelist input files
+        
+        self.ice_nucl = 2.0e2 # unit: L^-1, Cotton assumption of contact nucleation.
         try:
-            self.IN = namelist['microphysics']['n0_ice']
-            Par.root_print('set n0_ice to be '+self.IN)
+            self.ice_nucl = namelist['isotopetracers']['ice_nuclei']
         except:
-            self.IN = 1.0e7
-            Par.root_print('default IN value 1.0e7')
+            pass
 
         # Set option for calculation of mu (distribution shape parameter)
         try:
@@ -303,8 +310,11 @@ cdef class Microphysics_SB_2M:
 
         cdef:
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
+            Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
             Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
+            Py_ssize_t nl_shift = PV.get_varshift(Gr,'nl')
             Py_ssize_t qi_shift = PV.get_varshift(Gr,'qi')
+            Py_ssize_t ni_shift = PV.get_varshift(Gr,'ni')
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
             Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
@@ -324,29 +334,37 @@ cdef class Microphysics_SB_2M:
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qs_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ns_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] S_ratio = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        saturation_ratio(&Gr.dims, 
+            &self.CC.LT.LookupStructC,
+            &Ref.p0_half[0], &DV.values[t_shift], 
+            &PV.values[qt_shift], &S_ratio[0])
 
         # SB 2 moment microphysics source calculation
         sb_ice_microphysics_sources(&Gr.dims, 
             # thermodynamics setting
-            &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
+            &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp,
             # two moment rain droplet mu variable setting
             self.compute_rain_shape_parameter, self.compute_droplet_nu, 
             # INPUT ARRAY INDEX
-            &Ref.rho0_half[0],  &Ref.p0_half[0], dt,
-            self.CCN, self.IN,
-            &DV.values[t_shift], &PV.values[qt_shift], 
-            &PV.values[ql_shift], &PV.values[qi_shift], 
-            &PV.values[nr_shift], &PV.values[qr_shift], 
-            &PV.values[qs_shift], &PV.values[ns_shift],   
+            &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
+            self.CCN, self.ice_nucl,
+            &DV.values[t_shift], &PV.values[s_shift], &PV.values[w_shift],
+            &S_ratio[0], &PV.values[qt_shift], 
+            &PV.values[nl_shift], &PV.values[ql_shift],
+            &PV.values[ni_shift], &PV.values[qi_shift],
+            &PV.values[nr_shift], &PV.values[qr_shift],
+            &PV.values[ns_shift], &PV.values[qs_shift], 
             # ------ DIAGNOSED VARIABLES ---------
             &self.Dm[0], &self.mass[0],
             &self.ice_self_col[0], &self.snow_ice_col[0],
             &self.snow_riming[0], &self.snow_dep[0], &self.snow_sub[0],
             # ------------------------------------
-            &nr_tend_micro[0], &qr_tend_micro[0], 
-            &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
-            &ns_tend_micro[0], &qs_tend_micro[0], 
-            &PV.tendencies[ns_shift], &PV.tendencies[qs_shift],
+            &PV.tendencies[nl_shift], &PV.tendencies[ql_shift],
+            &PV.tendencies[ni_shift], &PV.tendencies[qi_shift],
+            &nr_tend_micro[0], &qr_tend_micro[0], &PV.tendencies[nr_shift], &PV.tendencies[qr_shift],
+            &ns_tend_micro[0], &qs_tend_micro[0], &PV.tendencies[ns_shift], &PV.tendencies[qs_shift],
             &self.precip_rate[0], &self.evap_rate[0], &self.melt_rate[0])
         
         sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_shift], &self.precip_rate[0], &self.evap_rate[0])
@@ -355,6 +373,8 @@ cdef class Microphysics_SB_2M:
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift], 
             &DV.values[wnr_shift], &DV.values[wqr_shift])
+        sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift],
+            &PV.values[qr_shift], &DV.values[wnr_shift], &DV.values[wqr_shift])
         sb_sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], 
             &PV.values[ns_shift], &PV.values[qs_shift],  
             &DV.values[wns_shift], &DV.values[wqs_shift])
@@ -372,7 +392,6 @@ cdef class Microphysics_SB_2M:
         # ========= ENTROPY SOURCE OF MICROPHYSICS PROCESSES ============== 
         cdef:
             Py_ssize_t tw_shift = DV.get_varshift(Gr, 'temperature_wb')
-            Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
         # Get wetbuble temperature
         microphysics_wetbulb_temperature(&Gr.dims, &self.CC.LT.LookupStructC, 
             &Ref.p0_half[0], &PV.values[s_shift], &PV.values[qt_shift], 
@@ -389,7 +408,7 @@ cdef class Microphysics_SB_2M:
             &self.sp[0], &self.se[0], &self.sd[0], 
             &self.sm[0], &self.sq[0], &self.sw[0], 
             # ------------------------------------
-            &PV.values[s_shift])
+            &PV.tendencies[s_shift])
 
         return
     

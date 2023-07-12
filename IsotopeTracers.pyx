@@ -855,7 +855,7 @@ cdef class IsotopeTracers_SBSI:
         return
 
 cdef extern from "microphysics_sb_ice.h":
-    void sb_ice_microphysics_sources_tracer(Grid.DimStruct *dims, 
+    void sb_ice_microphysics_sources(Grid.DimStruct *dims, 
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         double* density, double* p0, double dt, 
@@ -1134,7 +1134,7 @@ cdef class IsotopeTracers_SB_Ice:
         #     &PV.values[qt_iso_HDO_shift], &PV.values[qv_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qi_iso_HDO_shift], 
         #     &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
         
-        sb_ice_microphysics_sources_tracer(&Gr.dims, 
+        sb_ice_microphysics_sources(&Gr.dims, 
             # thermodynamics setting
             &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, Micro_Arctic_1M.L_fp,
             # two moment rain droplet mu variable setting

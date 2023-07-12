@@ -15,7 +15,7 @@ cdef class No_Microphysics_SB:
     cdef:
         double (*L_fp)(double T, double Lambda) nogil
         double (*Lambda_fp)(double T) nogil
-        double ccn
+        double CCN
         Py_ssize_t order
         bint cloud_sedimentation
         bint stokes_sedimentation
@@ -37,7 +37,7 @@ cdef class Microphysics_SB_2M:
         double (*compute_droplet_nu)(double density, double ql) nogil
 
         double CCN
-        double IN
+        double ice_nucl
         
         Py_ssize_t order
         bint cloud_sedimentation
