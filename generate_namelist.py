@@ -877,9 +877,9 @@ def Isdac():
     # namelist['microphysics']['phase_partitioning'] = 'Arctic'
     # namelist['microphysics']['n0_ice'] = 1.0e7
 
-    # namelist['isotopetracers'] = {}
-    # namelist['isotopetracers']['use_tracers'] = True
-    # namelist['isotopetracers']['scheme'] = 'Arctic_1M'
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'SB_Ice'
     
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'

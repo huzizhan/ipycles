@@ -95,10 +95,10 @@ cdef extern from "isotope.h":
             double* nr_tendency_micro, double* qr_tendency_micro, double* nr_tendency, double* qr_tendency, 
             double* nisi_tendency_micro, double* qisi_tendency_micro, double* nisi_tendency, double* qisi_tendency,
             double* precip_rate, double* evap_rate, double* melt_rate, 
-            double* qt_iso_O18, double* ql_iso_O18, double* qr_iso_O18, double* qisi_iso_O18, 
-            double* qr_iso_O18_tendency, double* qisi_iso_O18_tendency, double* qr_iso_O18_tend_micro, double* qisi_iso_O18_tend_micro,
-            double* qt_iso_HDO, double* ql_iso_HDO, double* qr_iso_HDO, double* qisi_iso_HDO, 
-            double* qr_iso_HDO_tendency, double* qisi_iso_HDO_tendency, double* qr_iso_HDO_tend_micro, double* qisi_iso_HDO_tend_micro) nogil
+            double* qt_O18, double* ql_O18, double* qr_O18, double* qisi_O18, 
+            double* qr_O18_tendency, double* qisi_O18_tendency, double* qr_O18_tend_micro, double* qisi_O18_tend_micro,
+            double* qt_HDO, double* ql_HDO, double* qr_HDO, double* qisi_HDO, 
+            double* qr_HDO_tendency, double* qisi_HDO_tendency, double* qr_HDO_tend_micro, double* qisi_HDO_tend_micro) nogil
 
 cdef class Microphysics_SB_SI:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -298,31 +298,31 @@ cdef class Microphysics_SB_SI:
         #     double[:] nisi_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         #
         #     # iso-tracers indexes defination
-        #     Py_ssize_t ql_iso_O18_shift
-        #     Py_ssize_t qv_iso_O18_shift
-        #     Py_ssize_t qr_iso_O18_shift
-        #     Py_ssize_t qt_iso_O18_shift
-        #     Py_ssize_t wqt_iso_O18_shift
-        #     Py_ssize_t wqr_iso_O18_shift
-        #     Py_ssize_t wqisi_iso_O18_shift
+        #     Py_ssize_t ql_O18_shift
+        #     Py_ssize_t qv_O18_shift
+        #     Py_ssize_t qr_O18_shift
+        #     Py_ssize_t qt_O18_shift
+        #     Py_ssize_t wqt_O18_shift
+        #     Py_ssize_t wqr_O18_shift
+        #     Py_ssize_t wqisi_O18_shift
         #
-        #     Py_ssize_t ql_iso_HDO_shift
-        #     Py_ssize_t qv_iso_HDO_shift
-        #     Py_ssize_t qr_iso_HDO_shift
-        #     Py_ssize_t qt_iso_HDO_shift
-        #     Py_ssize_t wqt_iso_HDO_shift
-        #     Py_ssize_t wqr_iso_HDO_shift
-        #     Py_ssize_t wqisi_iso_HDO_shift
+        #     Py_ssize_t ql_HDO_shift
+        #     Py_ssize_t qv_HDO_shift
+        #     Py_ssize_t qr_HDO_shift
+        #     Py_ssize_t qt_HDO_shift
+        #     Py_ssize_t wqt_HDO_shift
+        #     Py_ssize_t wqr_HDO_shift
+        #     Py_ssize_t wqisi_HDO_shift
         #     
         #     Py_ssize_t wnr_iso_shift
         #     Py_ssize_t wnisi_iso_shift
         #
         #     double[:] wnisi_iso_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         #
-        #     double[:] qr_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        #     double[:] qisi_iso_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        #     double[:] qr_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        #     double[:] qisi_iso_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        #     double[:] qr_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        #     double[:] qisi_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        #     double[:] qr_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        #     double[:] qisi_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         #
         #     double[:] precip_rate_std = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         #     double[:] evap_rate_std = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
@@ -340,21 +340,21 @@ cdef class Microphysics_SB_SI:
         #     wqisi_std_shift = DV.get_varshift(Gr, 'w_qisi_std')
         #     wnisi_std_shift = DV.get_varshift(Gr, 'w_nisi_std')
         #     
-        #     ql_iso_O18_shift  = PV.get_varshift(Gr,'ql_iso_O18')
-        #     qv_iso_O18_shift  = PV.get_varshift(Gr,'qv_iso_O18')
-        #     qr_iso_O18_shift  = PV.get_varshift(Gr, 'qr_iso_O18')
-        #     qt_iso_O18_shift  = PV.get_varshift(Gr, 'qt_iso_O18')
-        #     qisi_iso_O18_shift  = PV.get_varshift(Gr, 'qisi_iso_O18')
-        #     wqr_iso_O18_shift = DV.get_varshift(Gr, 'w_qr_iso_O18')
-        #     wqisi_iso_O18_shift = DV.get_varshift(Gr, 'w_qisi_iso_O18')
+        #     ql_O18_shift  = PV.get_varshift(Gr,'ql_O18')
+        #     qv_O18_shift  = PV.get_varshift(Gr,'qv_O18')
+        #     qr_O18_shift  = PV.get_varshift(Gr, 'qr_O18')
+        #     qt_O18_shift  = PV.get_varshift(Gr, 'qt_O18')
+        #     qisi_O18_shift  = PV.get_varshift(Gr, 'qisi_O18')
+        #     wqr_O18_shift = DV.get_varshift(Gr, 'w_qr_O18')
+        #     wqisi_O18_shift = DV.get_varshift(Gr, 'w_qisi_O18')
         #     
-        #     ql_iso_HDO_shift  = PV.get_varshift(Gr,'ql_iso_HDO')
-        #     qv_iso_HDO_shift  = PV.get_varshift(Gr,'qv_iso_HDO')
-        #     qr_iso_HDO_shift  = PV.get_varshift(Gr, 'qr_iso_HDO')
-        #     qt_iso_HDO_shift  = PV.get_varshift(Gr, 'qt_iso_HDO')
-        #     qisi_iso_HDO_shift  = PV.get_varshift(Gr, 'qisi_iso_HDO')
-        #     wqr_iso_HDO_shift = DV.get_varshift(Gr, 'w_qr_iso_HDO')
-        #     wqisi_iso_HDO_shift = DV.get_varshift(Gr, 'w_qisi_iso_HDO')
+        #     ql_HDO_shift  = PV.get_varshift(Gr,'ql_HDO')
+        #     qv_HDO_shift  = PV.get_varshift(Gr,'qv_HDO')
+        #     qr_HDO_shift  = PV.get_varshift(Gr, 'qr_HDO')
+        #     qt_HDO_shift  = PV.get_varshift(Gr, 'qt_HDO')
+        #     qisi_HDO_shift  = PV.get_varshift(Gr, 'qisi_HDO')
+        #     wqr_HDO_shift = DV.get_varshift(Gr, 'w_qr_HDO')
+        #     wqisi_HDO_shift = DV.get_varshift(Gr, 'w_qisi_HDO')
         #
         #     wnr_iso_shift = DV.get_varshift(Gr, 'w_nr_iso')
         #     wnisi_iso_shift = DV.get_varshift(Gr, 'w_nisi_iso')
@@ -366,43 +366,43 @@ cdef class Microphysics_SB_SI:
         #         &PV.values[ql_std_shift], &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift],
         #         &PV.tendencies[qr_std_shift], &nisi_std_tend_micro[0],  &qisi_std_tend_micro[0], &PV.tendencies[nisi_std_shift],
         #         &PV.tendencies[qisi_std_shift], &precip_rate_std[0], &evap_rate_std[0], &melt_rate_std[0], 
-        #         &PV.values[qt_iso_O18_shift], &PV.values[ql_iso_O18_shift], &PV.values[qr_iso_O18_shift], 
-        #         &PV.values[qisi_iso_O18_shift], &PV.tendencies[qr_iso_O18_shift], &PV.tendencies[qisi_iso_O18_shift], 
-        #         &qr_iso_O18_tend_micro[0], &qisi_iso_O18_tend_micro[0],
-        #         &PV.values[qt_iso_HDO_shift], &PV.values[ql_iso_HDO_shift], &PV.values[qr_iso_HDO_shift], 
-        #         &PV.values[qisi_iso_HDO_shift], &PV.tendencies[qr_iso_HDO_shift], &PV.tendencies[qisi_iso_HDO_shift], 
-        #         &qr_iso_HDO_tend_micro[0], &qisi_iso_HDO_tend_micro[0])
+        #         &PV.values[qt_O18_shift], &PV.values[ql_O18_shift], &PV.values[qr_O18_shift], 
+        #         &PV.values[qisi_O18_shift], &PV.tendencies[qr_O18_shift], &PV.tendencies[qisi_O18_shift], 
+        #         &qr_O18_tend_micro[0], &qisi_O18_tend_micro[0],
+        #         &PV.values[qt_HDO_shift], &PV.values[ql_HDO_shift], &PV.values[qr_HDO_shift], 
+        #         &PV.values[qisi_HDO_shift], &PV.tendencies[qr_HDO_shift], &PV.tendencies[qisi_HDO_shift], 
+        #         &qr_HDO_tend_micro[0], &qisi_HDO_tend_micro[0])
         #     
         #     sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift],
         #         &PV.values[qr_shift], &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
         #     sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift],
-        #         &PV.values[qr_shift], &DV.values[wnr_iso_shift], &DV.values[wqr_iso_O18_shift])
+        #         &PV.values[qr_shift], &DV.values[wnr_iso_shift], &DV.values[wqr_O18_shift])
         #     sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift],
-        #         &PV.values[qr_shift], &DV.values[wnr_iso_shift], &DV.values[wqr_iso_HDO_shift])
+        #         &PV.values[qr_shift], &DV.values[wnr_iso_shift], &DV.values[wqr_HDO_shift])
         #     sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_shift], &PV.values[qisi_shift], &Ref.rho0_half[0], 
         #         &DV.values[wnisi_std_shift], &DV.values[wqisi_std_shift])
         #     sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_shift], &PV.values[qisi_shift], &Ref.rho0_half[0], 
-        #         &DV.values[wnisi_iso_shift], &DV.values[wqisi_iso_O18_shift])
+        #         &DV.values[wnisi_iso_shift], &DV.values[wqisi_O18_shift])
         #     sb_sedimentation_velocity_ice(&Gr.dims, &PV.values[nisi_shift], &PV.values[qisi_shift], &Ref.rho0_half[0], 
-        #         &DV.values[wnisi_iso_shift], &DV.values[wqisi_iso_HDO_shift])
+        #         &DV.values[wnisi_iso_shift], &DV.values[wqisi_HDO_shift])
         #     
         #     if self.cloud_sedimentation:
         #         wqt_std_shift = DV.get_varshift(Gr, 'w_qt_std')
-        #         wqt_iso_O18_shift = DV.get_varshift(Gr, 'w_qt_iso_O18')
-        #         wqt_iso_HDO_shift = DV.get_varshift(Gr, 'w_qt_iso_HDO')
+        #         wqt_O18_shift = DV.get_varshift(Gr, 'w_qt_O18')
+        #         wqt_HDO_shift = DV.get_varshift(Gr, 'w_qt_HDO')
         #
         #         if self.stokes_sedimentation:
         #             microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
-        #             microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_O18_shift])
-        #             microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_HDO_shift])
+        #             microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_O18_shift])
+        #             microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_HDO_shift])
         #         else:
         #             sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_std_shift])
-        #             sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_O18_shift])
-        #             sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_iso_HDO_shift])
+        #             sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_O18_shift])
+        #             sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_HDO_shift])
         #
         #     sb_si_qt_source_formation(&Gr.dims, &qisi_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[qt_std_shift]);
-        #     sb_si_qt_source_formation(&Gr.dims, &qisi_iso_O18_tend_micro[0], &qr_iso_O18_tend_micro[0], &PV.tendencies[qt_iso_O18_shift]);
-        #     sb_si_qt_source_formation(&Gr.dims, &qisi_iso_HDO_tend_micro[0], &qr_iso_HDO_tend_micro[0], &PV.tendencies[qt_iso_HDO_shift]);
+        #     sb_si_qt_source_formation(&Gr.dims, &qisi_O18_tend_micro[0], &qr_O18_tend_micro[0], &PV.tendencies[qt_O18_shift]);
+        #     sb_si_qt_source_formation(&Gr.dims, &qisi_HDO_tend_micro[0], &qr_HDO_tend_micro[0], &PV.tendencies[qt_HDO_shift]);
             
         # entropy source for microphysics processes
         # cdef:

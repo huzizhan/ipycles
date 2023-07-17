@@ -46,6 +46,13 @@ static inline double Rayleigh_distillation_O18(double qt){
     return R*qt;
 }
 
+static inline double Rayleigh_distillation_HDO(double qt){
+    double delta_O18 = 8.99 * log((qt*1000)/0.622) - 42.9;
+    double delta_HDO = 8.0 * delta_O18 + 10.0;
+    double R_HDO = (delta_HDO/1000 + 1) * R_std_HDO;
+    return R_HDO*qt;
+}
+
 // calculate delta of specific water phase variable, values of isotopeic varialbe is after scaled.
 static inline double q_2_delta(double const q_iso, double const q){
     return ((q_iso/q) - 1) * 1000;
@@ -218,7 +225,12 @@ double microphysics_g_iso_ice_SBSI(struct LookupStruct *LT, double (*lam_fp)(dou
 //     return g_therm_iso;
 // };
 
-static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double qr_auto_tendency, double* qr_iso_auto_tendency){
+static inline void sb_iso_rain_autoconversion(
+        double ql, 
+        double ql_iso, 
+        double qr_auto_tendency, 
+        double* qr_iso_auto_tendency
+    ){
     if (ql > 0.0 && ql_iso > SB_EPS){
         *qr_iso_auto_tendency = qr_auto_tendency * (ql_iso/ql);
     }
@@ -228,7 +240,12 @@ static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double q
     return;
 }
 
-static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_accre_tendency, double* qr_iso_accre_tendency){
+static inline void sb_iso_rain_accretion(
+        double ql, 
+        double ql_iso, 
+        double qr_accre_tendency, 
+        double* qr_iso_accre_tendency
+    ){
     if (ql > 0.0 && ql_iso > SB_EPS){
         *qr_iso_accre_tendency = qr_accre_tendency * (ql_iso/ql);
     }
@@ -238,7 +255,12 @@ static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_acc
     return;
 }
 
-static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_evap_tendency, double* qr_iso_evap_tendency){
+static inline void sb_iso_rain_evap_nofrac(
+        double qr, 
+        double qr_iso, 
+        double qr_evap_tendency, 
+        double* qr_iso_evap_tendency
+    ){
     if (qr > SB_EPS && qr_iso > SB_EPS){
         *qr_iso_evap_tendency = qr_evap_tendency * (qr_iso/qr);
     }
@@ -248,8 +270,17 @@ static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_e
     return;
 }
 
-void sb_iso_evaporation_rain(double g_therm_iso, double sat_ratio, double nr, double qr, double mu, double qr_iso, double rain_mass, double Dp,
-double Dm, double* qr_iso_tendency){
+void sb_iso_evaporation_rain(double g_therm_iso, 
+        double sat_ratio, 
+        double nr, 
+        double qr, 
+        double mu, 
+        double qr_iso, 
+        double rain_mass, 
+        double Dp,
+        double Dm, 
+        double* qr_iso_tendency
+    ){
     double gamma, dpfv, phi_v;
     const double bova      = B_RAIN_SED/A_RAIN_SED;
     const double cdp       = C_RAIN_SED * Dp;
@@ -281,7 +312,7 @@ double Dm, double* qr_iso_tendency){
 static inline double equilibrium_fractionation_factor_O18_ice(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1970
 	double alpha_ice = exp(11.839/t - 2.8224e-2);  
-    return alpha_ice;
+    return alpha_ice; // alpha_ice > 1.0
 }
 
 static inline double equilibrium_fractionation_factor_HDO_ice(double t){
@@ -723,3 +754,197 @@ void sb_iso_ice_deposition(const double qi, const double ni, const double qi_iso
         *qi_iso_tendency_dep = qi_tendency_dep*alpha_s_ice*alpha_k_ice * F_ratio;
     }
 };
+
+// ============= SB 2M coupled isotope scheme ================
+void iso_sb_2m_cloud_liquid_fraction(
+        const double type,
+        const double T,
+        const double qv,
+        const double ql,
+        const double dt,
+        const double qvl_iso,
+        const double qv_iso,
+        const double ql_iso,
+        double* qv_iso_eq,
+        double* ql_iso_eq
+    ){
+
+    double alpha_eq_lv, qv_iso_tmp, ql_iso_tmp;
+
+    if(type == 1.0){
+        alpha_eq_lv = equilibrium_fractionation_factor_O18_liquid(T);
+    }
+    else if(type == 2.0){
+        alpha_eq_lv = equilibrium_fractionation_factor_HDO_liquid(T);
+    }
+    
+    if(ql > SB_EPS){
+        *qv_iso_eq = eq_frac_function(qvl_iso, qv, ql, alpha_eq_lv);
+        *ql_iso_eq = qvl_iso - *qv_iso_eq;
+    }
+    else{
+        *qv_iso_eq = qvl_iso;
+        *ql_iso_eq = 0.0;
+    }
+    return;
+}
+
+void iso_sb_2m_cloud_ice_fraction(
+        const double type,
+        const double T,
+        const double qi_tend_nuc,
+        const double qv,
+        const double qv_iso,
+        double* qi_iso_tend
+    ){
+    // TODO: consider the αₖ
+    double alpha_s, qi_iso_tmp;
+
+    if(type == 1.0){
+        alpha_s = equilibrium_fractionation_factor_O18_ice(T);
+    }
+    else if(type == 2.0){
+        alpha_s = equilibrium_fractionation_factor_HDO_ice(T);
+    }
+    
+    if(qi_tend_nuc > 0.0){
+        *qi_iso_tend = qi_tend_nuc * (qv_iso/qv) * alpha_s;
+    }
+    else{
+        *qi_iso_tend = 0.0;
+    }
+    return;
+}
+
+void iso_sb_2m_depostion(
+        struct LookupStruct *LT, 
+        double (*lam_fp)(double), 
+        double (*L_fp)(double, double),
+        const double type,
+        const double T, 
+        const double p0, 
+        const double qt,
+        const double q_var,
+        const double q_var_iso,
+        const double diff_vapor, 
+        const double diff_iso,
+        const double q_tend_dep,
+        double* qv_iso_tend,
+        double* q_iso_tend
+    ){
+
+    if(q_var > SB_EPS && q_var_iso > SB_EPS && q_tend_dep > 0.0){
+
+        double alpha_s, alpha_k;
+        if(type == 1.0){
+            alpha_s = equilibrium_fractionation_factor_O18_ice(T);
+        }
+        else if(type == 2.0){
+            alpha_s = equilibrium_fractionation_factor_HDO_ice(T);
+        }
+
+        alpha_k = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, 
+                T, p0, qt, alpha_s, DVAPOR, diff_iso);
+        *q_iso_tend = alpha_s * alpha_k * q_tend_dep * (q_var_iso/q_var);
+    }
+    else{
+        *q_iso_tend = 0.0;
+    }
+
+    *qv_iso_tend -= *q_iso_tend;
+
+    return;
+}
+
+void iso_sb_2m_sublimation(const double q_var,
+        const double q_var_iso,
+        const double q_tend_sub,
+        double* qv_iso_tend,
+        double* q_iso_tend
+    ){
+
+    if(q_var > SB_EPS && q_var_iso > SB_EPS && q_tend_sub < 0.0){
+        *q_iso_tend = q_tend_sub * (q_var_iso/q_var);
+    }
+    else{
+        *q_iso_tend = 0.0;
+    }
+
+    *qv_iso_tend -= *q_iso_tend;
+    return;
+}
+
+void sb_iso_ice_collection_snow(
+        const double qi,
+        const double qi_iso,
+        const double qs_tend_ice_selcol,
+        const double qs_tend_si_col,
+        double* qs_iso_tendency,
+        double* qi_iso_tendency
+    ){
+    if(qi > SB_EPS && qi_iso > SB_EPS){
+        *qs_iso_tendency = (qs_tend_ice_selcol + qs_tend_si_col) * (qi_iso/qi);
+        *qi_iso_tendency = -(qs_tend_ice_selcol + qs_tend_si_col) * (qi_iso/qi);
+    }
+    else{
+        *qs_iso_tendency = 0.0;
+        *qi_iso_tendency = 0.0;
+    }
+    return;
+}
+
+void sb_iso_riming_snow(
+    const double ql,
+    const double qr,
+    const double ql_iso,
+    const double qr_iso,
+    const double ql_tend_snow_rime, // negative
+    const double qr_tend_snow_rime, // negative
+    double* ql_iso_tendency,
+    double* qr_iso_tendency,
+    double* qs_iso_tendency
+    ){
+
+    if(ql > SB_EPS && ql_iso > SB_EPS){
+        *ql_iso_tendency += ql_tend_snow_rime * (ql_iso/ql);
+        *qs_iso_tendency += -ql_tend_snow_rime * (ql_iso/ql);
+    }
+    else{
+        *ql_iso_tendency += 0.0;
+        *qs_iso_tendency += 0.0;
+    }
+    
+    if(qr > SB_EPS && qr_iso > SB_EPS){
+        *qr_iso_tendency += qr_tend_snow_rime * (qr_iso/qr);
+        *qs_iso_tendency += -qr_tend_snow_rime * (qr_iso/qr);
+    }
+    else{
+        *qr_iso_tendency += 0.0;
+        *qs_iso_tendency += 0.0;
+    }
+
+    return;
+}
+
+void sb_iso_melt_snow(
+    const double qs,
+    const double qs_iso,
+    const double qs_tend_melt, // negative
+    double* qr_iso_tendency,
+    double* qs_iso_tendency
+    ){
+
+    if(qs > SB_EPS && qs_iso > SB_EPS){
+        *qs_iso_tendency = qs_tend_melt * (qs_iso/qs);
+        *qr_iso_tendency = -qs_tend_melt * (qs_iso/qs);
+    }
+    else{
+        *qs_iso_tendency = 0.0;
+        *qr_iso_tendency = 0.0;
+    }
+    return;
+}
+
+// void iso_sb_2m_snow_depostion(){
+//     return;
+// };

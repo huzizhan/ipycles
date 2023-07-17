@@ -6,6 +6,7 @@
 #include "advection_interpolation.h"
 #include "lookup.h"
 #include "entropies.h"
+#include "microphysics_sb_ice.h"
 #include <stdio.h>
 
 void liquid_saturation_adjustment(
@@ -91,6 +92,7 @@ void eos_sb_update(struct DimStruct *dims,
     struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
     double* restrict p0, 
     double dt,
+    double IN, // given ice nuclei
     double* restrict s, 
     double* restrict qt, 
     double* restrict T,
@@ -121,6 +123,7 @@ void eos_sb_update(struct DimStruct *dims,
                 for (k=kmin;k<kmax;k++){
                     const ssize_t ijk = ishift + jshift + k;
                     double nl_tmp, ql_tmp, qi_tmp, ni_tmp, qv_tmp;
+                    double t_tmp = T[ijk];
                     
                     ql[ijk] = fmax(ql[ijk],0.0);
                     qi[ijk] = fmax(qi[ijk],0.0);
@@ -137,9 +140,16 @@ void eos_sb_update(struct DimStruct *dims,
 
                     ql_tendency[ijk] += (ql_tmp - ql[ijk])/dt;
                     nl_tendency[ijk] += (nl_tmp - nl[ijk])/dt;
+                    
+                    // ------------ Ice particle Nucleation --------
+                    double qi_tend_nuc, ni_tend_nuc;
+                    sb_ice_nucleation_mayer(LT, IN,
+                        T[ijk], qt[ijk], p0[k], 
+                        qv[ijk], ni[ijk], dt,
+                        &qi_tend_nuc, &ni_tend_nuc);
 
-                    qi_tendency[ijk] += (qi_tmp - qi[ijk])/dt;
-                    ni_tendency[ijk] += (ni_tmp - ni[ijk])/dt;
+                    qi_tendency[ijk] += qi_tend_nuc;
+                    ni_tendency[ijk] += ni_tend_nuc;
 
                 } // End k loop
             } // End j loop

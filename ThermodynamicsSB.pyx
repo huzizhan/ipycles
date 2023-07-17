@@ -29,7 +29,7 @@ cdef extern from "thermodynamics_sa.h":
 
 cdef extern from "thermodynamics_sb.h":
     void eos_sb_update(Grid.DimStruct * dims, Lookup.LookupStruct * LT, double(*lam_fp)(double), double(*L_fp)(double, double),
-            double* p0, double dt,
+            double* p0, double dt, double IN,
             double* s, double* qt, double* temperature,
             double* qv, double* ql, double* nl, 
             double* qi, double* ni, double* alpha,
@@ -74,6 +74,12 @@ cdef class ThermodynamicsSB:
             self.do_qt_clipping = namelist['thermodynamics']['do_qt_clipping']
         except:
             self.do_qt_clipping = True
+
+        self.ice_nucl = 2.0e2 # unit: L^-1, Cotton assumption of contact nucleation.
+        try:
+            self.ice_nucl = namelist['isotopetracers']['ice_nuclei']
+        except:
+            pass
 
         return
 
@@ -221,7 +227,7 @@ cdef class ThermodynamicsSB:
             clip_qt(&Gr.dims, &PV.values[qt_shift], 1e-11)
 
         eos_sb_update(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
-                &RS.p0_half[0], dt,
+                &RS.p0_half[0], dt, self.ice_nucl,
                 &PV.values[s_shift], &PV.values[qt_shift], &DV.values[t_shift], 
                 &DV.values[qv_shift], &PV.values[ql_shift], &PV.values[nl_shift], 
                 &PV.values[qi_shift], &PV.values[ni_shift], &DV.values[alpha_shift],

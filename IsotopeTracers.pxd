@@ -6,12 +6,14 @@ cimport Microphysics
 cimport Microphysics_SB_Liquid
 cimport Microphysics_Arctic_1M
 cimport Microphysics_SB_SI
+cimport Microphysics_SB_2M
 cimport ParallelMPI
 cimport TimeStepping
 cimport ReferenceState
 cimport Lookup
 from Thermodynamics cimport LatentHeat, ClausiusClapeyron
 cimport ThermodynamicsSA
+cimport ThermodynamicsSB
 cimport TimeStepping
 
 from libc.math cimport log, exp
@@ -117,18 +119,18 @@ cdef class IsotopeTracers_SB_Ice:
 
         public bint isotope_tracer
 
-        double [:] Dm
-        double [:] mass
-        double [:] ice_self_col
-        double [:] snow_ice_col
-        double [:] snow_riming
-        double [:] snow_dep
-        double [:] snow_sub
+        double [:] Dm 
+        double [:] mass 
+        double [:] diagnose_1 
+        double [:] diagnose_2 
+        double [:] diagnose_3 
+        double [:] diagnose_4 
+        double [:] diagnose_5 
 
     cpdef initialize(namelist, self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ReferenceState.ReferenceState Ref, 
-            Microphysics_Arctic_1M.Microphysics_Arctic_1M Micro_Arctic_1M, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
-            DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
+        Microphysics_SB_2M.Microphysics_SB_2M Micro_SB_2M, ThermodynamicsSB.ThermodynamicsSB Th_sb, 
+        DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)

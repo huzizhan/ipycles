@@ -58,7 +58,7 @@ cdef extern from "microphysics_sb_ice.h":
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         double* density, double* p0, double dt, 
         double CCN, double IN, 
-        double* temperature, double* s, double* w,
+        double* temperature, double* w,
         double*S, double* qt,
         double* nl, double* ql,
         double* ni, double* qi,
@@ -104,11 +104,6 @@ cdef class No_Microphysics_SB:
         self.Lambda_fp = lambda_constant
         LH.L_fp = latent_heat_variable
         self.L_fp = latent_heat_variable
-        
-        # LH.Lambda_fp = lambda_Arctic
-        # self.Lambda_fp = lambda_Arctic
-        # LH.L_fp = latent_heat_Arctic
-        # self.L_fp = latent_heat_Arctic
 
         # Extract case-specific parameter values from the namelist
         # Get number concentration of cloud condensation nuclei (1/m^3)
@@ -152,6 +147,7 @@ cdef class No_Microphysics_SB:
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
             DiagnosticVariables.DiagnosticVariables DV, NetCDFIO_Stats NS, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
         return
+
 cdef class Microphysics_SB_2M:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
 
@@ -350,7 +346,7 @@ cdef class Microphysics_SB_2M:
             # INPUT ARRAY INDEX
             &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
             self.CCN, self.ice_nucl,
-            &DV.values[t_shift], &PV.values[s_shift], &PV.values[w_shift],
+            &DV.values[t_shift], &PV.values[w_shift],
             &S_ratio[0], &PV.values[qt_shift], 
             &PV.values[nl_shift], &PV.values[ql_shift],
             &PV.values[ni_shift], &PV.values[qi_shift],
@@ -373,15 +369,13 @@ cdef class Microphysics_SB_2M:
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift], 
             &DV.values[wnr_shift], &DV.values[wqr_shift])
-        sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, &Ref.rho0_half[0], &PV.values[nr_shift],
-            &PV.values[qr_shift], &DV.values[wnr_shift], &DV.values[wqr_shift])
         sb_sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], 
             &PV.values[ns_shift], &PV.values[qs_shift],  
             &DV.values[wns_shift], &DV.values[wqs_shift])
 
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
-        
+
             if self.stokes_sedimentation:
                 microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], 
                     self.CCN, &PV.values[ql_shift], &DV.values[wqt_shift])

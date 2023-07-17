@@ -167,76 +167,6 @@ void sb_ccn(
     return;
 }
 
-void liquid_saturation_adjustment(
-        struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-        const double p0, 
-        const double s, 
-        const double qt, 
-        const double T, 
-        const double ql,
-        const double nl,
-        const double dt,
-        double* ql_tendency, 
-        double* nl_tendency 
-    ){
-
-    // *qv = qt;
-    // *ql = 0.0;
-    // *qi = 0.0;
-    //
-    double pv_1 = pv_c(p0,qt,qt);
-    double pd_1 = p0 - pv_1;
-    double T_1 = temperature_no_ql(pd_1,pv_1,s,qt);
-    double pv_star_1 = lookup(LT, T_1);
-    double qv_star_1 = qv_star_c(p0,qt,pv_star_1);
-    double ql_cond, nl_cond;
-
-    /// If not saturated
-    if(qt <= qv_star_1){
-        // all cloud droplet evaporate
-        *ql_tendency += -ql/dt;
-        *nl_tendency += -nl/dt;
-        return;
-    }
-    else{
-        double sigma_1 = qt - qv_star_1;
-        double lam_1 = lam_fp(T_1);
-        double L_1 = L_fp(T_1,lam_1);
-        double s_1 = sd_c(pd_1,T_1) * (1.0 - qt) + sv_c(pv_1,T_1) * qt + sc_c(L_1,T_1)*sigma_1;
-        double f_1 = s - s_1;
-        double T_2 = T_1 + sigma_1 * L_1 /((1.0 - qt)*cpd + qv_star_1 * cpv);
-        double delta_T  = fabs(T_2 - T_1);
-        double qv_star_2;
-        double sigma_2;
-        double lam_2;
-        do{
-            double pv_star_2 = lookup(LT, T_2);
-            qv_star_2 = qv_star_c(p0,qt,pv_star_2);
-            double pv_2 = pv_c(p0,qt,qv_star_2);
-            double pd_2 = p0 - pv_2;
-            sigma_2 = qt - qv_star_2;
-            lam_2 = lam_fp(T_2);
-            double L_2 = L_fp(T_2,lam_2);
-            double s_2 = sd_c(pd_2,T_2) * (1.0 - qt) + sv_c(pv_2,T_2) * qt + sc_c(L_2,T_2)*sigma_2;
-            double f_2 = s - s_2;
-            double T_n = T_2 - f_2*(T_2 - T_1)/(f_2 - f_1);
-            T_1 = T_2;
-            T_2 = T_n;
-            f_1 = f_2;
-            delta_T  = fabs(T_2 - T_1);
-        } while(delta_T >= 1.0e-3 || sigma_2 < 0.0 );
-        // *qv = qv_star_2;
-        // after saturation adjustment, cloud condensation reach:
-
-        ql_cond = (qt - qv_star_2) - ql;
-        nl_cond = ql_cond/LIQUID_MIN_MASS;
-        
-        *ql_tendency += ql_cond/dt;
-        *nl_tendency += nl_cond/dt;
-    }
-    return;
-}
-
 void sb_autoconversion_rain_tmp(
         // INPUT
         double (*droplet_nu)(double,double), 
@@ -783,8 +713,6 @@ void sb_ice_deposition(
     }
     return;
 }
-
-
 
 void sb_ice_self_collection(
     // INPUT variables 
@@ -1450,11 +1378,6 @@ void sb_nuc(const struct DimStruct *dims,
                         // &diag_1[ijk],
                         &ql_tendency[ijk], &nl_tendency[ijk]);
                 
-                liquid_saturation_adjustment(LT, lam_fp, L_fp,
-                        p0[k], s[ijk], qt[ijk], temperature[ijk],
-                        ql[ijk], nl[ijk], dt,
-                        &ql_tendency[ijk], &nl_tendency[ijk]);
-                
                 // ============= Ice Phase Problem ================
                 sb_ice_nucleation_mayer(LT, IN,
                         temperature[ijk], qt[ijk], p0[k], 
@@ -1489,7 +1412,6 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
         double ccn, // given cloud condensation nuclei
         double IN, // given ice nuclei
         double* restrict temperature,  // temperature of air parcel
-        double* restrict s, // specific entropy
         double* restrict w, // vertical velocity
         double* restrict S, // satratio
         double* restrict qt, // total water specific humidity
@@ -1720,9 +1642,9 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     //find the maximum substep time
                     dt_ = dt - time_added;
                     
-                    const double dS = S[ijk + 1] - S[ijk];
-                    sb_ccn(ccn, S[ijk], dS, dzi, w[ijk], 
-                            &ql_tendency_act, &nl_tendency_act);
+                    // const double dS = S[ijk + 1] - S[ijk];
+                    // sb_ccn(ccn, S[ijk], dS, dzi, w[ijk], 
+                    //         &ql_tendency_act, &nl_tendency_act);
                     
                     //compute the source terms of warm phase process: rain
                     sb_autoconversion_rain_tmp(droplet_nu, density[k], nl_tmp, ql_tmp, qr_tmp, 
@@ -1735,23 +1657,17 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                             mu, rain_mass, Dp, Dm_r, 
                             &nr_tendency_evp, &qr_tendency_evp, &qv_tendency_evp);
 
-                    sb_ice_nucleation_mayer(LT,
-                            IN,
-                            temperature[ijk], qt_tmp, p0[k], 
-                            qv_tmp, ni_tmp, dt_,
-                            &qi_tendency_nuc, &ni_tendency_nuc);
-
+                    // compute the source of ice deposition
                     sb_ice_deposition(LT, lam_fp, L_fp, 
                             temperature[ijk], qt_tmp, p0[k], qi_tmp, ni_tmp, 
                             Dm_i, ice_mass, velocity_ice, dt_, 
                             &qi_tendency_dep, &ni_tendency_dep,
                             &dep_tend, &sub_tend,
-                            // &Dm[ijk], &mass[ijk],
                             &qv_tendency_dep);
 
                     // TODO: freezing process still need to include
 
-                    // // compute the source terms of ice phase process: snow 
+                    // compute the source terms of ice phase process: snow 
 
                     sb_snow_deposition(LT, lam_fp, L_fp, 
                             temperature[ijk], qt_tmp, p0[k], qs_tmp, ns_tmp, 
@@ -1799,15 +1715,13 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                                       qs_tendency_dep + qs_tendency_melt;
                     
                     // cloud droplet tendency sum
-                    ql_tendency_tmp = ql_tendency_act + 
-                                      ql_tendency_au + ql_tendency_ac + ql_tendency_snow_rime;
-                    nl_tendency_tmp = nl_tendency_act +
-                                      nl_tendency_au + nl_tendency_ac + nl_tendency_snow_rime;
+                    ql_tendency_tmp = ql_tendency_au + ql_tendency_ac + ql_tendency_snow_rime;
+                    nl_tendency_tmp = nl_tendency_au + nl_tendency_ac + nl_tendency_snow_rime;
 
                     // ice particle tendency sum
-                    qi_tendency_tmp = qi_tendency_nuc + qi_tendency_dep + 
+                    qi_tendency_tmp = qi_tendency_dep + 
                                       qi_tendency_ice_selcol + qi_tendency_si_col + qi_tendency_snow_mult;
-                    ni_tendency_tmp = ni_tendency_nuc + ni_tendency_dep + 
+                    ni_tendency_tmp = ni_tendency_dep + 
                                       ni_tendency_ice_selcol + ni_tendency_si_col + ni_tendency_snow_mult;
 
                     //Factor of 1.05 is ad-hoc
