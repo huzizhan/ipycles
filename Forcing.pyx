@@ -694,8 +694,6 @@ cdef class ForcingIsdac:
 
             #Change units to kg/kg
             self.initial_qt[k]/= 1000.0
-            self.initial_qt_O18[k] = Rayleigh_distillation_O18(self.initial_qt[k])
-            self.initial_qt_HDO[k] = Rayleigh_distillation_HDO(self.initial_qt[k])
             #Set velocity profile
             self.initial_v[k] = -2.0 + 0.003 * Gr.zl_half[k]
             self.initial_u[k] = -7.0
@@ -797,8 +795,10 @@ cdef class ForcingIsdac:
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.w_half[0],&PV.values[qt_HDO_shift],&PV.tendencies[qt_HDO_shift])
 
             apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
-            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt_O18[0],&PV.values[qt_O18_shift],&PV.tendencies[qt_O18_shift])
-            apply_nudging(&Gr.dims,&self.nudge_coeff_scalars[0],&self.initial_qt_HDO[0],&PV.values[qt_HDO_shift],&PV.tendencies[qt_HDO_shift])
+            apply_iso_nudging(&Gr.dims,&self.nudge_coeff_scalars[0], &PV.values[qt_shift], 
+                              &self.initial_qt[0], &PV.values[qt_O18_shift], &PV.tendencies[qt_O18_shift])
+            apply_iso_nudging(&Gr.dims,&self.nudge_coeff_scalars[0], &PV.values[qt_shift], 
+                              &self.initial_qt[0], &PV.values[qt_HDO_shift], &PV.tendencies[qt_HDO_shift])
 
             with nogil:
                 for i in xrange(gw,imax):
@@ -2188,6 +2188,36 @@ cdef apply_nudging(Grid.DimStruct *dims, double *coefficient, double *mean, doub
                 for k in xrange(kmin,kmax):
                     ijk = ishift + jshift + k
                     tendencies[ijk] = tendencies[ijk] - (values[ijk] - mean[k]) * coefficient[k]
+
+    return
+
+cdef apply_iso_nudging(Grid.DimStruct *dims, double *coefficient, double *qt,
+                       double *initial_qt, double *qt_iso, double *tendencies):
+
+    cdef:
+        Py_ssize_t imin = dims.gw
+        Py_ssize_t jmin = dims.gw
+        Py_ssize_t kmin = dims.gw
+        Py_ssize_t imax = dims.nlg[0] -dims.gw
+        Py_ssize_t jmax = dims.nlg[1] -dims.gw
+        Py_ssize_t kmax = dims.nlg[2] -dims.gw
+        Py_ssize_t istride = dims.nlg[1] * dims.nlg[2]
+        Py_ssize_t jstride = dims.nlg[2]
+        Py_ssize_t ishift, jshift, ijk, i,j,k
+        double phim, fluxm
+        double phip, fluxp
+        double iso_ratio, initial_qt_iso
+
+    with nogil:
+        for i in xrange(imin,imax):
+            ishift = i*istride
+            for j in xrange(jmin,jmax):
+                jshift = j*jstride
+                for k in xrange(kmin,kmax):
+                    ijk = ishift + jshift + k
+                    O18_ratio = qt_iso[ijk]/qt[ijk]
+                    initial_qt_iso = initial_qt[k] * O18_ratio
+                    tendencies[ijk] = tendencies[ijk]-(qt_iso[ijk]-initial_qt_iso)*coefficient[k]
 
     return
 

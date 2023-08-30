@@ -1210,7 +1210,8 @@ cdef class IsotopeTracers_SB_Ice:
             &PV.tendencies[qs_HDO_shift], &PV.tendencies[qr_HDO_shift],
             &precip_HDO_rate[0], &evap_HDO_rate[0], &melt_HDO_rate[0])
 
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], &precip_rate[0], &evap_rate[0])
+        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], 
+            &precip_rate[0], &evap_rate[0])
 
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
@@ -1233,9 +1234,8 @@ cdef class IsotopeTracers_SB_Ice:
 
         # TODO: check weather change the std source of qr and qs 
         # into O18 and HDO will change too much of isotopic values
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_O18_shift], &precip_O18_rate[0], &evap_O18_rate[0])
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_HDO_shift], &precip_HDO_rate[0], &evap_HDO_rate[0])
-
+        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_O18_shift], 
+            &precip_O18_rate[0], &evap_O18_rate[0])
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
@@ -1252,10 +1252,9 @@ cdef class IsotopeTracers_SB_Ice:
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_2M.CCN, 
                 &PV.values[ql_shift], &DV.values[wqt_O18_shift])
-        
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_HDO_shift], &precip_HDO_rate[0], &evap_HDO_rate[0])
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_HDO_shift], &precip_HDO_rate[0], &evap_HDO_rate[0])
 
+        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_HDO_shift], 
+            &precip_HDO_rate[0], &evap_HDO_rate[0])
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
