@@ -1226,6 +1226,8 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
         // OUTPUT ISO VARIABLES TENDENCY 
         double* restrict ql_O18_tendency,
         double* restrict qi_O18_tendency,
+        double* restrict qs_O18_tend,
+        double* restrict qr_O18_tend,
         double* restrict qs_O18_tendency,
         double* restrict qr_O18_tendency,
         double* restrict precip_O18_rate,
@@ -1233,6 +1235,8 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
         double* restrict melt_O18_rate,
         double* restrict ql_HDO_tendency,
         double* restrict qi_HDO_tendency,
+        double* restrict qs_HDO_tend,
+        double* restrict qr_HDO_tend,
         double* restrict qs_HDO_tendency,
         double* restrict qr_HDO_tendency,
         double* restrict precip_HDO_rate,
@@ -1856,16 +1860,20 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                 // isotope tracer tendency calculation
                 ql_O18_tendency[ijk] += (ql_O18_tmp - ql_O18[ijk])/dt;
                 qi_O18_tendency[ijk] += (qi_O18_tmp - qi_O18[ijk])/dt;
-                qr_O18_tendency[ijk] += (qr_O18_tmp - qr_O18[ijk])/dt;
-                qs_O18_tendency[ijk] += (qs_O18_tmp - qs_O18[ijk])/dt;
+                qr_O18_tend[ijk] += (qr_O18_tmp - qr_O18[ijk])/dt;
+                qs_O18_tend[ijk] += (qs_O18_tmp - qs_O18[ijk])/dt;
+                qr_O18_tendency[ijk] += qr_O18_tend[ijk];
+                qs_O18_tendency[ijk] += qs_O18_tend[ijk];
                 precip_O18_rate[ijk] = precip_O18_tmp/dt;
                 evap_O18_rate[ijk]   = evap_O18_tmp/dt;
                 melt_O18_rate[ijk]   = melt_O18_tmp/dt;
 
                 ql_HDO_tendency[ijk] += (ql_HDO_tmp - ql_HDO[ijk])/dt;
                 qi_HDO_tendency[ijk] += (qi_HDO_tmp - qi_HDO[ijk])/dt;
-                qr_HDO_tendency[ijk] += (qr_HDO_tmp - qr_HDO[ijk])/dt;
-                qs_HDO_tendency[ijk] += (qs_HDO_tmp - qs_HDO[ijk])/dt;
+                qr_HDO_tend[ijk] += (qr_HDO_tmp - qr_HDO[ijk])/dt;
+                qs_HDO_tend[ijk] += (qs_HDO_tmp - qs_HDO[ijk])/dt;
+                qr_HDO_tendency[ijk] += qr_HDO_tend[ijk];
+                qs_HDO_tendency[ijk] += qs_HDO_tend[ijk];
                 precip_HDO_rate[ijk] = precip_HDO_tmp/dt;
                 evap_HDO_rate[ijk]   = evap_HDO_tmp/dt;
                 melt_HDO_rate[ijk]   = melt_HDO_tmp/dt;
