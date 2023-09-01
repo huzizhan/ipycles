@@ -88,12 +88,12 @@ cdef class ScalarAdvection:
                     if sc_vel_name in DV.name_index:
                         vel_shift = DV.get_varshift(Gr, sc_vel_name)
                         if sc_vel_name == 'w_qt':
-                            ql_shift = DV.get_varshift(Gr,'ql')
+                            ql_shift = PV.get_varshift(Gr,'ql')
                             qt_shift = PV.get_varshift(Gr,'qt')
                             qv_shift =  DV.get_varshift(Gr,'qv')
 
                             compute_advective_fluxes_a(&Gr.dims,&Rs.rho0[0],&Rs.rho0_half[0],&DV.values[vel_shift],
-                                                   &DV.values[ql_shift],&self.flux[flux_shift],d,self.order_sedimentation)
+                                                   &PV.values[ql_shift],&self.flux[flux_shift],d,self.order_sedimentation)
                             scalar_flux_divergence(&Gr.dims,&Rs.alpha0[0],&Rs.alpha0_half[0],&self.flux[flux_shift],
                                                &PV.tendencies[scalar_shift],Gr.dims.dx[d],d)
 

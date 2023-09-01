@@ -11,6 +11,7 @@ cimport ParallelMPI
 from Microphysics_Arctic_1M cimport Microphysics_Arctic_1M
 from Microphysics_SB_Liquid cimport Microphysics_SB_Liquid
 from Microphysics_SB_SI cimport Microphysics_SB_SI
+from Microphysics_SB_2M cimport Microphysics_SB_2M, No_Microphysics_SB
 cimport Grid
 cimport ReferenceState
 cimport PrognosticVariables
@@ -86,14 +87,14 @@ cdef class No_Microphysics_SA:
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS,ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t wqt_shift
-            Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
+            Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
             if self.stokes_sedimentation:
-                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &PV.values[ql_shift], &DV.values[wqt_shift])
             else:
-                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &PV.values[ql_shift], &DV.values[wqt_shift])
         return
         
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
@@ -124,14 +125,19 @@ cdef class No_Microphysics_SA:
             NS.write_profile('s_qt_sedimentation_source', tmp[gw:-gw], Pa)
         return
 
+
 def MicrophysicsFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
     if(namelist['microphysics']['scheme'] == 'None_Dry'):
         return No_Microphysics_Dry(Par, LH, namelist)
     elif(namelist['microphysics']['scheme'] == 'None_SA'):
         return No_Microphysics_SA(Par, LH, namelist)
+    elif(namelist['microphysics']['scheme'] == 'None_SB'):
+        return No_Microphysics_SB(Par, LH, namelist)
     elif(namelist['microphysics']['scheme'] == 'SB_Liquid'):
         return Microphysics_SB_Liquid(Par, LH, namelist)
     elif(namelist['microphysics']['scheme'] == 'Arctic_1M'):
         return Microphysics_Arctic_1M(Par, LH, namelist)
     elif(namelist['microphysics']['scheme'] == 'SB_SI'):
         return Microphysics_SB_SI(Par, LH, namelist)
+    elif(namelist['microphysics']['scheme'] == 'SB_2M'):
+        return Microphysics_SB_2M(Par, LH, namelist)

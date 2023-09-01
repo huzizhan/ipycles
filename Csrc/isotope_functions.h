@@ -46,6 +46,13 @@ static inline double Rayleigh_distillation_O18(double qt){
     return R*qt;
 }
 
+static inline double Rayleigh_distillation_HDO(double qt){
+    double delta_O18 = 8.99 * log((qt*1000)/0.622) - 42.9;
+    double delta_HDO = 8.0 * delta_O18 + 10.0;
+    double R_HDO = (delta_HDO/1000 + 1) * R_std_HDO;
+    return R_HDO*qt;
+}
+
 // calculate delta of specific water phase variable, values of isotopeic varialbe is after scaled.
 static inline double q_2_delta(double const q_iso, double const q){
     return ((q_iso/q) - 1) * 1000;
@@ -93,29 +100,63 @@ static inline double iso_vapor_diffusivity(const double temperature, const doubl
 
 // ===========<<<  SB_Warm Scheme  >>> ============
 
-double microphysics_g_std(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature, double dvap, double kt){
-    double lam = lam_fp(temperature);
-    double L = L_fp(temperature,lam);
-    // double pv_sat = lookup(LT, temperature);
-    double pv_sat = saturation_vapor_pressure_water(temperature);
-    double rho_sat = pv_sat/Rv/temperature;
+double microphysics_g_iso_SB_Liquid(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+         double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
+         double dvap, double kt){
 
-    /*blossey's scheme for evaporation*/
-    // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); 
-    
-    /*Straka 2009 (6.13)*/
-    double b_l = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0);
-
-    double g_therm = dvap*rho_sat/(1.0+b_l);
-    return g_therm;
-}
-
-double microphysics_g_iso_tmp(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
-                             double dvap, double kt){
     double lam          = lam_fp(temperature);
     double L            = L_fp(temperature,lam);
-    // double pv_sat       = lookup(LT, temperature);
+    double pv_sat       = lookup(LT, temperature);
+    double rho_sat      = pv_sat/Rv/temperature;
+    // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
+    double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+
+    double S_l          = sat_ratio + 1.0;
+    
+    double R_qr         = qr_iso / qr;
+    double R_qv_ambient = qv_iso / qv;
+    double alpha_eq     = equilibrium_fractionation_factor_O18_liquid(temperature);
+    double R_qr_surface = R_qr / alpha_eq;
+    // double rat = R_qr_surface/R_qv_ambient;
+    
+    // double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+    double g_therm_iso = dvap*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+    return g_therm_iso;
+};
+
+double microphysics_g_iso_Arc1M(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+         double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio, double alpha_eq,
+         double dvap, double kt){
+
+    double lam      = lam_fp(temperature);
+    double L        = L_fp(temperature,lam);
+    double pv_sat   = lookup(LT, temperature);
+    double rho_sat  = pv_sat/Rv/temperature;
+
+    // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
+    double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+    
+    double R_qr         = qr_iso / qr;
+    double R_qv_ambient = qv_iso / qv;
+    double R_qr_surface = R_qr / alpha_eq;
+    // double rat = R_qr_surface/R_qv_ambient;
+    
+    double S_ratio = sat_ratio + 1.0; // INPUT sat_ratio is POSITIVE or NEGETIVE
+    
+    // double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+    double g_therm_iso = dvap*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*S_ratio)/(1+b_l) - S_ratio);
+    return g_therm_iso;
+};
+
+// ================================================
+// ToDo: microphysics isotope thermodynamic variable should 
+// been applied without LT or lam_fp settings in next step
+// ================================================
+double microphysics_g_iso_rain_SBSI(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+         double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
+         double dvap, double kt){
+    double lam          = lam_fp(temperature);
+    double L            = L_fp(temperature,lam);
     double pv_sat       = saturation_vapor_pressure_water(temperature);
     double rho_sat      = pv_sat/Rv/temperature;
     // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
@@ -134,19 +175,19 @@ double microphysics_g_iso_tmp(struct LookupStruct *LT, double (*lam_fp)(double),
     return g_therm_iso;
 };
 
-double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
-                             double dvap, double kt){
+double microphysics_g_iso_ice_SBSI(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+         double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
+         double dvap, double kt){
+
     double lam          = lam_fp(temperature);
     double L            = L_fp(temperature,lam);
-    // double pv_sat       = lookup(LT, temperature);
-    double pv_sat       = saturation_vapor_pressure_water(temperature);
+    double pv_sat       = saturation_vapor_pressure_ice(temperature);
     double rho_sat      = pv_sat/Rv/temperature;
+
     // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
     double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
 
     double S_l          = sat_ratio + 1.0;
-    double D_O18        = dvap*0.9723;
     
     double R_qr         = qr_iso / qr;
     double R_qv_ambient = qv_iso / qv;
@@ -155,11 +196,41 @@ double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), dou
     // double rat = R_qr_surface/R_qv_ambient;
     
     // double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
-    double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+    double g_therm_iso = dvap*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
     return g_therm_iso;
 };
 
-static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double qr_auto_tendency, double* qr_iso_auto_tendency){
+// double microphysics_g_iso(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+//                              double temperature, double p0, double qr, double qr_iso, double qv, double qv_iso, double sat_ratio,
+//                              double dvap, double kt){
+//     double lam          = lam_fp(temperature);
+//     double L            = L_fp(temperature,lam);
+//     // double pv_sat       = lookup(LT, temperature);
+//     double pv_sat       = saturation_vapor_pressure_water(temperature);
+//     double rho_sat      = pv_sat/Rv/temperature;
+//     // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
+//     double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+//
+//     double S_l          = sat_ratio + 1.0;
+//     double D_O18        = dvap*0.9723;
+//     
+//     double R_qr         = qr_iso / qr;
+//     double R_qv_ambient = qv_iso / qv;
+//     double alpha_eq     = equilibrium_fractionation_factor_O18_liquid(temperature);
+//     double R_qr_surface = R_qr / alpha_eq;
+//     // double rat = R_qr_surface/R_qv_ambient;
+//     
+//     // double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+//     double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+//     return g_therm_iso;
+// };
+
+static inline void sb_iso_rain_autoconversion(
+        double ql, 
+        double ql_iso, 
+        double qr_auto_tendency, 
+        double* qr_iso_auto_tendency
+    ){
     if (ql > 0.0 && ql_iso > SB_EPS){
         *qr_iso_auto_tendency = qr_auto_tendency * (ql_iso/ql);
     }
@@ -169,7 +240,12 @@ static inline void sb_iso_rain_autoconversion(double ql, double ql_iso, double q
     return;
 }
 
-static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_accre_tendency, double* qr_iso_accre_tendency){
+static inline void sb_iso_rain_accretion(
+        double ql, 
+        double ql_iso, 
+        double qr_accre_tendency, 
+        double* qr_iso_accre_tendency
+    ){
     if (ql > 0.0 && ql_iso > SB_EPS){
         *qr_iso_accre_tendency = qr_accre_tendency * (ql_iso/ql);
     }
@@ -179,7 +255,12 @@ static inline void sb_iso_rain_accretion(double ql, double ql_iso, double qr_acc
     return;
 }
 
-static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_evap_tendency, double* qr_iso_evap_tendency){
+static inline void sb_iso_rain_evap_nofrac(
+        double qr, 
+        double qr_iso, 
+        double qr_evap_tendency, 
+        double* qr_iso_evap_tendency
+    ){
     if (qr > SB_EPS && qr_iso > SB_EPS){
         *qr_iso_evap_tendency = qr_evap_tendency * (qr_iso/qr);
     }
@@ -189,8 +270,17 @@ static inline void sb_iso_rain_evap_nofrac(double qr, double qr_iso, double qr_e
     return;
 }
 
-void sb_iso_evaporation_rain(double g_therm_iso, double sat_ratio, double nr, double qr, double mu, double qr_iso, double rain_mass, double Dp,
-double Dm, double* qr_iso_tendency){
+void sb_iso_evaporation_rain(double g_therm_iso, 
+        double sat_ratio, 
+        double nr, 
+        double qr, 
+        double mu, 
+        double qr_iso, 
+        double rain_mass, 
+        double Dp,
+        double Dm, 
+        double* qr_iso_tendency
+    ){
     double gamma, dpfv, phi_v;
     const double bova      = B_RAIN_SED/A_RAIN_SED;
     const double cdp       = C_RAIN_SED * Dp;
@@ -222,7 +312,7 @@ double Dm, double* qr_iso_tendency){
 static inline double equilibrium_fractionation_factor_O18_ice(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1970
 	double alpha_ice = exp(11.839/t - 2.8224e-2);  
-    return alpha_ice;
+    return alpha_ice; // alpha_ice > 1.0
 }
 
 static inline double equilibrium_fractionation_factor_HDO_ice(double t){
@@ -243,8 +333,8 @@ static inline double equilibrium_fractionation_factor_HDO_ice_Ellehoj(double t){
     return alpha_ice_O18;
 }
 
-double alpha_k_ice_equation_Blossey_tmp(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
+// ===========<<< alpha_k of ice fractionation based on Blossey'10 scheme >>> ============
+    
     //-------------------------------------------------------------
     // INPUT VARIABLES
     //-------------------------------------------------------------
@@ -258,10 +348,13 @@ double alpha_k_ice_equation_Blossey_tmp(struct LookupStruct *LT, double (*lam_fp
     //------------------------------------------------------------- 
     // this function is adopted from Blossey's 2015, for calculate of alpha_k
 
+double alpha_k_ice_equation_Blossey_Arc1M(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+        double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
+    // this only works in Arc1M scheme as pv_sat is calculated based on PyCLES default lookup table
+
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
-    // double pv_sat_ice     = lookup(LT, temperature);
-    double pv_sat_ice     = saturation_vapor_pressure_water(temperature);
+    double pv_sat_ice     = lookup(LT, temperature);
     double rho_sat_ice    = pv_sat_ice/Rv/temperature;
     // calculate sat_ratio of vapor respect to ice, S_s is the same simple in Blossey's 2015
     double qv_sat_ice     = qv_star_c(p0,qt,pv_sat_ice);
@@ -272,37 +365,25 @@ double alpha_k_ice_equation_Blossey_tmp(struct LookupStruct *LT, double (*lam_fp
     return alpha_k_ice;
 }
 
-double alpha_k_ice_equation_Blossey(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qt, double alpha_s){
-    //-------------------------------------------------------------
-    // INPUT VARIABLES
-    //-------------------------------------------------------------
-    // alpha_s: equilibrium fractionation factor for ice
-    // diff_vapor: diffusivity of common water vapor
-    // diff_iso: diffusivity of isotope water vapor (O18 or HDO)
-    //-------------------------------------------------------------
-    // OUTPUT VARIABLES
-    //-------------------------------------------------------------
-    // alpha_k_ice: kinetic fractionation factor for ice
-    //------------------------------------------------------------- 
-    // this function is adopted from Blossey's 2015, for calculate of alpha_k
+double alpha_k_ice_equation_Blossey_SBSI(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+        double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
+    // this only works in SBSI scheme as pv_sat is calculated based on separated method (different for liquid and ice)
 
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
-    // double pv_sat_ice     = lookup(LT, temperature);
-    double pv_sat_ice     = saturation_vapor_pressure_water(temperature);
+    double pv_sat_ice     = saturation_vapor_pressure_ice(temperature);
     double rho_sat_ice    = pv_sat_ice/Rv/temperature;
     // calculate sat_ratio of vapor respect to ice, S_s is the same simple in Blossey's 2015
     double qv_sat_ice     = qv_star_c(p0,qt,pv_sat_ice);
     double S_s            = qt/qv_sat_ice;
-    double diff_ratio     = 1.0/0.973;
-    double b_s            = (DVAPOR*rho_sat_ice)*(L/KT/temperature)*(L/Rv/temperature - 1.0);
+    double diff_ratio     = diff_vapor / diff_iso;
+    double b_s            = (diff_vapor*rho_sat_ice)*(L/KT/temperature)*(L/Rv/temperature - 1.0);
     double alpha_k_ice    = (1 + b_s) * S_s * (1/(alpha_s*diff_ratio*(S_s - 1) + 1 + b_s*S_s));
     return alpha_k_ice;
 }
 
 double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                             double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
+        double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
     //-------------------------------------------------------------
     // INPUT VARIABLES
     //-------------------------------------------------------------
@@ -327,6 +408,8 @@ double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(dou
     double alpha_k_ice    = S_s/(alpha_s*diff_ratio*(S_s-1.0)+1.0);
     return alpha_k_ice;
 }
+
+// ===========<<< Arc1M scheme isotpoe tracer processes >>> ============
 
 void arc1m_iso_autoconversion_rain(double qrain_tendency_aut, double ql, double ql_iso, double* qrain_iso_tendency_auto){
     double R_ql;
@@ -512,32 +595,6 @@ void arc1m_iso_accretion_all(double density, double p0, double temperature, doub
     return;
 }
 
-void arc1m_std_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                      double density, const double p0, double temperature,
-                      double qt, double qrain, double nrain, double* qrain_tendency){
-    double beta = 2.0;
-    // double pv_star = lookup(LT, temperature);
-    double pv_star_liq = saturation_vapor_pressure_water(temperature);
-    double qv_star = qv_star_c(p0, qt, pv_star_liq);
-    double satratio = qt/qv_star;
-    double vapor_diff = vapor_diffusivity(temperature, p0);
-    double therm_cond = thermal_conductivity(temperature);
-    double rain_diam = rain_dmean(density, qrain, nrain);
-    double rain_vel = C_RAIN*pow(rain_diam, D_RAIN);
-    double rain_lam = rain_lambda(density, qrain, nrain);
-
-    double re, vent, gtherm;
-
-    if( satratio < 1.0 && qrain > 1.0e-15){
-        re = rain_diam*rain_vel/VISC_AIR;
-        vent = 0.78 + 0.27*sqrt(re);
-        gtherm = microphysics_g_std(LT, lam_fp, L_fp, temperature, vapor_diff, therm_cond);
-        *qrain_tendency = 4.0*pi/beta*(satratio - 1.0)*vent*gtherm*nrain/(rain_lam*rain_lam)/density;
-    }
-
-    return;
-};
-
 void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
                    double density, const double p0, double temperature, double sat_ratio,
                    double qt, double qv, double qrain, double nrain, double gtherm_iso,
@@ -560,9 +617,10 @@ void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
 }
 
 void arc1m_iso_evap_snow(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-                   double density, const double p0, double temperature,
-                   double qt, double qv, double qsnow, double nsnow, double gtherm_iso,
-                   double qv_iso, double qsnow_iso, double* qsnow_iso_tendency){
+        double density, const double p0, double temperature,
+        double qt, double qv, double qsnow, double nsnow, double gtherm_iso,
+        double qv_iso, double qsnow_iso, double* qsnow_iso_tendency){
+
     double beta = 3.0;
 
     double vapor_diff = vapor_diffusivity(temperature, p0);
@@ -696,3 +754,197 @@ void sb_iso_ice_deposition(const double qi, const double ni, const double qi_iso
         *qi_iso_tendency_dep = qi_tendency_dep*alpha_s_ice*alpha_k_ice * F_ratio;
     }
 };
+
+// ============= SB 2M coupled isotope scheme ================
+void iso_sb_2m_cloud_liquid_fraction(
+        const double type,
+        const double T,
+        const double qv,
+        const double ql,
+        const double dt,
+        const double qvl_iso,
+        const double qv_iso,
+        const double ql_iso,
+        double* qv_iso_eq,
+        double* ql_iso_eq
+    ){
+
+    double alpha_eq_lv, qv_iso_tmp, ql_iso_tmp;
+
+    if(type == 1.0){
+        alpha_eq_lv = equilibrium_fractionation_factor_O18_liquid(T);
+    }
+    else if(type == 2.0){
+        alpha_eq_lv = equilibrium_fractionation_factor_HDO_liquid(T);
+    }
+    
+    if(ql > SB_EPS){
+        *qv_iso_eq = eq_frac_function(qvl_iso, qv, ql, alpha_eq_lv);
+        *ql_iso_eq = qvl_iso - *qv_iso_eq;
+    }
+    else{
+        *qv_iso_eq = qvl_iso;
+        *ql_iso_eq = 0.0;
+    }
+    return;
+}
+
+void iso_sb_2m_cloud_ice_fraction(
+        const double type,
+        const double T,
+        const double qi_tend_nuc,
+        const double qv,
+        const double qv_iso,
+        double* qi_iso_tend
+    ){
+    // TODO: consider the αₖ
+    double alpha_s, qi_iso_tmp;
+
+    if(type == 1.0){
+        alpha_s = equilibrium_fractionation_factor_O18_ice(T);
+    }
+    else if(type == 2.0){
+        alpha_s = equilibrium_fractionation_factor_HDO_ice(T);
+    }
+    
+    if(qi_tend_nuc > 0.0){
+        *qi_iso_tend = qi_tend_nuc * (qv_iso/qv) * alpha_s;
+    }
+    else{
+        *qi_iso_tend = 0.0;
+    }
+    return;
+}
+
+void iso_sb_2m_depostion(
+        struct LookupStruct *LT, 
+        double (*lam_fp)(double), 
+        double (*L_fp)(double, double),
+        const double type,
+        const double T, 
+        const double p0, 
+        const double qt,
+        const double q_var,
+        const double q_var_iso,
+        const double diff_vapor, 
+        const double diff_iso,
+        const double q_tend_dep,
+        double* qv_iso_tend,
+        double* q_iso_tend
+    ){
+
+    if(q_var > SB_EPS && q_var_iso > SB_EPS && q_tend_dep > 0.0){
+
+        double alpha_s, alpha_k;
+        if(type == 1.0){
+            alpha_s = equilibrium_fractionation_factor_O18_ice(T);
+        }
+        else if(type == 2.0){
+            alpha_s = equilibrium_fractionation_factor_HDO_ice(T);
+        }
+
+        alpha_k = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, 
+                T, p0, qt, alpha_s, DVAPOR, diff_iso);
+        *q_iso_tend = alpha_s * alpha_k * q_tend_dep * (q_var_iso/q_var);
+    }
+    else{
+        *q_iso_tend = 0.0;
+    }
+
+    *qv_iso_tend -= *q_iso_tend;
+
+    return;
+}
+
+void iso_sb_2m_sublimation(const double q_var,
+        const double q_var_iso,
+        const double q_tend_sub,
+        double* qv_iso_tend,
+        double* q_iso_tend
+    ){
+
+    if(q_var > SB_EPS && q_var_iso > SB_EPS && q_tend_sub < 0.0){
+        *q_iso_tend = q_tend_sub * (q_var_iso/q_var);
+    }
+    else{
+        *q_iso_tend = 0.0;
+    }
+
+    *qv_iso_tend -= *q_iso_tend;
+    return;
+}
+
+void sb_iso_ice_collection_snow(
+        const double qi,
+        const double qi_iso,
+        const double qs_tend_ice_selcol,
+        const double qs_tend_si_col,
+        double* qs_iso_tendency,
+        double* qi_iso_tendency
+    ){
+    if(qi > SB_EPS && qi_iso > SB_EPS){
+        *qs_iso_tendency = (qs_tend_ice_selcol + qs_tend_si_col) * (qi_iso/qi);
+        *qi_iso_tendency = -(qs_tend_ice_selcol + qs_tend_si_col) * (qi_iso/qi);
+    }
+    else{
+        *qs_iso_tendency = 0.0;
+        *qi_iso_tendency = 0.0;
+    }
+    return;
+}
+
+void sb_iso_riming_snow(
+    const double ql,
+    const double qr,
+    const double ql_iso,
+    const double qr_iso,
+    const double ql_tend_snow_rime, // negative
+    const double qr_tend_snow_rime, // negative
+    double* ql_iso_tendency,
+    double* qr_iso_tendency,
+    double* qs_iso_tendency
+    ){
+
+    if(ql > SB_EPS && ql_iso > SB_EPS){
+        *ql_iso_tendency += ql_tend_snow_rime * (ql_iso/ql);
+        *qs_iso_tendency += -ql_tend_snow_rime * (ql_iso/ql);
+    }
+    else{
+        *ql_iso_tendency += 0.0;
+        *qs_iso_tendency += 0.0;
+    }
+    
+    if(qr > SB_EPS && qr_iso > SB_EPS){
+        *qr_iso_tendency += qr_tend_snow_rime * (qr_iso/qr);
+        *qs_iso_tendency += -qr_tend_snow_rime * (qr_iso/qr);
+    }
+    else{
+        *qr_iso_tendency += 0.0;
+        *qs_iso_tendency += 0.0;
+    }
+
+    return;
+}
+
+void sb_iso_melt_snow(
+    const double qs,
+    const double qs_iso,
+    const double qs_tend_melt, // negative
+    double* qr_iso_tendency,
+    double* qs_iso_tendency
+    ){
+
+    if(qs > SB_EPS && qs_iso > SB_EPS){
+        *qs_iso_tendency = qs_tend_melt * (qs_iso/qs);
+        *qr_iso_tendency = -qs_tend_melt * (qs_iso/qs);
+    }
+    else{
+        *qs_iso_tendency = 0.0;
+        *qr_iso_tendency = 0.0;
+    }
+    return;
+}
+
+// void iso_sb_2m_snow_depostion(){
+//     return;
+// };

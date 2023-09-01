@@ -22,7 +22,6 @@ cdef class Microphysics_SB_Liquid:
         Py_ssize_t order
         bint cloud_sedimentation
         bint stokes_sedimentation
-        bint isotope_tracers
         
         # entropy source calculation
         double [:] evap_rate

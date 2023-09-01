@@ -7,6 +7,7 @@
 cimport ParallelMPI
 from ThermodynamicsDry cimport ThermodynamicsDry
 from ThermodynamicsSA cimport ThermodynamicsSA
+from ThermodynamicsSB cimport ThermodynamicsSB
 from Thermodynamics cimport LatentHeat
 import numpy as np
 cimport numpy as np
@@ -125,4 +126,6 @@ def ThermodynamicsFactory(namelist, Micro, LatentHeat LH,ParallelMPI.ParallelMPI
         return ThermodynamicsDry(namelist,LH,Par)
     if(Micro.thermodynamics_type=='SA'):
         return ThermodynamicsSA(namelist,LH,Par)
+    if(Micro.thermodynamics_type=='SB'):
+        return ThermodynamicsSB(namelist,LH,Par)
 

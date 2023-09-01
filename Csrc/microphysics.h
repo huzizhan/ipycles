@@ -35,33 +35,45 @@ double microphysics_diameter_from_mass(double mass, double prefactor, double exp
 
 // Seifert & Beheng 2006: Equ 23.
 double microphysics_g(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
+    // this is only used in SB_Liquid scheme and related isotope tracer schemes
+
     double lam = lam_fp(temperature);
     double L = L_fp(temperature,lam);
-    // double pv_sat = lookup(LT, temperature);
-    double pv_sat = saturation_vapor_pressure_water(temperature);
+    double pv_sat = lookup(LT, temperature);
     double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
     return g_therm;
 }
 
-double microphysics_g_vi(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), double temperature){
-    double lam = lam_fp(temperature);
-    double L = L_fp(temperature,lam);
-    double pv_sat = lookup(LT, temperature);
-    double G_iv = 1.0/(Rv*temperature/DVAPOR/pv_sat + L_IV/KT/temperature * (L_IV/Rv/temperature - 1.0));
-    // double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
-    return G_iv;
+double microphysics_g_liq_SBSI(double temperature, double dvapor, double kappa_t){
+
+    double pv_sat = saturation_vapor_pressure_water(temperature);
+    double rho_sat = pv_sat/Rv/temperature;
+
+    /*blossey's scheme for evaporation*/
+    // double b_l = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); 
+    
+    /*Straka 2009 (6.13)*/
+    double b_l = (dvapor*rho_sat)*(L_LV/kappa_t/temperature)*(L_LV/Rv/temperature - 1.0);
+
+    double g_therm_liq = dvapor*rho_sat/(1.0+b_l);
+    return g_therm_liq;
 }
 
-double microphysics_saturation_ratio_liq(struct LookupStruct *LT,  double temperature, double  p0, double qt){
-    // double pv_sat = lookup(LT, temperature);
+double microphysics_g_ice_SBSI(double temperature, double dvapor, double kappa_t){
+    double pv_sat = saturation_vapor_pressure_ice(temperature);
+    double g_therm_ice = 1.0/(Rv*temperature/dvapor/pv_sat + L_IV/kappa_t/temperature * (L_IV/Rv/temperature - 1.0));
+    // double g_therm = 1.0/(Rv*temperature/DVAPOR/pv_sat + L/KT/temperature * (L/Rv/temperature - 1.0));
+    return g_therm_ice;
+}
+
+double microphysics_saturation_ratio_liq(double temperature, double  p0, double qt){
     double pv_sat_liq = saturation_vapor_pressure_water(temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat_liq);
     double saturation_ratio = qt/qv_sat - 1.0;
     return saturation_ratio;
 }
 
-double microphysics_saturation_ratio_ice(struct LookupStruct *LT,  double temperature, double  p0, double qt){
-    // double pv_sat = lookup(LT, temperature);
+double microphysics_saturation_ratio_ice(double temperature, double  p0, double qt){
     double pv_sat_ice = saturation_vapor_pressure_ice(temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat_ice);
     double saturation_ratio = qt/qv_sat - 1.0;
@@ -69,14 +81,16 @@ double microphysics_saturation_ratio_ice(struct LookupStruct *LT,  double temper
 }
 
 double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperature, double  p0, double qt){
+    // This section is only used under SB_Liquid scheme,
+    // for calculation of super saturtation ratio over liquid water
+
     double pv_sat = lookup(LT, temperature);
-    // double pv_sat = saturation_vapor_pressure_water(temperature);
     double qv_sat = qv_star_c(p0, qt, pv_sat);
     double saturation_ratio = qt/qv_sat - 1.0;
     return saturation_ratio;
 }
 
-double microphysics_ice_nuclei_Mayer(double temperature, double S_i){
+double microphysics_ice_nuclei_cond_immer_Mayer(double temperature, double S_i){
     if (temperature < 268.15){
         return exp(-0.639 + 12.96*S_i); // scheme adopted from SB06, Equ 36, adopted from MY92, unit m^3
     }
@@ -85,7 +99,7 @@ double microphysics_ice_nuclei_Mayer(double temperature, double S_i){
     }
 }
 
-double microphysics_ice_nuclei_Fletcher(double temperature){
+double microphysics_ice_nuclei_cond_immer_Fletcher(double temperature){
     double T_celsius = temperature - 273.15; 
     if (T_celsius < 0.0 && T_celsius >= -27.0){
         return 1.0e-5 * exp(-0.6*T_celsius); // scheme adopted from Fletcher1962
@@ -95,7 +109,7 @@ double microphysics_ice_nuclei_Fletcher(double temperature){
     }
 }
 
-double microphysics_ice_nuclei_Copper(double temperature){
+double microphysics_ice_nuclei_cond_immer_Copper(double temperature){
     double T_celsius = temperature - 273.15; 
     if (T_celsius < 0.0 && T_celsius >= -40.0){
         return 0.005 * exp(-0.304*T_celsius); // scheme adopted from Copper1986
@@ -105,7 +119,7 @@ double microphysics_ice_nuclei_Copper(double temperature){
     }
 }
 
-double microphysics_ice_nuclei_Phillips(double temperature, double S_i){
+double microphysics_ice_nuclei_cond_immer_Phillips(double temperature, double S_i){
     if (temperature < 268.15 && temperature >= 243.15){
         return exp(-0.639 + 12.96*S_i)*0.06; // Adopted from Phillips 2008
     }
@@ -115,6 +129,32 @@ double microphysics_ice_nuclei_Phillips(double temperature, double S_i){
     else{
         return 0.0;
     }
+}
+
+double microphysics_ice_nuclei_contact_Levkov(double temperature, double nl, double ql, double rl){
+    double D_ap; // Brownian aerosol diffusivity
+    double N_a_cnt; // number of contact nuclei following Young (1974)
+    double N_a0 = 2.0e5; // m^-3
+    
+    if (nl > 1e-13 && ql > 1e-13){
+        N_a_cnt = N_a0 * pow((270.15 - temperature), 1.3); // the number of activa ice nuclei at 269.15K.
+        D_ap = 1.0;
+        return D_ap * 4.0 * pi * rl * N_a_cnt * (nl*nl)/ql;
+    }
+    else{
+        return 0.0;
+    }
+}
+
+double microphysics_ice_nuclei_contact_Young(double temperature){
+    double N_a0 = 2.0e2; // the number of activa ice nuclei at 269.15K, unit is L^-1
+    return N_a0 * pow((270.15 - temperature), 1.3); 
+}
+
+double microphysics_ice_nuclei_contact_Mayer(double temperature){
+    double A_mayer = -2.80;
+    double B_mayer = 0.262;
+    return exp(A_mayer + B_mayer*(273.15 - temperature));
 }
 
 double microphysics_homogenous_freezing_rate(double temperature){
@@ -150,11 +190,16 @@ double microphysics_heterogenous_freezing_rate(double temperature){
     return A_het * exp(var_tmp);
 }
 
-double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, const double qt, const double T){
+double compute_wetbulb(
+        struct LookupStruct *LT,
+        const double p0, 
+        const double s, 
+        const double qt, 
+        const double T 
+    ){
     double Twet = T;
     double T_1 = T;
-    // double pv_star_1  = lookup(LT, T_1);
-    double pv_star_1  = saturation_vapor_pressure_water(T_1);
+    double pv_star_1  = lookup(LT, T_1);
     double qv_star_1 = qv_star_c(p0,qt,pv_star_1);
     ssize_t iter = 0;
     /// If not saturated
@@ -170,8 +215,7 @@ double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, 
         double delta_T  = fabs(T_2 - T_1);
 
         do{
-            // double pv_star_2 = lookup(LT, T_2);
-            double pv_star_2 = saturation_vapor_pressure_water(T_2);
+            double pv_star_2 = lookup(LT, T_2);
             double qv_star_2 = pv_star_2/(eps_vi * (p0 - pv_star_2) + pv_star_2);
             double pd_2 = p0 - pv_star_2;
             double s_2 = sd_c(pd_2,T_2) * (1.0 - qv_star_2) + sv_c(pv_star_2,T_2) * qv_star_2;
@@ -188,8 +232,17 @@ double compute_wetbulb(struct LookupStruct *LT,const double p0, const double s, 
     return Twet;
 }
 
-void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruct *LT, double* restrict p0, double* restrict s,
-                                      double* restrict qt,  double* restrict T,  double* restrict Twet ){
+void microphysics_wetbulb_temperature(
+        struct DimStruct *dims,
+        // INPUT
+        struct LookupStruct *LT, 
+        double* restrict p0,  // reference pressre
+        double* restrict s,   // specific entropy
+        double* restrict qt,  // total water specific humidity
+        double* restrict T,   // temperature
+        // OUTPUT 
+        double* restrict Twet // wetbulb temperature
+    ){
     ssize_t i,j,k;
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -206,8 +259,7 @@ void microphysics_wetbulb_temperature(struct DimStruct *dims, struct LookupStruc
             const ssize_t jshift = j * jstride;
             for (k=kmin;k<kmax;k++){
                 const ssize_t ijk = ishift + jshift + k;
-                Twet[ijk] = compute_wetbulb(LT, p0[k], s[ijk], qt[ijk],  T[ijk]);
-
+                Twet[ijk] = compute_wetbulb(LT, p0[k], s[ijk], qt[ijk], T[ijk]);
             } // End k loop
         } // End j loop
     } // End i loop

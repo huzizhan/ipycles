@@ -148,24 +148,26 @@ double get_sb_alpha_from_sifi(const double sifi_av, const double sb_a, const dou
     return sb_alpha;
 }
 
-void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-         double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
-         double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt,
-         double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency, 
-         double* restrict ni_tendency_micro, double* restrict qi_tendency_micro, double* restrict ni_tendency, double* restrict qi_tendency, 
-         double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate){
+
+void sb_si_microphysics_sources(const struct DimStruct *dims,
+    double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+    double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
+    double* restrict ql, double* restrict nr, double* restrict qr, double* restrict qi, double* restrict ni, double dt,
+    double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, double* restrict nr_tendency, double* restrict qr_tendency, 
+    double* restrict ni_tendency_micro, double* restrict qi_tendency_micro, double* restrict ni_tendency, double* restrict qi_tendency, 
+    double* restrict precip_rate, double* restrict evap_rate, double* restrict melt_rate){
 
     //Here we compute the source terms for nr and qr (number and mass of rain)
     //Temporal substepping is used to help ensure boundedness of moments
-    double rain_mass, Dm_r, mu, Dp, nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp, ql_tendency_frez;
+    double rain_mass, Dm_r, mu, Dp, velocity_rain;
+    double nr_tendency_tmp, qr_tendency_tmp, ql_tendency_tmp, ql_tendency_frez;
     double liquid_mass, Dm_l, velocity_liquid;
     double nr_tendency_au, nr_tendency_scbk, nr_tendency_evap, nr_tendency_frez;
     double qr_tendency_au, qr_tendency_ac, qr_tendency_evap, qr_tendency_frez;
     // single ice tendency definition
     double qi_tendency_tmp, ni_tendency_tmp;
     double ni_tendency_nuc, ni_tendency_frez, ni_tendency_berg, ni_tendency_melt;
-    double qi_tendency_nuc, qi_tendency_frez, qi_tendency_acc, qi_tendency_dep, qi_tendency_berg, qi_tendency_melt, qi_tendency_sub;
+    double qi_tendency_nuc, qi_tendency_frez, qi_tendency_acc_liq, qi_tendency_acc_rain, qi_tendency_dep, qi_tendency_berg, qi_tendency_melt, qi_tendency_sub;
 
     double sat_ratio_liq, sat_ratio_ice;
     
@@ -204,8 +206,6 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                 double qi_tmp = fmax(qi[ijk],0.0);
                 double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
 
-                double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
-
                 // define single ice parameters
                 double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, si_av, si_bv, sb_beta_ice, ice_mass;
 
@@ -223,9 +223,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     ql_tendency_tmp   = 0.0;
 
                     iter_count       += 1;
-                    sat_ratio_liq     = microphysics_saturation_ratio_liq(LT, temperature[ijk], p0[k], qt_tmp);
-                    sat_ratio_ice     = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], qt_tmp);
-                    double sat_ratio_lookup  = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt_tmp);
+                    sat_ratio_liq     = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt_tmp);
+                    sat_ratio_ice     = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt_tmp);
                     ql_tendency_frez  = 0.0;
 
                     nr_tendency_au    = 0.0;
@@ -238,7 +237,8 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     qr_tendency_frez  = 0.0;
 
                     qi_tendency_nuc   = 0.0;
-                    qi_tendency_acc   = 0.0;
+                    qi_tendency_acc_liq  = 0.0;
+                    qi_tendency_acc_rain = 0.0;
                     qi_tendency_dep   = 0.0;
                     qi_tendency_frez  = 0.0;
                     qi_tendency_melt  = 0.0;
@@ -259,32 +259,36 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     Dm_r      = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi); // mass weighted diameter of rain droplets
                     Dp        = sb_Dp(Dm_r, mu);
                     mu        = rain_mu(density[k], qr_tmp, Dm_r);
+                    // simplified rain velocity based on equation 28 in SB06
+                    velocity_rain = 159.0 * pow(rain_mass, 0.266) * sqrt(DENSITY_SB/density[k]);
 
-                    //obtain some parameters of ice particle
-                    // ================================================
-                    // ToDo: set the right calculation processes of lwp and iwp, and following calculation of Ri 
-                    // ================================================
                     double Ri = riming_intensity(ql_tmp, qi_tmp, density[k]);
                     ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                    // sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
                     sb_si_get_ice_parameters_SI(Ri, temperature[ijk], &sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
                     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
                     velocity_ice  = si_av * pow(Dm_i, si_bv);
+
+                    double g_therm_liq = microphysics_g_liq_SBSI(temperature[ijk], DVAPOR, KT);
+                    double g_therm_ice = microphysics_g_ice_SBSI(temperature[ijk], DVAPOR, KT);
 
                     //compute the source terms
                     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
                     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
                     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
-                    sb_evaporation_rain(g_therm, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
+                    sb_evaporation_rain(g_therm_liq, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
                     
                     sb_nucleation_ice(temperature[ijk], sat_ratio_ice, dt_, ni_tmp, density[k], &qi_tendency_nuc, &ni_tendency_nuc);
                     sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
                             &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &qi_tendency_frez, &ni_tendency_frez);
+
                     sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc);
-                    sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
+                            sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_liq);
+                    // sb_accretion_rain_ice(rain_mass, Dm_r, velocity_rain, ice_mass, Dm_i, velocity_ice, nr_tmp, qr_tmp, ni_tmp, qi_tmp, 
+                    //         sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_rain);
+
+                    sb_deposition_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
-                    sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
+                    sb_sublimation_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
                             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
                     // sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
 
@@ -295,11 +299,13 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     // qi_tendency_sub is POSITIVE, qi_tendency_dep is POSITIVE;
                     // qr_tendency_evap is NEGATIVE;
                     // qi_tendency_melt and ni_tendency_melt are all POSITIVE
-                    qi_tendency_tmp = qi_tendency_nuc + qi_tendency_frez + qi_tendency_acc + qi_tendency_dep + qi_tendency_berg + qi_tendency_sub - qi_tendency_melt;
                     ni_tendency_tmp = ni_tendency_nuc + ni_tendency_frez + ni_tendency_berg - ni_tendency_melt;
+                    qi_tendency_tmp = qi_tendency_nuc + qi_tendency_frez + qi_tendency_acc_liq + qi_tendency_acc_rain + qi_tendency_dep + qi_tendency_berg + qi_tendency_sub - qi_tendency_melt;
+
                     nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evap + ni_tendency_melt - nr_tendency_frez;
-                    qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evap + qi_tendency_melt - qr_tendency_frez;
-                    ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_acc;
+                    qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evap + qi_tendency_melt - qr_tendency_frez - qi_tendency_acc_rain;
+
+                    ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_acc_liq;
 
                     //Factor of 1.05 is ad-hoc
                     rate = 1.05 * ql_tendency_tmp * dt_ /(- fmax(ql_tmp,SB_EPS));
@@ -316,7 +322,7 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                     // precip_rate, evap_rate and melting_rate are calculated for entropy balance formula equations;
                     // precip_tmp is NEGATIVE if rain/snow forms (+precip_tmp is to remove qt via precip formation);
                     // evap_tmp is NEGATIVE if rain/snow evaporate/sublimate (-evap_tmp is to add qt via evap/subl);
-                    double precip_tmp = - qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_nuc - qi_tendency_acc - qi_tendency_dep;
+                    double precip_tmp = - qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_nuc - qi_tendency_acc_liq - qi_tendency_dep;
                     double evap_tmp   = qr_tendency_evap - qi_tendency_sub;
                     
                     precip_rate[ijk] += precip_tmp * dt_;
@@ -353,6 +359,47 @@ void sb_si_microphysics_sources(const struct DimStruct *dims, struct LookupStruc
                 precip_rate[ijk] = precip_rate[ijk]/dt;
                 evap_rate[ijk] = evap_rate[ijk]/dt;
                 melt_rate[ijk] = melt_rate[ijk]/dt;
+            }
+        }
+    }
+    return;
+}
+
+void sbsi_NI(const struct DimStruct *dims,
+                double *restrict qt, 
+                double *restrict p0, 
+                double *restrict density,
+                double *restrict temperature,
+                double *restrict NI_Mayer,
+                double *restrict NI_Flecher,
+                double *restrict NI_Copper,
+                double *restrict NI_Phillips,
+                double *restrict NI_contact_Young,
+                double *restrict NI_contact_Mayer) {
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                double sat_ratio_ice = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
+
+                NI_Mayer[ijk]    = microphysics_ice_nuclei_cond_immer_Mayer(temperature[ijk], sat_ratio_ice) * 1000.0 / density[k];
+                NI_Flecher[ijk]  = microphysics_ice_nuclei_cond_immer_Fletcher(temperature[ijk]) * 1000.0 / density[k];
+                NI_Copper[ijk]   = microphysics_ice_nuclei_cond_immer_Copper(temperature[ijk]) * 1000.0 / density[k];
+                NI_Phillips[ijk] = microphysics_ice_nuclei_cond_immer_Phillips(temperature[ijk], sat_ratio_ice) * 1000.0 / density[k];
+                NI_contact_Young[ijk]  = microphysics_ice_nuclei_contact_Young(temperature[ijk]) * 1000.0 / density[k];
+                NI_contact_Mayer[ijk]  = microphysics_ice_nuclei_contact_Mayer(temperature[ijk]) * 1000.0 / density[k];
             }
         }
     }
@@ -436,444 +483,6 @@ void sb_sedimentation_velocity_ice(const struct DimStruct *dims, double* restric
                 const ssize_t ijk = ishift + jshift + k;
                 ni_velocity[ijk] = interp_2(ni_velocity[ijk], ni_velocity[ijk+1]) ;
                 qi_velocity[ijk] = interp_2(qi_velocity[ijk], qi_velocity[ijk+1]) ;
-            }
-        }
-    }
-    return;
-}
-
-void sb_si_entropy_source_precipitation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
-                              double* restrict qt, double* restrict qv, double* restrict qr_tendency,
-                              double* restrict precip_rate, double* restrict entropy_tendency){
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-
-    //entropy tendencies from formation of snow and rain
-    //we use fact that P = d(qr)/dt > 0, E =  d(qr)/dt < 0
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                double lam = lam_fp(temperature[ijk]);
-                double L = L_fp(temperature[ijk],lam);
-                double pv_star_T = lookup(LT, temperature[ijk]);
-
-                // following function to calculate P is used in original Arc1m, where precip_rate is calculated during microphysics_source;
-                // precip_rate[ijk] < 0.0; so need make -precip_rate[ijk] 
-                // double precip_rate_tmp = -precip_rate[ijk];
-
-                // following function to calculate P is used in original SB06;
-                // precip_rate_tmp > 0.0;
-                double precip_rate_tmp = 0.5 * (qr_tendency[ijk] + fabs(qr_tendency[ijk]));
-                
-                entropy_tendency[ijk] += entropy_src_precipitation_c(pv_star_T, p0[k], temperature[ijk], qt[ijk], qv[ijk], L, precip_rate_tmp);
-            }
-        }
-    }
-    return;
-};
-
-void sb_si_entropy_source_evaporation(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double),
-                              double (*L_fp)(double, double), double* restrict p0, double* restrict temperature,
-                              double* restrict Twet, double* restrict qt, double* restrict qv, double* restrict qr_tendency,
-                              double* restrict evap_rate, double* restrict entropy_tendency){
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-
-    //entropy tendencies from evaporation of rain and sublimation of snow
-    //we use fact that P = d(qr)/dt > 0, E =  d(qr)/dt < 0
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                double lam_Tw = lam_fp(Twet[ijk]);
-                double L_Tw = L_fp(Twet[ijk],lam_Tw);
-                const double pv_star_T = lookup(LT, temperature[ijk]);
-                const double pv_star_Tw = lookup(LT, Twet[ijk]); 
-
-                // following function to calculate E is used in original Arc1m, where evap_rate is calculated during microphysics_source;
-                // evaporate rate E < 0.0;
-                // double evap_rate_tmp = - evap_rate[ijk];
-
-                // following function to calculate P is used in original SB06;
-                // evap_rate_tmp > 0.0;
-                double evap_rate_tmp = 0.5 *(qr_tendency[ijk] - fabs(qr_tendency[ijk]));
-
-                entropy_tendency[ijk] -= entropy_src_evaporation_c(pv_star_T, pv_star_Tw, p0[k], temperature[ijk], Twet[ijk], qt[ijk], qv[ijk], L_Tw, evap_rate_tmp);
-            }
-        }
-    }
-    return;
-};
-
-void sb_si_entropy_source_melt(const struct DimStruct *dims, double* restrict temperature,
-                         double* restrict melt_rate, double* restrict entropy_tendency){
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-
-    //entropy tendencies from snow melt
-    //we use fact that melt_rate is negative when snow becomes rain
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                entropy_tendency[ijk] += melt_rate[ijk] * LHF / temperature[ijk];
-            }
-        }
-    }
-    return;
-};
-
-void sb_si_entropy_source_heating_rain(const struct DimStruct *dims, double* restrict temperature, double* restrict Twet, double* restrict qrain,
-                               double* restrict w_qrain, double* restrict w,  double* restrict entropy_tendency){
-
-
-    //derivative of Twet is upwinded
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    const double dzi = 1.0/dims->dx[2];
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                entropy_tendency[ijk]+= qrain[ijk]*(fabs(w_qrain[ijk]) - w[ijk]) * cl * (Twet[ijk+1] - Twet[ijk])* dzi/temperature[ijk];
-            }
-        }
-    }
-
-    return;
-
-};
-
-void sb_si_entropy_source_heating_ice(const struct DimStruct *dims, double* restrict temperature, double* restrict Twet, double* restrict qisi,
-                               double* restrict w_qisi, double* restrict w,  double* restrict entropy_tendency){
-
-    //derivative of Twet is upwinded
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    const double dzi = 1.0/dims->dx[2];
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                entropy_tendency[ijk]+= fmin(qisi[ijk], 1.0e-10) *(fabs(w_qisi[ijk]) - w[ijk]) * ci * (Twet[ijk+1] - Twet[ijk])* dzi/temperature[ijk];
-            }
-        }
-    }
-    return;
-};
-
-void sb_si_entropy_source_drag(const struct DimStruct *dims, double* restrict temperature,  double* restrict qprec,
-                            double* restrict w_qprec, double* restrict entropy_tendency){
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                // entropy_tendency[ijk]+= g * qprec[ijk]* fabs(w_qprec[ijk])/ temperature[ijk];
-                entropy_tendency[ijk]+= g * fmin(qprec[ijk], 1.0e-10)* fabs(w_qprec[ijk])/fabs(temperature[ijk]);
-            }
-        }
-    }
-    return;
-};
-
-// ===========<<< single ice output >>> ============
-
-void sb_nucleation_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double* restrict temperature, 
-                            double* restrict ni, double* restrict qi, double* restrict p0, double* restrict qt, double dt,
-                            double* restrict ni_tendency, double* restrict qi_tendency){
-
-    //Here we compute the source terms for nr and qr (number and mass of rain)
-    //Temporal substepping is used to help ensure boundedness of moments
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                const double qi_tmp = fmax(qi[ijk],0.0);
-                const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
-                const double sat_ratio = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], qt[ijk]);
-                // sb_nucleation_ice(temperature[ijk], sat_ratio, dt, ni_tmp, &qi_tendency[ijk], &ni_tendency[ijk]);
-            }
-        }
-    }
-    return;
-}
-
-void sb_deposition_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-            double* restrict temperature, double* restrict p0, double* restrict qt, double* restrict ni, 
-            double* restrict qi, double* restrict qi_tendency){
-
-    //Here we compute the source terms for nr and qr (number and mass of rain)
-    //Temporal substepping is used to help ensure boundedness of moments
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, si_av, si_bv, sb_beta_ice;
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-
-                //obtain some parameters of ice particle
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
-                const double qi_tmp       = fmax(qi[ijk],0.0);
-                const double ni_tmp       = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
-                const double sat_ratio    = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], qt[ijk]);
-                const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
-                const double velocity_ice = si_av * pow(Dm_i, si_bv);
-
-                sb_deposition_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
-                        qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency[ijk]);   
-            }
-        }
-    }
-    return;
-}
-
-void sb_sublimation_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-            double* restrict temperature, double* restrict p0, double* restrict qt, double* restrict ni, 
-            double* restrict qi, double* restrict qi_tendency){
-
-    //Here we compute the source terms for nr and qr (number and mass of rain)
-    //Temporal substepping is used to help ensure boundedness of moments
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, si_av, si_bv, sb_beta_ice;
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                const double qi_tmp = fmax(qi[ijk],0.0);
-                const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
-
-                //obtain some parameters of ice particle
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
-                const double sat_ratio    = microphysics_saturation_ratio_ice(LT, temperature[ijk], p0[k], qt[ijk]);
-                const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
-                const double velocity_ice = si_av * pow(Dm_i, si_bv);
-
-                sb_sublimation_ice(LT, lam_fp, L_fp, temperature[ijk], Dm_i, sat_ratio, ice_mass, velocity_ice,
-                        qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency[ijk]);   
-            }
-        }
-    }
-    return;
-}
-
-void sb_freezing_ice_wrapper(const struct DimStruct *dims, double (*droplet_nu)(double,double), const double ccn,
-            double* restrict temperature, double* restrict density, double* restrict ql, double* restrict qr, double* restrict nr,
-            double* restrict qi_tendency, double* restrict ni_tendency){
-
-    //Here we compute the source terms for nr and qr (number and mass of rain)
-    //Temporal substepping is used to help ensure boundedness of moments
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double ql_tendency_tmp, nr_tendency_tmp, qr_tendency_tmp;
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                const double nl     = ccn/density[k];
-                const double ql_tmp = fmax(ql[ijk],0.0);
-                const double qr_tmp = fmax(qr[ijk],0.0);
-                const double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
-
-                //obtain average mass of cloud droplets
-                const double liquid_mass = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);
-                
-                //obtain average mass of rain droplets
-                const double rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
-
-                sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
-                        &ql_tendency_tmp, &qr_tendency_tmp, &nr_tendency_tmp, &ni_tendency[ijk], &qi_tendency[ijk]);
-            }
-        }
-    }
-    return;
-}
-
-void sb_melting_ice_wrapper(const struct DimStruct *dims, struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-            double* restrict temperature, double* restrict qv, double* restrict qi, double* restrict ni,
-            double* restrict qi_tendency, double* restrict ni_tendency){
-
-    //Here we compute the source terms for nr and qr (number and mass of rain)
-    //Temporal substepping is used to help ensure boundedness of moments
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, si_av, si_bv, sb_beta_ice;
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                double qi_tmp = fmax(qi[ijk], 0.0);
-                double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
-
-                //obtain some parameters of cloud droplets
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
-                const double ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                const double Dm_i = si_av * pow(ice_mass, si_bv);
-
-                sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv[ijk], ni_tmp, qi_tmp, 
-                        &ni_tendency[ijk], &qi_tendency[ijk]);
-            }
-        }
-    }
-    return;
-}
-
-void sb_accretion_cloud_ice_wrapper(const struct DimStruct *dims, const double ccn, double* restrict density,
-            double* restrict ql, double* restrict qi, double* restrict ni, double* restrict qi_tendency){
-
-    //Here we compute the source terms for nr and qr (number and mass of rain)
-    //Temporal substepping is used to help ensure boundedness of moments
-
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    double sb_a_ice, sb_b_ice, si_av, si_bv, sb_beta_ice, nl_tendency_tmp;
-
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                const double nl     = ccn/density[k];
-                const double ql_tmp = fmax(ql[ijk],0.0);
-                const double qi_tmp = fmax(qi[ijk],0.0);
-                const double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
-                
-                //obtain some parameters of cloud droplets
-                const double liquid_mass     = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
-                const double Dm_l            = cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
-                const double velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[k]);
-
-                //obtain some parameters of ice particle
-                sb_si_get_ice_parameters_SIFI(&sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
-                const double ice_mass     = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                const double Dm_i         = sb_a_ice * pow(ice_mass, sb_b_ice);
-                const double velocity_ice = si_av * pow(Dm_i, si_bv);
-
-                sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency[ijk]);
             }
         }
     }
