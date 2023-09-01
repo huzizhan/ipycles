@@ -883,9 +883,11 @@ cdef extern from "microphysics_sb_ice.h":
         double* qt_HDO, double* qv_HDO, double* ql_HDO, 
         double* qi_HDO, double* qr_HDO, double* qs_HDO,
         double* ql_O18_tend, double* qi_O18_tend, 
+        double* qr_O18_tend_micro, double* qs_O18_tend_micro,
         double* qr_O18_tend, double* qs_O18_tend,
         double* precip_O18_rate, double* evap_O18_rate, double* melt_O18_rate,
         double* ql_HDO_tend, double* qi_HDO_tend, 
+        double* qr_HDO_tend_micro, double* qs_HDO_tend_micro,
         double* qr_HDO_tend, double* qs_HDO_tend,
         double* precip_HDO_rate, double* evap_HDO_rate, double* melt_HDO_rate)nogil
     
@@ -911,6 +913,9 @@ cdef extern from "microphysics_sb_ice.h":
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
         double* qt_tendency, double* precip_rate, double* evap_rate) nogil
     
+    void sb_2m_qt_source_debug(Grid.DimStruct *dims, 
+        double* qt_tendency, double* qr_tend, double* qs_tend) nogil
+
     void saturation_ratio(Grid.DimStruct *dims,  
         Lookup.LookupStruct *LT, double* p0, 
         double* temperature,  double* qt, double* S)
@@ -1149,11 +1154,11 @@ cdef class IsotopeTracers_SB_Ice:
             double[:] qs_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ns_std_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] S_ratio = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        
-            double[:] wnr_O18 = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] wns_O18 = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] wnr_HDO = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] wns_HDO = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+            double[:] qr_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qs_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qs_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         saturation_ratio(&Gr.dims, 
             &Micro_SB_2M.CC.LT.LookupStructC,
@@ -1204,14 +1209,16 @@ cdef class IsotopeTracers_SB_Ice:
             &PV.values[qt_HDO_shift], &PV.values[qv_HDO_shift], &PV.values[ql_HDO_shift],
             &PV.values[qi_HDO_shift], &PV.values[qs_HDO_shift], &PV.values[qr_HDO_shift],
             &PV.tendencies[ql_O18_shift], &PV.tendencies[qi_O18_shift],
+            &qr_O18_tend_micro[0], &qs_O18_tend_micro[0],
             &PV.tendencies[qs_O18_shift], &PV.tendencies[qr_O18_shift],
             &precip_O18_rate[0], &evap_O18_rate[0], &melt_O18_rate[0],
             &PV.tendencies[ql_HDO_shift], &PV.tendencies[qi_HDO_shift],
+            &qr_HDO_tend_micro[0], &qs_HDO_tend_micro[0],
             &PV.tendencies[qs_HDO_shift], &PV.tendencies[qr_HDO_shift],
             &precip_HDO_rate[0], &evap_HDO_rate[0], &melt_HDO_rate[0])
 
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_std_shift], 
-            &precip_rate[0], &evap_rate[0])
+        sb_2m_qt_source_debug(&Gr.dims, &PV.tendencies[qt_std_shift], 
+            &qr_std_tend_micro[0], &qs_std_tend_micro[0])
 
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
@@ -1234,8 +1241,9 @@ cdef class IsotopeTracers_SB_Ice:
 
         # TODO: check weather change the std source of qr and qs 
         # into O18 and HDO will change too much of isotopic values
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_O18_shift], 
-            &precip_O18_rate[0], &evap_O18_rate[0])
+        sb_2m_qt_source_debug(&Gr.dims, &PV.tendencies[qt_O18_shift], 
+            &qr_O18_tend_micro[0], &qs_O18_tend_micro[0])
+
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
@@ -1252,6 +1260,9 @@ cdef class IsotopeTracers_SB_Ice:
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_2M.CCN, 
                 &PV.values[ql_shift], &DV.values[wqt_O18_shift])
+        
+        sb_2m_qt_source_debug(&Gr.dims, &PV.tendencies[qt_HDO_shift], 
+            &qs_HDO_tend_micro[0], &qs_HDO_tend_micro[0])
 
         sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_HDO_shift], 
             &precip_HDO_rate[0], &evap_HDO_rate[0])

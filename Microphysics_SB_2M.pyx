@@ -95,6 +95,8 @@ cdef extern from "microphysics_sb_ice.h":
 
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
         double* qt_tendency, double* precip_rate, double* evap_rate) nogil
+    void sb_2m_qt_source_debug(Grid.DimStruct *dims, 
+        double* qt_tendency, double* qr_tend, double* qs_tend) nogil
 
 cdef class No_Microphysics_SB:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -363,8 +365,8 @@ cdef class Microphysics_SB_2M:
             &ns_tend_micro[0], &qs_tend_micro[0], &PV.tendencies[ns_shift], &PV.tendencies[qs_shift],
             &self.precip_rate[0], &self.evap_rate[0], &self.melt_rate[0])
         
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_shift], 
-            &self.precip_rate[0], &self.evap_rate[0])
+        sb_2m_qt_source_debug(&Gr.dims, &PV.tendencies[qt_shift], 
+            &qr_tend_micro[0], &qs_tend_micro[0])
         
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, 
