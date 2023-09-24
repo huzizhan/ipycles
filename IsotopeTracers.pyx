@@ -907,8 +907,7 @@ cdef extern from "microphysics_sb_ice.h":
         double* ql_HDO_tend, double* qi_HDO_tend) nogil
 
     void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, 
-        double* ns, double* qs, double* rho0,
-        double* ns_velocity, double* qs_velocity) nogil
+        double* ns, double* qs, double* ns_velocity, double* qs_velocity) nogil
 
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
         double* qt_tendency, double* precip_rate, double* evap_rate) nogil
@@ -1204,9 +1203,9 @@ cdef class IsotopeTracers_SB_Ice:
             &nr_std_tend_micro[0], &qr_std_tend_micro[0], &PV.tendencies[nr_std_shift], &PV.tendencies[qr_std_shift],
             &ns_std_tend_micro[0], &qs_std_tend_micro[0], &PV.tendencies[ns_std_shift], &PV.tendencies[qs_std_shift],
             &precip_rate[0], &evap_rate[0], &melt_rate[0],
-            &PV.values[qt_O18_shift], &PV.values[qv_O18_shift], &PV.values[ql_O18_shift],
+            &PV.values[qt_O18_shift], &DV.values[qv_O18_shift], &PV.values[ql_O18_shift],
             &PV.values[qi_O18_shift], &PV.values[qs_O18_shift], &PV.values[qr_O18_shift],
-            &PV.values[qt_HDO_shift], &PV.values[qv_HDO_shift], &PV.values[ql_HDO_shift],
+            &PV.values[qt_HDO_shift], &DV.values[qv_HDO_shift], &PV.values[ql_HDO_shift],
             &PV.values[qi_HDO_shift], &PV.values[qs_HDO_shift], &PV.values[qr_HDO_shift],
             &PV.tendencies[ql_O18_shift], &PV.tendencies[qi_O18_shift],
             &qr_O18_tend_micro[0], &qs_O18_tend_micro[0],
@@ -1224,8 +1223,8 @@ cdef class IsotopeTracers_SB_Ice:
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
             &DV.values[wnr_std_shift], &DV.values[wqr_std_shift])
-        sb_sedimentation_velocity_snow(&Gr.dims, &PV.values[ns_std_shift], 
-            &PV.values[qs_std_shift], &Ref.rho0_half[0], 
+        sb_sedimentation_velocity_snow(&Gr.dims, 
+            &PV.values[ns_std_shift], &PV.values[qs_std_shift], 
             &DV.values[wns_std_shift], &DV.values[wqs_std_shift])
 
         if self.cloud_sedimentation:
@@ -1248,8 +1247,8 @@ cdef class IsotopeTracers_SB_Ice:
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
             &DV.values[wnr_O18_shift], &DV.values[wqr_O18_shift])
-        sb_sedimentation_velocity_snow(&Gr.dims, &PV.values[ns_std_shift], 
-            &PV.values[qs_std_shift], &Ref.rho0_half[0], 
+        sb_sedimentation_velocity_snow(&Gr.dims,
+            &PV.values[ns_std_shift], &PV.values[qs_O18_shift], 
             &DV.values[wns_O18_shift], &DV.values[wqs_O18_shift])
 
         if self.cloud_sedimentation:
@@ -1270,8 +1269,8 @@ cdef class IsotopeTracers_SB_Ice:
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
             &DV.values[wnr_HDO_shift], &DV.values[wqr_HDO_shift])
-        sb_sedimentation_velocity_snow(&Gr.dims, &PV.values[ns_std_shift], 
-            &PV.values[qs_std_shift], &Ref.rho0_half[0], 
+        sb_sedimentation_velocity_snow(&Gr.dims,
+            &PV.values[ns_std_shift], &PV.values[qs_HDO_shift], 
             &DV.values[wns_HDO_shift], &DV.values[wqs_HDO_shift])
 
         if self.cloud_sedimentation:

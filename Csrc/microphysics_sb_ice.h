@@ -2148,7 +2148,6 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
 
 void sb_sedimentation_velocity_snow(const struct DimStruct *dims, 
         // INPUT VARIABLES ARRAY
-        double* restrict density, // reference density of air
         double* restrict ns,      // snow number density
         double* restrict qs,      // snow specific humidity
         // OUTPUT VARIABLES 
