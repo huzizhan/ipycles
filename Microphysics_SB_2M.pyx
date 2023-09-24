@@ -90,7 +90,7 @@ cdef extern from "microphysics_sb_ice.h":
         Lookup.LookupStruct *LT, double* p0, 
         double* temperature,  double* qt, double* S)
 
-    void sb_sedimentation_velocity_snow(Grid.DimStruct *dims, double* density, 
+    void sb_sedimentation_velocity_snow(Grid.DimStruct *dims,
         double* ns, double* qs, double* ns_velocity, double* qs_velocity)nogil
 
     void sb_2m_qt_source_formation(Grid.DimStruct *dims, 
@@ -372,7 +372,7 @@ cdef class Microphysics_SB_2M:
         sb_sedimentation_velocity_rain(&Gr.dims, self.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_shift], &PV.values[qr_shift], 
             &DV.values[wnr_shift], &DV.values[wqr_shift])
-        sb_sedimentation_velocity_snow(&Gr.dims, &Ref.rho0_half[0], 
+        sb_sedimentation_velocity_snow(&Gr.dims,
             &PV.values[ns_shift], &PV.values[qs_shift],  
             &DV.values[wns_shift], &DV.values[wqs_shift])
 
