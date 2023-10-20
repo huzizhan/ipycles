@@ -81,6 +81,7 @@ double microphysics_saturation_ratio_ice(double temperature, double  p0, double 
 }
 
 double microphysics_saturation_ratio(struct LookupStruct *LT,  double temperature, double  p0, double qt){
+    // use the lookup table
     // This section is only used under SB_Liquid scheme,
     // for calculation of super saturtation ratio over liquid water
 

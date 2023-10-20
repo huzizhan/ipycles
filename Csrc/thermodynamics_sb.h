@@ -145,7 +145,7 @@ void eos_sb_update(struct DimStruct *dims,
                     double qi_tend_nuc, ni_tend_nuc;
                     sb_ice_nucleation_mayer(LT, IN,
                         T[ijk], qt[ijk], p0[k], 
-                        qv[ijk], ni[ijk], dt,
+                        qv[ijk], ni[ijk], dt, 
                         &qi_tend_nuc, &ni_tend_nuc);
 
                     qi_tendency[ijk] += qi_tend_nuc;

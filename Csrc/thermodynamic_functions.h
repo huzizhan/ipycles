@@ -68,6 +68,13 @@ static inline double alpha_c(double p0, double T, double  qt, double qv){
     return (Rd * T)/p0 * (1.0 - qt + eps_vi * qv);
 }
 
+// =============== New method to calculate saturation vapor over liquid and ice ==============
+// This method is adopted from Maarten H. P. Ambaum's 2020
+// which provide a new solution for simple and accurate 
+// calculation of saturation vapor pressure over ice and liquid
+// and this is adopted to replace the look-up table method 
+// in pycles before, aming to simulate the wbf process better (S_l != S_i)
+// ===========================================================================================
 static inline double saturation_vapor_pressure_water(double temperature){
     // define variables for vapor-liquid saturation vapor
     const double e_s0 = 611.655; // Pa

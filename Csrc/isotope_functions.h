@@ -348,8 +348,16 @@ static inline double equilibrium_fractionation_factor_HDO_ice_Ellehoj(double t){
     //------------------------------------------------------------- 
     // this function is adopted from Blossey's 2015, for calculate of alpha_k
 
-double alpha_k_ice_equation_Blossey_Arc1M(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-        double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
+double alpha_k_ice_equation_Blossey_Arc1M(
+        struct LookupStruct *LT, 
+        double (*lam_fp)(double), 
+        double (*L_fp)(double, double),
+        double temperature, 
+        double p0, 
+        double qt, 
+        double alpha_s, 
+        double diff_vapor, 
+        double diff_iso){
     // this only works in Arc1M scheme as pv_sat is calculated based on PyCLES default lookup table
 
     double lam            = lam_fp(temperature);
@@ -365,9 +373,17 @@ double alpha_k_ice_equation_Blossey_Arc1M(struct LookupStruct *LT, double (*lam_
     return alpha_k_ice;
 }
 
-double alpha_k_ice_equation_Blossey_SBSI(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
-        double temperature, double p0, double qt, double alpha_s, double diff_vapor, double diff_iso){
-    // this only works in SBSI scheme as pv_sat is calculated based on separated method (different for liquid and ice)
+double alpha_k_ice_equation_Blossey(
+        struct LookupStruct *LT, 
+        double (*lam_fp)(double), 
+        double (*L_fp)(double, double),
+        double temperature, 
+        double p0, 
+        double qt, 
+        double alpha_s, 
+        double diff_vapor, 
+        double diff_iso){
+    // this only works in Arc1M scheme as pv_sat is calculated based on PyCLES default lookup table
 
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
@@ -398,7 +414,6 @@ double alpha_k_ice_equation_Jouzel(struct LookupStruct *LT, double (*lam_fp)(dou
     // this function is adopted from Jouzel's 1984, for calculate of alpha_k
     double lam            = lam_fp(temperature);
     double L              = L_fp(temperature,lam);
-    // double pv_sat_ice     = lookup(LT, temperature);
     double pv_sat_ice     = saturation_vapor_pressure_water(temperature);
     double rho_sat_ice    = pv_sat_ice/Rv/temperature;
     // calculate sat_ratio of vapor respect to ice, S_s means the sat_ratio
@@ -638,123 +653,6 @@ void arc1m_iso_evap_snow(struct LookupStruct *LT, double (*lam_fp)(double), doub
     return;
 }
 
-// ===========<<< Single Ice microphysics scheme coupling with Isotope processes >>> ============
-void sb_iso_ice_nucleation(const double qi_tendency_nuc, const double alpha_s_ice, double* qi_iso_tendency_nuc){
-    //-------------------------------------------------------------
-    // INPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_tendency_nuc: single ice tendency during nucleation
-    // alpha_s_ice: equilibrium fractionation factor between vapor and ice
-    //-------------------------------------------------------------
-    // OUTPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_iso_tendency_nuc: single ice isotope content tendency due to nucleation;
-    //-------------------------------------------------------------
-    *qi_iso_tendency_nuc = alpha_s_ice*qi_tendency_nuc;
-    return;
-};
-
-void sb_iso_ice_freezing(const double ql, const double qr, const double nr, const double ql_iso,
-        const double qr_iso, const double ql_tendency_frz, const double qr_tendency_frz, 
-        double* qr_iso_tendency_frz, double* ql_iso_tendency_frz, double* qi_iso_tendency_frz){
-    //-------------------------------------------------------------
-    // INPUT VARIABLES
-    //-------------------------------------------------------------
-    // ql_tendency_frz: ql tendency during freezing, calculated from sb_freezing_ice section, POSITIVE
-    // qr_tendency_frz: qr tendency during freezing, calculated from sb_freezing_ice section, POSITIVE
-    //-------------------------------------------------------------
-    // OUTPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_iso_tendency_frz: single ice isotope content tendency due to freezing
-    //-------------------------------------------------------------
-    if(qr_tendency_frz > 0.0 && qr_iso > SB_EPS){
-        double R_qr = qr_iso/qr;
-        *qr_iso_tendency_frz = qr_tendency_frz * R_qr;
-        *qi_iso_tendency_frz += qr_tendency_frz*R_qr;
-    }
-    if(ql_tendency_frz > 0.0 && ql_iso > SB_EPS){
-        double R_ql = ql_iso/ql;
-        *ql_iso_tendency_frz = ql_tendency_frz * R_ql;
-        *qi_iso_tendency_frz += ql_tendency_frz*R_ql;
-    }
-    return;
-};
-void sb_iso_ice_accretion_cloud(const double ql, const double qi, const double ni, const double qi_iso, 
-        const double qi_tendency_acc, double* qi_iso_tendency_acc){
-    //-------------------------------------------------------------
-    // INPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_tendency_acc: single ice tendency during cloud liquid accretion
-    // R_ql: isotope ratio of single ice;
-    //-------------------------------------------------------------
-    // OUTPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_iso_tendency_acc: single ice isotope content tendency due to cloud liquid accretion
-    //-------------------------------------------------------------
-    if (ql > SB_EPS && qi > SB_EPS && ni > SB_EPS && qi_iso > SB_EPS){
-        double R_qi = qi_iso/qi;
-        *qi_iso_tendency_acc = qi_tendency_acc*R_qi;
-    }
-    return;
-};
-
-void sb_iso_ice_melting(const double qi, const double qi_iso, const double qi_tendency_mlt, 
-        double* qi_iso_tendency_mlt){
-    //-------------------------------------------------------------
-    // INPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_tendency_mlt: single ice tendency during melting
-    // R_ql: isotope ratio of single ice;
-    //-------------------------------------------------------------
-    // OUTPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_iso_tendency_mlt: single ice isotope content tendency due to melting
-    //-------------------------------------------------------------
-    if (qi > 1e-12 && qi_iso > 1e-12 && qi_tendency_mlt > 0.0){
-        double R_qi = qi_iso/qi;
-        *qi_iso_tendency_mlt = qi_tendency_mlt*R_qi;
-    }
-    return;
-};
-
-void sb_iso_ice_sublimation(const double qi, const double ni, const double qi_iso, const double S_i,
-        const double qi_tendency_sub, double* qi_iso_tendency_sub){
-    //-------------------------------------------------------------
-    // INPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_tendency_sub: single ice tendency during melting
-    // R_ql: isotope ratio of single ice;
-    //-------------------------------------------------------------
-    // OUTPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_iso_tendency_sub: single ice isotope content tendency due to melting
-    //-------------------------------------------------------------
-    if(qi > 1e-12 && ni > 1e-12 && qi_iso > 1e-12 && qi_tendency_sub < 0.0){
-        double R_qi = qi_iso/qi;
-        *qi_iso_tendency_sub = qi_tendency_sub*R_qi;
-    }
-    return;
-};
-void sb_iso_ice_deposition(const double qi, const double ni, const double qi_iso, const double S_i, 
-        const double alpha_k_ice, const double alpha_s_ice, const double qi_tendency_dep, 
-        const double F_ratio, double* qi_iso_tendency_dep){
-    //-------------------------------------------------------------
-    // INPUT VARIABLES
-    //-------------------------------------------------------------
-    // alpha_k_ice: kinetic fractionation factor between vapor and ice in supper-saturation 
-    // alpha_s_ice: equilibrium fractionation factor between vapor and ice
-    // qi_tendency_dep: single ice tendency during deposition
-    // F_ratio: ventilation factor ratio, between light and heavy water isotopes
-    //-------------------------------------------------------------
-    // OUTPUT VARIABLES
-    //-------------------------------------------------------------
-    // qi_iso_tendency_dep: single ice isotope content tendency due to deposition
-    //-------------------------------------------------------------
-    if(qi > 1e-12 && ni > 1e-12 && S_i >= 0.0){
-        *qi_iso_tendency_dep = qi_tendency_dep*alpha_s_ice*alpha_k_ice * F_ratio;
-    }
-};
-
 // ============= SB 2M coupled isotope scheme ================
 void iso_sb_2m_cloud_liquid_fraction(
         const double type,
@@ -843,7 +741,7 @@ void iso_sb_2m_depostion(
             alpha_s = equilibrium_fractionation_factor_HDO_ice(T);
         }
 
-        alpha_k = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, 
+        alpha_k = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, 
                 T, p0, qt, alpha_s, DVAPOR, diff_iso);
         *q_iso_tend = alpha_s * alpha_k * q_tend_dep * (q_var_iso/q_var);
     }
