@@ -212,10 +212,10 @@ cdef class IsotopeTracers_NoMicrophysics:
             double[:] ql_O18_tmp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         iso_equilibrium_fractionation_No_Microphysics(&Gr.dims, &DV.values[t_shift],
-            &PV.values[qt_std_shift], &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
+            &PV.values[qt_shift], &DV.values[qv_shift], &DV.values[ql_shift], 
+            &PV.values[qv_std_shift], &PV.values[ql_std_shift], 
             &PV.values[qt_O18_shift], &PV.values[qv_O18_shift], &PV.values[ql_O18_shift], 
-            &PV.values[qt_HDO_shift], &PV.values[qv_HDO_shift], &PV.values[ql_HDO_shift], 
-            &DV.values[qv_shift], &DV.values[ql_shift])
+            &PV.values[qt_HDO_shift], &PV.values[qv_HDO_shift], &PV.values[ql_HDO_shift])
         return
 
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
@@ -1287,7 +1287,6 @@ cdef class IsotopeTracers_SB_Ice:
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
 
-        # iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
 
         cdef:
             double[:] tmp
@@ -1321,7 +1320,7 @@ cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV
         Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
         Py_ssize_t jstride = Gr.dims.nlg[2]
         Py_ssize_t ishift, jshift, ijk, i,j,k, iter = 0
-        Py_ssize_t ql_shift     = PV.get_varshift(Gr, 'ql')
+        Py_ssize_t ql_shift     = DV.get_varshift(Gr, 'ql')
         Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
         Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
         Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')

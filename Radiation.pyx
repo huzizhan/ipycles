@@ -1068,7 +1068,6 @@ cdef class RadiationRRTM(RadiationBase):
             Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv')
             Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
             Py_ssize_t qi_shift
-            Py_ssize_t qisi_shift
             double [:,:] t_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[t_shift])
             double [:,:] qv_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[qv_shift])
             double [:,:] ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[ql_shift])
@@ -1082,9 +1081,9 @@ cdef class RadiationRRTM(RadiationBase):
             qi_shift = DV.get_varshift(Gr, 'qi')
             qi_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[qi_shift])
             # use_ice = True  # testing radiation without ice effect
-        if 'qisi' in PV.name_index:
-            qisi_shift = PV.get_varshift(Gr, 'qisi')
-            qi_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &PV.values[qisi_shift])
+        if 'qi' in PV.name_index:
+            qi_shift = PV.get_varshift(Gr, 'qi')
+            qi_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &PV.values[qi_shift])
 
         # Define input arrays for RRTM
         cdef:

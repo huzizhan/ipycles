@@ -14,10 +14,20 @@
 #include <math.h>
 // #define SB_EPS 1.0e-13
 
-void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, double* restrict temperature,
-    double* restrict qt, double* restrict qv_DV, double* restrict ql_DV, double* restrict qv_std, double* restrict ql_std, 
-    double* restrict qt_O18, double* restrict qv_O18, double* restrict ql_O18, 
-    double* restrict qt_HDO, double* restrict qv_HDO, double* restrict ql_HDO){
+void iso_equilibrium_fractionation_No_Microphysics(
+        struct DimStruct *dims, 
+        double* restrict temperature,
+        double* restrict qt, 
+        double* restrict qv_DV, 
+        double* restrict ql_DV, 
+        double* restrict qv_std, 
+        double* restrict ql_std, 
+        double* restrict qt_O18, 
+        double* restrict qv_O18, 
+        double* restrict ql_O18, 
+        double* restrict qt_HDO, 
+        double* restrict qv_HDO, 
+        double* restrict ql_HDO){
 
     ssize_t i,j,k;
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];

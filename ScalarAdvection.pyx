@@ -88,18 +88,24 @@ cdef class ScalarAdvection:
                     if sc_vel_name in DV.name_index:
                         vel_shift = DV.get_varshift(Gr, sc_vel_name)
                         if sc_vel_name == 'w_qt':
-                            ql_shift = PV.get_varshift(Gr,'ql')
                             qt_shift = PV.get_varshift(Gr,'qt')
                             qv_shift =  DV.get_varshift(Gr,'qv')
 
-                            compute_advective_fluxes_a(&Gr.dims,&Rs.rho0[0],&Rs.rho0_half[0],&DV.values[vel_shift],
-                                                   &PV.values[ql_shift],&self.flux[flux_shift],d,self.order_sedimentation)
+                            if 'ql' in DV.name_index:
+                                ql_shift = DV.get_varshift(Gr, 'ql')
+                                compute_advective_fluxes_a(&Gr.dims,&Rs.rho0[0],&Rs.rho0_half[0],&DV.values[vel_shift],
+                                       &DV.values[ql_shift],&self.flux[flux_shift],d,self.order_sedimentation)
+                            elif 'ql' in PV.name_index:
+                                ql_shift = PV.get_varshift(Gr,'ql')
+                                compute_advective_fluxes_a(&Gr.dims,&Rs.rho0[0],&Rs.rho0_half[0],&DV.values[vel_shift],
+                                       &PV.values[ql_shift],&self.flux[flux_shift],d,self.order_sedimentation)
+
                             scalar_flux_divergence(&Gr.dims,&Rs.alpha0[0],&Rs.alpha0_half[0],&self.flux[flux_shift],
-                                               &PV.tendencies[scalar_shift],Gr.dims.dx[d],d)
+                                   &PV.tendencies[scalar_shift],Gr.dims.dx[d],d)
 
                             compute_qt_sedimentation_s_source(&Gr.dims, &Rs.p0_half[0],  &Rs.rho0_half[0], &self.flux[flux_shift],
-                                                              &PV.values[qt_shift], &DV.values[qv_shift], &DV.values[t_shift],
-                                                              &PV.tendencies[s_shift], self.Lambda_fp,self.L_fp, Gr.dims.dx[d],d)
+                                  &PV.values[qt_shift], &DV.values[qv_shift], &DV.values[t_shift],
+                                  &PV.tendencies[s_shift], self.Lambda_fp,self.L_fp, Gr.dims.dx[d],d)
                         else:
 
                             # print(sc_vel_name, ' detected as sedimentation velocity')

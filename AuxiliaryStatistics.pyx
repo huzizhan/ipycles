@@ -94,7 +94,7 @@ class CumulusStatistics:
         cdef:
             double [:] cloudmask = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
             double [:] coremask = np.zeros(Gr.dims.npg,dtype=np.double, order='c')
-            Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
+            Py_ssize_t ql_shift
             Py_ssize_t b_shift = DV.get_varshift(Gr,'buoyancy')
             Py_ssize_t i,j,k, ijk, ishift, jshift
             Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
@@ -107,21 +107,39 @@ class CumulusStatistics:
             Py_ssize_t kmax = Gr.dims.nlg[2] - Gr.dims.gw
             Py_ssize_t count
             double [:] mean_buoyancy
+            double ql_tmp
 
         mean_buoyancy = Pa.HorizontalMean(Gr, &DV.values[b_shift])
 
-        with nogil:
-            count = 0
-            for i in range(imin,imax):
-                ishift = i * istride
-                for j in range(jmin,jmax):
-                    jshift = j * jstride
-                    for k in range(kmin,kmax):
-                        ijk = ishift + jshift + k
-                        if PV.values[ql_shift+ijk] > 0.0:
-                            cloudmask[ijk] = 1.0
-                            if DV.values[b_shift+ijk] > mean_buoyancy[k]:
-                                coremask[ijk] = 1.0
+        if 'ql' in DV.name_index:
+            ql_shift = DV.get_varshift(Gr, 'ql')
+            with nogil:
+                count = 0
+                for i in range(imin,imax):
+                    ishift = i * istride
+                    for j in range(jmin,jmax):
+                        jshift = j * jstride
+                        for k in range(kmin,kmax):
+                            ijk = ishift + jshift + k
+                            if DV.values[ql_shift+ijk] > 0.0:
+                                cloudmask[ijk] = 1.0
+                                if DV.values[b_shift+ijk] > mean_buoyancy[k]:
+                                    coremask[ijk] = 1.0
+
+        elif 'ql' in PV.name_index:
+            ql_shift = PV.get_varshift(Gr,'ql')
+            with nogil:
+                count = 0
+                for i in range(imin,imax):
+                    ishift = i * istride
+                    for j in range(jmin,jmax):
+                        jshift = j * jstride
+                        for k in range(kmin,kmax):
+                            ijk = ishift + jshift + k
+                            if PV.values[ql_shift+ijk] > 0.0:
+                                cloudmask[ijk] = 1.0
+                                if DV.values[b_shift+ijk] > mean_buoyancy[k]:
+                                    coremask[ijk] = 1.0
 
         cdef double [:] tmp
 

@@ -87,14 +87,14 @@ cdef class No_Microphysics_SA:
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS,ParallelMPI.ParallelMPI Pa):
         cdef:
             Py_ssize_t wqt_shift
-            Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
+            Py_ssize_t ql_shift = DV.get_varshift(Gr,'ql')
         if self.cloud_sedimentation:
             wqt_shift = DV.get_varshift(Gr, 'w_qt')
 
             if self.stokes_sedimentation:
-                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &PV.values[ql_shift], &DV.values[wqt_shift])
+                microphysics_stokes_sedimentation_velocity(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
             else:
-                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &PV.values[ql_shift], &DV.values[wqt_shift])
+                sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], self.ccn, &DV.values[ql_shift], &DV.values[wqt_shift])
         return
         
     cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 

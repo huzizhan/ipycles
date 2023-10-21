@@ -202,11 +202,6 @@ cdef class ThermodynamicsSA:
             Py_ssize_t thr_shift = DV.get_varshift(Gr, 'theta_rho')
             Py_ssize_t thl_shift = DV.get_varshift(Gr, 'thetali')
             double dt = TS.dt
-            Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
-            Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
-            Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
-            Py_ssize_t nl_std_shift = PV.get_varshift(Gr,'nl_std')
-            Py_ssize_t qi_std_shift = PV.get_varshift(Gr,'qi_std')
 
         '''Apply qt clipping if requested. Defaults to on. Call this before other thermodynamic routines. Note that this
         changes the values in the qt array directly. Perhaps we should eventually move this to the timestepping function
