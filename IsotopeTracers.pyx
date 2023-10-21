@@ -863,7 +863,7 @@ cdef extern from "microphysics_sb_ice.h":
         double* density, double* p0, double dt, 
         double CCN, double IN, 
         double* temperature, double* s, double* w,
-        double*S, double* qt, double* qv,
+        double* qt, double* qv,
         double* nl, double* ql,
         double* ni, double* qi,
         double* nr, double* qr, 
@@ -915,9 +915,9 @@ cdef extern from "microphysics_sb_ice.h":
     void sb_2m_qt_source_debug(Grid.DimStruct *dims, 
         double* qt_tendency, double* qr_tend, double* qs_tend) nogil
 
-    void saturation_ratio(Grid.DimStruct *dims,  
-        Lookup.LookupStruct *LT, double* p0, 
-        double* temperature,  double* qt, double* S)
+    # void saturation_ratio(Grid.DimStruct *dims,  
+    #     Lookup.LookupStruct *LT, double* p0, 
+    #     double* temperature,  double* qt, double* S)
 
     void sb_nuc(Grid.DimStruct *dims,  
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
@@ -1159,10 +1159,10 @@ cdef class IsotopeTracers_SB_Ice:
             double[:] qr_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qs_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
-        saturation_ratio(&Gr.dims, 
-            &Micro_SB_2M.CC.LT.LookupStructC,
-            &Ref.p0_half[0], &DV.values[t_shift], 
-            &PV.values[qt_shift], &S_ratio[0])
+        # saturation_ratio(&Gr.dims, 
+        #     &Micro_SB_2M.CC.LT.LookupStructC,
+        #     &Ref.p0_half[0], &DV.values[t_shift], 
+        #     &PV.values[qt_shift], &S_ratio[0])
 
         tracer_sb_cloud_fractionation(&Gr.dims,
             &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
@@ -1187,7 +1187,7 @@ cdef class IsotopeTracers_SB_Ice:
             # INPUT ARRAY INDEX
             &Ref.rho0_half[0], &Ref.p0_half[0], TS.dt,
             Micro_SB_2M.CCN, Micro_SB_2M.ice_nucl,
-            &DV.values[t_shift], &PV.values[s_shift], &PV.values[w_shift], &S_ratio[0], 
+            &DV.values[t_shift], &PV.values[s_shift], &PV.values[w_shift],
             &PV.values[qt_std_shift], &DV.values[qv_std_shift],
             &PV.values[nl_std_shift], &PV.values[ql_std_shift],
             &PV.values[ni_std_shift], &PV.values[qi_std_shift],
@@ -1259,7 +1259,7 @@ cdef class IsotopeTracers_SB_Ice:
             else:
                 sb_sedimentation_velocity_liquid(&Gr.dims,  &Ref.rho0_half[0], Micro_SB_2M.CCN, 
                 &PV.values[ql_shift], &DV.values[wqt_O18_shift])
-        
+
         sb_2m_qt_source_debug(&Gr.dims, &PV.tendencies[qt_HDO_shift], 
             &qs_HDO_tend_micro[0], &qs_HDO_tend_micro[0])
 

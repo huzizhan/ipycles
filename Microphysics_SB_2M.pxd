@@ -56,6 +56,9 @@ cdef class Microphysics_SB_2M:
         double [:] snow_riming
         double [:] snow_dep
         double [:] snow_sub
+        double [:] S_lookup
+        double [:] S_liq
+        double [:] S_ice
 
         # entropy source diagnosed variables
         double [:] sp

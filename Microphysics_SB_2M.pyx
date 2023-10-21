@@ -88,7 +88,8 @@ cdef extern from "microphysics_sb_ice.h":
     
     void saturation_ratio(Grid.DimStruct *dims,  
         Lookup.LookupStruct *LT, double* p0, 
-        double* temperature,  double* qt, double* S)
+        double* temperature,  double* qt, 
+        double* S_lookup, double* S_liq, double* S_ice)
 
     void sb_sedimentation_velocity_snow(Grid.DimStruct *dims,
         double* ns, double* qs, double* ns_velocity, double* qs_velocity)nogil
@@ -277,6 +278,9 @@ cdef class Microphysics_SB_2M:
         self.snow_riming   = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         self.snow_dep      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         self.snow_sub      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.S_lookup = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.S_liq = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.S_ice = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         
         NS.add_profile('Dm', Gr, Pa, '','','')
         NS.add_profile('mass', Gr, Pa, '','','')
@@ -300,6 +304,10 @@ cdef class Microphysics_SB_2M:
         NS.add_profile('sm', Gr, Pa, '', '', '')
         NS.add_profile('sq', Gr, Pa, '', '', '')
         NS.add_profile('sw', Gr, Pa, '', '', '')
+        
+        NS.add_profile('S_lookup', Gr, Pa, '', '', '')
+        NS.add_profile('S_liq', Gr, Pa, '', '', '')
+        NS.add_profile('S_ice', Gr, Pa, '', '', '')
 
         return
 
@@ -332,12 +340,13 @@ cdef class Microphysics_SB_2M:
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qs_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ns_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            double[:] S_ratio = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            # double[:] S_ratio = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         saturation_ratio(&Gr.dims, 
             &self.CC.LT.LookupStructC,
             &Ref.p0_half[0], &DV.values[t_shift], 
-            &PV.values[qt_shift], &S_ratio[0])
+            &PV.values[qt_shift],
+            &self.S_lookup[0], &self.S_liq[0], &self.S_ice[0])
 
         # SB 2 moment microphysics source calculation
         sb_ice_microphysics_sources(&Gr.dims, 
@@ -349,7 +358,7 @@ cdef class Microphysics_SB_2M:
             &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
             self.CCN, self.ice_nucl,
             &DV.values[t_shift], &PV.values[w_shift],
-            &S_ratio[0], &PV.values[qt_shift], 
+            &self.S_lookup[0], &PV.values[qt_shift], 
             &PV.values[nl_shift], &PV.values[ql_shift],
             &PV.values[ni_shift], &PV.values[qi_shift],
             &PV.values[nr_shift], &PV.values[qr_shift],
@@ -450,5 +459,12 @@ cdef class Microphysics_SB_2M:
         NS.write_profile('sq', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &self.sw[0])
         NS.write_profile('sw', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
+        
+        tmp = Pa.HorizontalMean(Gr, &self.S_lookup[0])
+        NS.write_profile('S_lookup', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
+        tmp = Pa.HorizontalMean(Gr, &self.S_liq[0])
+        NS.write_profile('S_liq', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
+        tmp = Pa.HorizontalMean(Gr, &self.S_ice[0])
+        NS.write_profile('S_ice', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
 
         return

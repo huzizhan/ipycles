@@ -731,7 +731,7 @@ void iso_sb_2m_depostion(
         double* q_iso_tend
     ){
 
-    if(q_var > SB_EPS && q_var_iso > SB_EPS && q_tend_dep > 0.0){
+    if(q_var > 1e-10 && q_var_iso > 1e-10 && q_tend_dep > 0.0){
 
         double alpha_s, alpha_k;
         if(type == 1.0){

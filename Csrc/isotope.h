@@ -803,7 +803,6 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
         double* restrict temperature,  // temperature of air parcel
         double* restrict s, // specific entropy
         double* restrict w, // vertical velocity
-        double* restrict S, // satratio ice 
         // INPUT STD VARIABLES ARRAY
         double* restrict qt, // total water specific humidity
         double* restrict qv, // total water specific humidity

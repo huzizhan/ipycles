@@ -505,10 +505,10 @@ void sb_ice_nucleation_mayer(
     double n_nuc, q_nuc;
 
     // calculate the sat_ratio with look up table method 
-    // const double pv_star = lookup(LT, T);
-    // const double qv_star = qv_star_c(p0, qt, pv_star);
-    // const double satratio = qt/qv_star - 1.0;
-    const double satratio = microphysics_saturation_ratio_ice(T, p0, qt);
+    const double pv_star = lookup(LT, T);
+    const double qv_star = qv_star_c(p0, qt, pv_star);
+    const double satratio = qt/qv_star - 1.0;
+    // const double satratio = microphysics_saturation_ratio_ice(T, p0, qt);
 
     double ni_diag = 0.0;
 
@@ -1314,7 +1314,9 @@ void saturation_ratio(const struct DimStruct *dims,
         double* restrict p0, // reference air pressure
         double* restrict temperature,  // temperature of air parcel
         double* restrict qt, // total water specific humidity
-        double* restrict S_i
+        double* restrict S_lookup,
+        double* restrict S_liq,
+        double* restrict S_ice
     ){
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
@@ -1332,10 +1334,9 @@ void saturation_ratio(const struct DimStruct *dims,
                 const ssize_t ijk = ishift + jshift + k;
                 
                 // lookup table method 
-                // S_i[ijk] = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
-                // 
-                double pv_sat_ice = saturation_vapor_pressure_ice(temperature[ijk]);
-                S_i[ijk] = qt[ijk]/pv_sat_ice - 1.0;
+                S_lookup[ijk] = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
+                S_liq[ijk] = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt[ijk]);
+                S_ice[ijk] = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
             }
         }
     }
