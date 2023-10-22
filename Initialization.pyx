@@ -1785,10 +1785,6 @@ def interp_pchip(z_out, z_in, v_in, pchip_type=True):
         return np.interp(z_out, z_in, v_in)
 
 def initialize_Rayleigh(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, ParallelMPI.ParallelMPI Pa):
-# ================================================
-# ToDo: add HDO initialization processes
-# δD = 8 * δ O18 + 10 ‱
-# ================================================
     cdef extern from "isotope.h":
         double Rayleigh_distillation(double qt, double* qt_O18, double* qt_HDO) nogil
     cdef:

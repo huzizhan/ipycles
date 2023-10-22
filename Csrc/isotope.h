@@ -14,20 +14,15 @@
 #include <math.h>
 // #define SB_EPS 1.0e-13
 
-void iso_equilibrium_fractionation_No_Microphysics(
-        struct DimStruct *dims, 
-        double* restrict temperature,
-        double* restrict qt, 
-        double* restrict qv_DV, 
-        double* restrict ql_DV, 
-        double* restrict qv_std, 
-        double* restrict ql_std, 
-        double* restrict qt_O18, 
-        double* restrict qv_O18, 
-        double* restrict ql_O18, 
-        double* restrict qt_HDO, 
-        double* restrict qv_HDO, 
-        double* restrict ql_HDO){
+// the following are the ratio of diffusivity of HDO and 
+// H2O18, and are adopted from Cappa's 2003
+#define DIFF_HDO_RATIO 0.9691
+#define DIFF_O18_RATIO 0.9839
+
+void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, double* restrict temperature,
+    double* restrict qt, double* restrict qv_DV, double* restrict ql_DV, double* restrict qv_std, double* restrict ql_std, 
+    double* restrict qt_O18, double* restrict qv_O18, double* restrict ql_O18, 
+    double* restrict qt_HDO, double* restrict qv_HDO, double* restrict ql_HDO){
 
     ssize_t i,j,k;
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
@@ -184,11 +179,8 @@ void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct 
                     sb_iso_rain_accretion(ql_tmp, ql_O18_tmp, qr_tendency_ac, &qr_O18_accre_tendency);
                     sb_iso_rain_accretion(ql_tmp, ql_HDO_tmp, qr_tendency_ac, &qr_HDO_accre_tendency);
 
-                    double diff_O18 = DVAPOR*0.9723;
-                    // ================================================
-                    // ToDo: give the defination of diff_HDO based on the actual physical value of the diffusivity of HDO
-                    // ================================================
-                    double diff_HDO = DVAPOR*0.9723;
+                    double diff_O18 = DVAPOR*DIFF_O18_RATIO;
+                    double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
                     double g_therm_O18 = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_O18_tmp, qv_tmp, qv_O18_tmp, sat_ratio, diff_O18, KT);
                     double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_HDO_tmp, qv_tmp, qv_HDO_tmp, sat_ratio, diff_HDO, KT);
                     sb_iso_evaporation_rain(g_therm_O18, sat_ratio, nr_tmp, qr_tmp, mu, qr_O18_tmp, rain_mass, Dp, Dm, &qr_O18_evap_tendency);
@@ -290,8 +282,8 @@ void iso_mix_phase_fractionation(const struct DimStruct *dims, struct LookupStru
                     double qv_O18_tmp, ql_O18_tmp, qi_O18_tmp;
                     double qv_HDO_tmp, ql_HDO_tmp, qi_HDO_tmp;
                     
-                    double diff_O18 = DVAPOR*0.9723;
-                    double diff_HDO = DVAPOR*0.9723;
+                    double diff_O18 = DVAPOR*DIFF_O18_RATIO;
+                    double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
 
                     alpha_eq_lv_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
                     alpha_eq_lv_HDO = equilibrium_fractionation_factor_HDO_liquid(temperature[ijk]);
@@ -516,11 +508,8 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
                     // defination of thermo variables
                     double vapor_diff = vapor_diffusivity(temperature[ijk], p0[k]);
                     double therm_cond = thermal_conductivity(temperature[ijk]);
-                    double diff_O18 = vapor_diff*0.9723;
-                    // ================================================
-                    // ToDo: give the defination of diff_HDO based on the actual physical value of the diffusivity of HDO
-                    // ================================================
-                    double diff_HDO = vapor_diff*0.9723;
+                    double diff_O18 = vapor_diff*DIFF_O18_RATIO;
+                    double diff_HDO = vapor_diff*DIFF_HDO_RATIO;
 
                     double gtherm_O18_liq, gtherm_O18_ice, gtherm_HDO_liq, gtherm_HDO_ice;
 
@@ -1232,7 +1221,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qs_O18_tendency_sub  = 0.0;
                     qs_O18_tendency_melt = 0.0;
                     
-                    double diff_O18 = DVAPOR*0.9723;
+                    double diff_O18 = DVAPOR*DIFF_O18_RATIO;
                     double iso_type_O18 = 1.0; // 1.0 means O18;
 
                     // ice deposition and sublimation
@@ -1309,10 +1298,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qs_HDO_tendency_melt = 0.0;
                     
 
-                    double diff_HDO = DVAPOR*0.9723;
-                    // ================================================
-                    // ToDo: give the defination of diff_HDO based on the actual physical value of the diffusivity of HDO
-                    // ================================================
+                    double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
                     double iso_type_HDO = 2.0;
 
                     // ice deposition and sublimation

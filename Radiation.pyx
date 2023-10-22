@@ -488,14 +488,13 @@ cdef class RadiationIsdac(RadiationBase):
             Py_ssize_t pi, i, j, k, ijk, ishift, jshift
             Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
             Py_ssize_t jstride = Gr.dims.nlg[2]
-            # Py_ssize_t ql_shift = PV.get_varshift(Gr, 'ql')
-            Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
+            Py_ssize_t ql_shift
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
             Py_ssize_t gw = Gr.dims.gw
-            double [:, :] ql_pencils =  self.z_pencil.forward_double(& Gr.dims, Pa, & DV.values[ql_shift])
-            double [:, :] qt_pencils =  self.z_pencil.forward_double(& Gr.dims, Pa, & DV.values[qt_shift])
+            double [:, :] qt_pencils = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[qt_shift])
+            double [:, :] ql_pencils = np.zeros((self.z_pencil.n_local_pencils, Gr.dims.n[2]), dtype=np.double, order='c')
             double [:, :] f_rad = np.zeros((self.z_pencil.n_local_pencils, Gr.dims.n[2] + 1), dtype=np.double, order='c')
             double [:, :] f_heat = np.zeros((self.z_pencil.n_local_pencils, Gr.dims.n[2]), dtype=np.double, order='c')
             double [:] heating_rate = self.heating_rate[:]
@@ -508,6 +507,14 @@ cdef class RadiationIsdac(RadiationBase):
             double[:] z = Gr.z
             double[:] rho = Ref.rho0
             double[:] rho_half = Ref.rho0_half
+
+        if 'ql' in DV.name_index:
+            ql_shift = DV.get_varshift(Gr, 'ql')
+            ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[ql_shift])
+            # use_ice = True  # testing radiation without ice effect
+        if 'ql' in PV.name_index:
+            ql_shift = PV.get_varshift(Gr, 'ql')
+            ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &PV.values[ql_shift])
 
         with nogil:
             for pi in xrange(self.z_pencil.n_local_pencils):
@@ -1067,16 +1074,24 @@ cdef class RadiationRRTM(RadiationBase):
             Py_ssize_t n_pencils = self.z_pencil.n_local_pencils
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
             Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv')
-            Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
+            Py_ssize_t ql_shift
             Py_ssize_t qi_shift
             double [:,:] t_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[t_shift])
             double [:,:] qv_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[qv_shift])
-            double [:,:] ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[ql_shift])
+            double [:,:] ql_pencil = np.zeros((n_pencils,nz),dtype=np.double, order='c')
             double [:,:] qi_pencil = np.zeros((n_pencils,nz),dtype=np.double, order='c')
             double [:,:] rl_full = np.zeros((n_pencils,nz_full), dtype=np.double, order='F')
             Py_ssize_t k, ip
             bint use_ice = False
             Py_ssize_t gw = Gr.dims.gw
+        
+        if 'ql' in DV.name_index:
+            ql_shift = DV.get_varshift(Gr, 'ql')
+            ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[ql_shift])
+            # use_ice = True  # testing radiation without ice effect
+        if 'ql' in PV.name_index:
+            ql_shift = PV.get_varshift(Gr, 'ql')
+            ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &PV.values[ql_shift])
 
         if 'qi' in DV.name_index:
             qi_shift = DV.get_varshift(Gr, 'qi')
