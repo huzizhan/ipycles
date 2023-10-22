@@ -82,7 +82,8 @@ void statsIO_isotope_scaling_magnitude(struct DimStruct *dims, double* restrict 
 void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct LookupStruct *LT, 
     double (*lam_fp)(double), double (*L_fp)(double, double),
     double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
-    double* restrict density, double* restrict p0,  double* restrict temperature,  double* restrict qt, double ccn,
+    double* restrict density, double* restrict p0,  double* restrict temperature,  
+    double* restrict qt, double ccn,
     double* restrict ql, double* restrict nr, double* restrict qr, double dt,
     double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, 
     double* restrict nr_std_tendency, double* restrict qr_std_tendency,
@@ -127,12 +128,12 @@ void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct 
                 double nr_tmp     = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
                 double g_therm    = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
 
-                double ql_O18_tmp = fmax(ql_O18[ijk], SB_EPS);
-                double qr_O18_tmp = fmax(qr_O18[ijk], SB_EPS);
+                double ql_O18_tmp = fmax(ql_O18[ijk], 0.0);
+                double qr_O18_tmp = fmax(qr_O18[ijk], 0.0);
                 double qv_O18_tmp = qv_O18[ijk];
 
-                double ql_HDO_tmp = fmax(ql_HDO[ijk], SB_EPS);
-                double qr_HDO_tmp = fmax(qr_HDO[ijk], SB_EPS);
+                double ql_HDO_tmp = fmax(ql_HDO[ijk], 0.0);
+                double qr_HDO_tmp = fmax(qr_HDO[ijk], 0.0);
                 double qv_HDO_tmp = qv_HDO[ijk];
 
                 //holding nl fixed since it doesn't change between timesteps
@@ -214,6 +215,7 @@ void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct 
                     nr_tmp += nr_tendency_tmp * dt_;
                     qr_tmp += qr_tendency_tmp * dt_;
                     qv_tmp += -qr_tendency_evp * dt_;
+
                     qr_tmp  = fmax(qr_tmp,0.0);
                     nr_tmp  = fmax(fmin(nr_tmp, qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
                     ql_tmp  = fmax(ql_tmp,0.0);
@@ -238,7 +240,7 @@ void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct 
                 nr_tendency_micro[ijk]  = (nr_tmp - nr[ijk] )/dt;
                 qr_tendency_micro[ijk]  = (qr_tmp - qr[ijk])/dt;
                 nr_std_tendency[ijk]   += nr_tendency_micro[ijk];
-                qr_std_tendency[ijk]       += qr_tendency_micro[ijk];
+                qr_std_tendency[ijk]   += qr_tendency_micro[ijk];
 
                 qr_O18_tendency_micro[ijk]  = (qr_O18_tmp - qr_O18[ijk])/dt;
                 qr_O18_tendency[ijk]       += qr_O18_tendency_micro[ijk];

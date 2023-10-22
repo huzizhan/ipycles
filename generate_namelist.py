@@ -309,8 +309,8 @@ def Bomex():
 
     namelist['grid'] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64 / 4
-    namelist['grid']['ny'] = 64 / 4
+    namelist['grid']['nx'] = 64
+    namelist['grid']['ny'] = 64
     namelist['grid']['nz'] = 75
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 100.0
@@ -381,6 +381,7 @@ def Bomex():
     namelist['meta'] = {}
     namelist['meta']['simname'] = 'Bomex'
     namelist['meta']['casename'] = 'Bomex'
+    namelist['meta']['describe'] = 'original Bomex Setting with Iso'
 
     namelist['initialization'] = {}
     namelist['initialization']['random_seed_factor'] = 1
@@ -758,8 +759,8 @@ def Rico():
 
     namelist['grid'] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 128/32
-    namelist['grid']['ny'] = 128/32
+    namelist['grid']['nx'] = 128/4
+    namelist['grid']['ny'] = 128/4
     namelist['grid']['nz'] = 150
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 100.0
@@ -767,8 +768,8 @@ def Rico():
     namelist['grid']['dz'] = 40.0
 
     namelist['mpi'] = {}
-    namelist['mpi']['nprocx'] = 1
-    namelist['mpi']['nprocy'] = 1
+    namelist['mpi']['nprocx'] = 4
+    namelist['mpi']['nprocy'] = 4
     namelist['mpi']['nprocz'] = 1
 
     namelist['time_stepping'] = {}
@@ -776,7 +777,7 @@ def Rico():
     namelist['time_stepping']['cfl_limit'] = 0.7
     namelist['time_stepping']['dt_initial'] = 1.0
     namelist['time_stepping']['dt_max'] = 10.0
-    namelist['time_stepping']['t_max'] = 3600.0
+    namelist['time_stepping']['t_max'] = 3600.0*12
 
     namelist['thermodynamics'] = {}
     namelist['thermodynamics']['latentheat'] = 'constant'
@@ -830,6 +831,7 @@ def Rico():
     namelist['meta'] = {}
     namelist['meta']['simname'] = 'Rico'
     namelist['meta']['casename'] = 'Rico'
+    namelist['meta']['describe'] = '1/16 domain of original Rico with Iso'
 
     namelist['restart'] = {}
     namelist['restart']['output'] = True
@@ -851,8 +853,8 @@ def Isdac():
 
     namelist["grid"] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64/8
-    namelist['grid']['ny'] = 64/8
+    namelist['grid']['nx'] = 64/4
+    namelist['grid']['ny'] = 64/4
     namelist['grid']['nz'] = 250
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 50.0
@@ -860,8 +862,8 @@ def Isdac():
     namelist['grid']['dz'] = 10.0
 
     namelist["mpi"] = {}
-    namelist["mpi"]["nprocx"] = 1
-    namelist["mpi"]["nprocy"] = 1
+    namelist["mpi"]["nprocx"] = 3
+    namelist["mpi"]["nprocy"] = 3
     namelist["mpi"]["nprocz"] = 1
 
     namelist['time_stepping'] = {}
@@ -869,17 +871,20 @@ def Isdac():
     namelist['time_stepping']['cfl_limit'] = 0.5
     namelist['time_stepping']['dt_initial'] = 1.0
     namelist['time_stepping']['dt_max'] = 10.0
-    namelist['time_stepping']['t_max'] = 3600.0 * 0.5
+    namelist['time_stepping']['t_max'] = 3600.0 * 12
 
 
+    # namelist['microphysics'] = {}
+    # namelist['microphysics']['scheme'] = 'SB_2M'
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'SB_2M'
-    # namelist['microphysics']['phase_partitioning'] = 'Arctic'
-    # namelist['microphysics']['n0_ice'] = 1.0e7
+    namelist['microphysics']['scheme'] = 'Arctic_1M'
+    namelist['microphysics']['phase_partitioning'] = 'Arctic'
+    namelist['microphysics']['n0_ice'] = 1.0e7
 
     namelist['isotopetracers'] = {}
     namelist['isotopetracers']['use_tracers'] = True
-    namelist['isotopetracers']['scheme'] = 'SB_Ice'
+    # namelist['isotopetracers']['scheme'] = 'SB_Ice'
+    namelist['isotopetracers']['scheme'] = 'Arctic_1M'
     
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
@@ -932,6 +937,7 @@ def Isdac():
     namelist['meta'] = {}
     namelist['meta']['simname'] = 'Isdac'
     namelist['meta']['casename'] = 'Isdac'
+    namelist['meta']['describe'] = '1/16 domain of original Isdac with Iso under Arctic_1M scheme'
 
     return namelist
 
