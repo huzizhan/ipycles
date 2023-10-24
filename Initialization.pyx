@@ -1220,6 +1220,13 @@ def InitMpace(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                     theta_pert_ = 0.0
                 T,ql = sat_adjst(RS.p0_half[k],thetal[k] + theta_pert_,qt[k], Th)
                 PV.values[ijk + s_varshift] = Th.entropy(RS.p0_half[k], T, qt[k], ql, 0.0)
+    
+    try:
+        isotope_tracers = namelist["isotopetracers"]["use_tracers"]
+        if isotope_tracers:
+            initialize_Rayleigh(Gr, PV, Pa)
+    except:
+        return
 
     return
 

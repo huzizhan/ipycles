@@ -77,7 +77,7 @@ cdef class ThermodynamicsSB:
 
         self.ice_nucl = 2.0e2 # unit: L^-1, Cotton assumption of contact nucleation.
         try:
-            self.ice_nucl = namelist['isotopetracers']['ice_nuclei']
+            self.ice_nucl = namelist['microphysics']['ice_nuclei']
         except:
             pass
 

@@ -760,7 +760,7 @@ cdef class SurfaceRico(SurfaceBase):
                  DiagnosticVariables.DiagnosticVariables DV,ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS):
 
         cdef double pv_star = pv_c(Ref.Pg, Ref.qtg, Ref.qtg)
-        cdef double  pd_star = Ref.Pg - pv_star
+        cdef double pd_star = Ref.Pg - pv_star
         cdef double qv_star = qv_star_c(Ref.Pg, Ref.qtg, pv_star)
         self.T_surface = Ref.Tg
         self.RH = Ref.qtg / qv_star  
@@ -1263,7 +1263,7 @@ cdef class SurfaceMpace(SurfaceBase):
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
-            Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
+            Py_ssize_t ql_shift
             double z1 = Gr.dims.dx[2] * 0.5
             double z0
             double [:] cm = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
@@ -1284,23 +1284,44 @@ cdef class SurfaceMpace(SurfaceBase):
             double lam, lv, pv, pd, sv, sd
 
 
+        if 'ql' in DV.name_index:
+            ql_shift = DV.get_varshift(Gr, 'ql')
+            with nogil:
+                for i in xrange(gw-1, imax-gw+1):
+                    for j in xrange(gw-1, jmax-gw+1):
+                        ijk = i * istride + j * jstride + gw
+                        ij = i * istride_2d + j
+                        z0 = compute_z0(z1, windspeed[ij])
+                        self.friction_velocity[ij] = compute_ustar(windspeed[ij],self.buoyancy_flux, z0, z1)
+                        cm[ij] = (self.friction_velocity[ij]/windspeed[ij]) * (self.friction_velocity[ij]/windspeed[ij])
+                        lam = self.Lambda_fp(DV.values[t_shift+ijk])
+                        lv = self.L_fp(DV.values[t_shift+ijk],lam)
+                        pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
+                        pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
+                        sv = sv_c(pv,DV.values[t_shift+ijk])
+                        sd = sd_c(pd,DV.values[t_shift+ijk])
+                        self.qt_flux[ij] = self.fq / lv / 1.22
+                        self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
 
-        with nogil:
-            for i in xrange(gw-1, imax-gw+1):
-                for j in xrange(gw-1, jmax-gw+1):
-                    ijk = i * istride + j * jstride + gw
-                    ij = i * istride_2d + j
-                    z0 = compute_z0(z1, windspeed[ij])
-                    self.friction_velocity[ij] = compute_ustar(windspeed[ij],self.buoyancy_flux, z0, z1)
-                    cm[ij] = (self.friction_velocity[ij]/windspeed[ij]) * (self.friction_velocity[ij]/windspeed[ij])
-                    lam = self.Lambda_fp(DV.values[t_shift+ijk])
-                    lv = self.L_fp(DV.values[t_shift+ijk],lam)
-                    pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
-                    pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
-                    sv = sv_c(pv,DV.values[t_shift+ijk])
-                    sd = sd_c(pd,DV.values[t_shift+ijk])
-                    self.qt_flux[ij] = self.fq / lv / 1.22
-                    self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
+        elif 'ql' in PV.name_index: 
+            ql_shift = PV.get_varshift(Gr, 'ql')
+            with nogil:
+                for i in xrange(gw-1, imax-gw+1):
+                    for j in xrange(gw-1, jmax-gw+1):
+                        ijk = i * istride + j * jstride + gw
+                        ij = i * istride_2d + j
+                        z0 = compute_z0(z1, windspeed[ij])
+                        self.friction_velocity[ij] = compute_ustar(windspeed[ij],self.buoyancy_flux, z0, z1)
+                        cm[ij] = (self.friction_velocity[ij]/windspeed[ij]) * (self.friction_velocity[ij]/windspeed[ij])
+                        lam = self.Lambda_fp(DV.values[t_shift+ijk])
+                        lv = self.L_fp(DV.values[t_shift+ijk],lam)
+                        pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - PV.values[ijk + ql_shift])
+                        pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - PV.values[ijk + ql_shift])
+                        sv = sv_c(pv,DV.values[t_shift+ijk])
+                        sd = sd_c(pd,DV.values[t_shift+ijk])
+                        self.qt_flux[ij] = self.fq / lv / 1.22
+                        self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
+        
 
             for i in xrange(gw, imax-gw):
                 for j in xrange(gw, jmax-gw):
@@ -1310,6 +1331,8 @@ cdef class SurfaceMpace(SurfaceBase):
                     self.v_flux[ij] = -cm[ij] * interp_2(windspeed[ij], windspeed[ij+1]) * (PV.values[v_shift + ijk] + Ref.v0)
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa,TS)
+        if self.isotope_tracers:
+            surface_iso_tracer(Gr, Ref, PV, DV, self.qt_flux)    
         return
 
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -1439,3 +1462,37 @@ cdef double compute_z0(double z1, double windspeed) nogil:
     cdef double z0 =z1*exp(-kappa/sqrt((0.4 + 0.079*windspeed)*1e-3))
     return z0
 
+
+cpdef surface_iso_tracer(Grid.Grid Gr, ReferenceState.ReferenceState Ref, 
+        PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
+        double[:] qt_flux):
+    
+    cdef:
+        Py_ssize_t i,j, ijk, ij
+        Py_ssize_t gw = Gr.dims.gw
+        Py_ssize_t imax = Gr.dims.nlg[0]
+        Py_ssize_t jmax = Gr.dims.nlg[1]
+        Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
+        Py_ssize_t jstride = Gr.dims.nlg[2]
+        Py_ssize_t istride_2d = Gr.dims.nlg[1]
+        double dzi = 1.0/Gr.dims.dx[2]
+        double RH
+        double R_evap_O18, R_evap_HDO
+        double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
+        Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
+        Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
+        Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+        Py_ssize_t qt_O18_shift = PV.get_varshift(Gr, 'qt_O18')
+        Py_ssize_t qt_HDO_shift = PV.get_varshift(Gr, 'qt_HDO')
+
+    with nogil:
+        for i in xrange(gw, imax-gw):
+            for j in xrange(gw,jmax-gw):
+                ijk = i * istride + j * jstride + gw
+                ij = i * istride_2d + j
+                RH = PV.values[qt_shift + ijk]/Ref.qtg
+                R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)
+                R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], 1.0)
+                PV.tendencies[qt_std_shift + ijk] += qt_flux[ij] * tendency_factor
+                PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
+                PV.tendencies[qt_HDO_shift + ijk] += qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO

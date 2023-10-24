@@ -947,8 +947,8 @@ def IsdacCC():
 
     namelist["grid"] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64
-    namelist['grid']['ny'] = 64
+    namelist['grid']['nx'] = 64/16
+    namelist['grid']['ny'] = 64/16
     namelist['grid']['nz'] = 250
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 50.0
@@ -966,11 +966,19 @@ def IsdacCC():
     namelist['time_stepping']['dt_initial'] = 1.0
     namelist['time_stepping']['dt_max'] = 10.0
     namelist['time_stepping']['t_max'] = 3600.0 * 8.0
+    
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'SB_Ice'
 
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'Arctic_1M'
-    namelist['microphysics']['phase_partitioning'] = 'Arctic'
-    namelist['microphysics']['n0_ice'] = 1.0e7
+    namelist['microphysics']['scheme'] = 'SB_2M'
+    namelist['microphysics']['ice_nuclei'] = 2.0e2
+
+    # namelist['microphysics'] = {}
+    # namelist['microphysics']['scheme'] = 'Arctic_1M'
+    # namelist['microphysics']['phase_partitioning'] = 'Arctic'
+    # namelist['microphysics']['n0_ice'] = 1.0e7
 
     namelist['sgs'] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
@@ -995,7 +1003,7 @@ def IsdacCC():
 
     namelist['initial'] = {}
     namelist['initial']['SST'] = 265.0 #initial surface temperature
-    namelist['initial']['dTi'] = 7.0 #temperature jump at the inversion
+    namelist['initial']['dTi'] = 5.0 #temperature jump at the inversion
     namelist['initial']['rh0'] = 0.8 #Surface relative humidity
     namelist['initial']['gamma'] = 5.0/1000. #free tropospheric lapse rate
     namelist['initial']['rh'] = 0.6 #free tropospheric relative humidity
@@ -1038,6 +1046,7 @@ def IsdacCC():
     namelist['meta'] = {}
     namelist['meta']['simname'] = 'IsdacCC'
     namelist['meta']['casename'] = 'IsdacCC'
+    namelist['meta']['describe'] = 'IsdacCC-Iso with inversion strenght as 5K'
 
     return namelist
 
@@ -1047,8 +1056,8 @@ def Mpace():
 
     namelist["grid"] = {}
     namelist['grid']['dims'] = 3
-    namelist['grid']['nx'] = 64
-    namelist['grid']['ny'] = 64
+    namelist['grid']['nx'] = 64/16
+    namelist['grid']['ny'] = 64/16
     namelist['grid']['nz'] = 250
     namelist['grid']['gw'] = 3
     namelist['grid']['dx'] = 50.0
@@ -1127,6 +1136,7 @@ def Mpace():
     namelist['meta'] = {}
     namelist['meta']['simname'] = 'Mpace'
     namelist['meta']['casename'] = 'Mpace'
+    namelist['meta']['describe'] = 'Mpace case without Surface'
 
     return namelist
 

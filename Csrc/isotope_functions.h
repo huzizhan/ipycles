@@ -70,16 +70,20 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
 static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
     double alpha_eq;
     double R_sur_evap;
+    // in case the relative humidity at surface is large than 1.0
+    double relative_humidity = fmin(RH, 1.0);
     alpha_eq = 1.0 / equilibrium_fractionation_factor_O18_liquid(temperature);
-    R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-RH)+alpha_k*RH);
+    R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-relative_humidity)+alpha_k*relative_humidity);
     return R_sur_evap;
 }
 
 static inline double C_G_model_HDO(double RH,  double temperature, double alpha_k){
     double alpha_eq;
     double R_sur_evap;
+    // in case the relative humidity at surface is large than 1.0
+    double relative_humidity = fmin(RH, 1.0);
     alpha_eq = 1.0 / equilibrium_fractionation_factor_HDO_liquid(temperature);
-    R_sur_evap = alpha_eq*alpha_k*R_std_HDO/((1-RH)+alpha_k*RH);
+    R_sur_evap = alpha_eq*alpha_k*R_std_HDO/((1-relative_humidity)+alpha_k*relative_humidity);
     return R_sur_evap;
 }
 
