@@ -403,37 +403,10 @@ cdef class SurfaceBomex(SurfaceBase):
                     self.v_flux[ij] = -self.ustar_**2/interp_2(windspeed[ij], windspeed[ij+1]) * (PV.values[v_shift + ijk] + Ref.v0)
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa, TS)
-        # isotope surface flux calculation and added to qt_O18_tendency
-        cdef: 
-            Py_ssize_t qt_O18_shift
-            Py_ssize_t qt_HDO_shift
-            Py_ssize_t qt_std_shift
-            double dzi = 1.0/Gr.dims.dx[2]
-            double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
-            # double R_vapor = 2.225e-3 # there the isotope R of vapor is calculated using C-G model, and given surface conditions.
-            double pv_star = pv_c(Ref.Pg, Ref.qtg, Ref.qtg)
-            double pd_star = Ref.Pg - pv_star
-            double qv_star = qv_star_c(Ref.Pg, Ref.qtg, pv_star)
-            double T_surface = Ref.Tg
-            double RH_surface = Ref.qtg / qv_star  
 
-            double R_surface_O18
-            double R_surface_HDO
-            
+        # isotope surface flux calculation and added to qt_O18_tendency
         if self.isotope_tracers:
-            qt_O18_shift = PV.get_varshift(Gr, 'qt_O18')
-            qt_HDO_shift = PV.get_varshift(Gr, 'qt_HDO')
-            qt_std_shift = PV.get_varshift(Gr, 'qt_std')
-            R_surface_O18 = C_G_model_O18(RH_surface, T_surface, 1.0)
-            R_surface_HDO = C_G_model_HDO(RH_surface, T_surface, 1.0)
-            with nogil:
-                for i in xrange(gw, imax):
-                    for j in xrange(gw, jmax): 
-                        ijk = i * istride + j * jstride + gw
-                        ij = i * istride_2d + j
-                        PV.tendencies[qt_std_shift + ijk] += self.qt_flux[ij]* tendency_factor # make sure qt_O18_flux and qt_flux are at same magnitude
-                        PV.tendencies[qt_O18_shift + ijk] += (self.qt_flux[ij] * R_surface_O18) / R_std_O18 * tendency_factor # make sure qt_O18_flux and qt_flux are at same magnitude
-                        PV.tendencies[qt_HDO_shift + ijk] += (self.qt_flux[ij] * R_surface_HDO) / R_std_HDO * tendency_factor # make sure qt_O18_flux and qt_flux are at same magnitude
+            surface_iso_tracer(Gr, Ref, PV, DV, self.qt_flux)    
         return
 
 
