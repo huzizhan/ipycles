@@ -350,7 +350,6 @@ cdef class SurfaceBomex(SurfaceBase):
                                                                    + self.qt_surface *self.theta_flux))
                               /(self.theta_surface*(1.0 + (eps_vi-1)*self.qt_surface)))
 
-
         return
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
@@ -735,8 +734,8 @@ cdef class SurfaceRico(SurfaceBase):
         cdef double pv_star = pv_c(Ref.Pg, Ref.qtg, Ref.qtg)
         cdef double pd_star = Ref.Pg - pv_star
         cdef double qv_star = qv_star_c(Ref.Pg, Ref.qtg, pv_star)
-        self.T_surface = Ref.Tg
-        self.RH = Ref.qtg / qv_star  
+        # self.T_surface = Ref.Tg
+        # self.RH = Ref.qtg / qv_star  
         self.s_star = (1.0-Ref.qtg) * sd_c(pd_star, Ref.Tg) + Ref.qtg * sv_c(pv_star,Ref.Tg)
 
         if Pa.sub_z_rank != 0:
@@ -782,29 +781,10 @@ cdef class SurfaceRico(SurfaceBase):
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa, TS)
 
-        # tracers surface source
-        cdef:
-            double dzi = 1.0/Gr.dims.dx[2]
-            double R_evap_O18, R_evap_HDO
-            double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
-            Py_ssize_t qt_std_shift
-            Py_ssize_t qt_O18_shift
-            Py_ssize_t qt_HDO_shift
-
+        # isotope surface flux calculation and added to qt_O18_tendency
         if self.isotope_tracers:
-            qt_std_shift = PV.get_varshift(Gr, 'qt_std')
-            qt_O18_shift = PV.get_varshift(Gr, 'qt_O18')
-            qt_HDO_shift = PV.get_varshift(Gr, 'qt_HDO')
-            with nogil:
-                for i in xrange(gw, imax-gw):
-                    for j in xrange(gw,jmax-gw):
-                        ijk = i * istride + j * jstride + gw
-                        ij = i * istride_2d + j
-                        R_evap_O18 = C_G_model_O18(self.RH, self.T_surface, 1.0)
-                        R_evap_HDO = C_G_model_HDO(self.RH, self.T_surface, 1.0)
-                        PV.tendencies[qt_std_shift + ijk] +=  self.qt_flux[ij] * tendency_factor
-                        PV.tendencies[qt_O18_shift + ijk] +=  self.qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
-                        PV.tendencies[qt_HDO_shift + ijk] +=  self.qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO
+            surface_iso_tracer(Gr, Ref, PV, DV, self.qt_flux)    
+
         return
 
 
@@ -1070,6 +1050,15 @@ cdef class SurfaceIsdac(SurfaceBase):
         self.L_fp = LH.L_fp
         self.Lambda_fp = LH.Lambda_fp
         self.dry_case = False
+        
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         SurfaceBase.initialize(self,Gr,Ref,NS,Pa)
@@ -1135,6 +1124,15 @@ cdef class SurfaceIsdacCC(SurfaceBase):
         # p0 = 1.02e5
         # theta_flux = self.ft/cpd/1.3
         # self.buoyancy_flux = theta_flux * exner(p0) * g / sst
+    
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
         return
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -1217,6 +1215,15 @@ cdef class SurfaceMpace(SurfaceBase):
                               /(theta_surface*(1.0 + (eps_vi-1)*qt_surface)))
 
         self.dry_case = False
+        
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         SurfaceBase.initialize(self,Gr,Ref,NS,Pa)

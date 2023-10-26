@@ -130,6 +130,7 @@ cdef class SurfaceIsdac(SurfaceBase):
     cdef:
         double gustiness
         double z0
+        bint isotope_tracers 
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
@@ -141,6 +142,7 @@ cdef class SurfaceIsdacCC(SurfaceBase):
         double gustiness
         double z0
         double ft
+        bint isotope_tracers 
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
@@ -154,6 +156,7 @@ cdef class SurfaceMpace(SurfaceBase):
         double fq
         double buoyancy_flux
         double gustiness
+        bint isotope_tracers 
 
     cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
