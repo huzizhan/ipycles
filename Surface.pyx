@@ -1366,7 +1366,7 @@ cdef class SurfaceSheba(SurfaceBase):
             Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
-            Py_ssize_t ql_shift = DV.get_varshift(Gr, 'ql')
+            Py_ssize_t ql_shift
             double z1 = Gr.dims.dx[2] * 0.5
             double [:] cm = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
             double [:] windspeed = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
@@ -1385,22 +1385,43 @@ cdef class SurfaceSheba(SurfaceBase):
 
             double lam, lv, pv, pd, sv, sd
 
-        with nogil:
-            for i in xrange(gw, imax):
-                for j in xrange(gw, jmax):
-                    ijk = i * istride + j * jstride + gw
-                    ij = i * istride_2d + j
-                    # z0 = compute_z0(z1, windspeed[ij])
-                    self.friction_velocity[ij] = compute_ustar(windspeed[ij],self.buoyancy_flux, self.z0, z1)
-                    cm[ij] = (self.friction_velocity[ij]/windspeed[ij]) * (self.friction_velocity[ij]/windspeed[ij])
-                    lam = self.Lambda_fp(DV.values[t_shift+ijk])
-                    lv = self.L_fp(DV.values[t_shift+ijk],lam)
-                    pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
-                    pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
-                    sv = sv_c(pv,DV.values[t_shift+ijk])
-                    sd = sd_c(pd,DV.values[t_shift+ijk])
-                    self.qt_flux[ij] = self.fq / lv / 1.38
-                    self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
+        if 'ql' in DV.name_index:
+            ql_shift = DV.get_varshift(Gr, 'ql')
+            with nogil:
+                for i in xrange(gw-1, imax-gw+1):
+                    for j in xrange(gw-1, jmax-gw+1):
+                        ijk = i * istride + j * jstride + gw
+                        ij = i * istride_2d + j
+                        # z0 = compute_z0(z1, windspeed[ij])
+                        self.friction_velocity[ij] = compute_ustar(windspeed[ij],self.buoyancy_flux, self.z0, z1)
+                        cm[ij] = (self.friction_velocity[ij]/windspeed[ij]) * (self.friction_velocity[ij]/windspeed[ij])
+                        lam = self.Lambda_fp(DV.values[t_shift+ijk])
+                        lv = self.L_fp(DV.values[t_shift+ijk],lam)
+                        pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
+                        pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - DV.values[ijk + ql_shift])
+                        sv = sv_c(pv,DV.values[t_shift+ijk])
+                        sd = sd_c(pd,DV.values[t_shift+ijk])
+                        self.qt_flux[ij] = self.fq / lv / 1.38
+                        self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
+
+        elif 'ql' in PV.name_index: 
+            ql_shift = PV.get_varshift(Gr, 'ql')
+            with nogil:
+                for i in xrange(gw-1, imax-gw+1):
+                    for j in xrange(gw-1, jmax-gw+1):
+                        ijk = i * istride + j * jstride + gw
+                        ij = i * istride_2d + j
+                        # z0 = compute_z0(z1, windspeed[ij])
+                        self.friction_velocity[ij] = compute_ustar(windspeed[ij],self.buoyancy_flux, self.z0, z1)
+                        cm[ij] = (self.friction_velocity[ij]/windspeed[ij]) * (self.friction_velocity[ij]/windspeed[ij])
+                        lam = self.Lambda_fp(DV.values[t_shift+ijk])
+                        lv = self.L_fp(DV.values[t_shift+ijk],lam)
+                        pv = pv_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - PV.values[ijk + ql_shift])
+                        pd = pd_c(Ref.p0_half[gw], PV.values[ijk + qt_shift], PV.values[ijk + qt_shift] - PV.values[ijk + ql_shift])
+                        sv = sv_c(pv,DV.values[t_shift+ijk])
+                        sd = sd_c(pd,DV.values[t_shift+ijk])
+                        self.qt_flux[ij] = self.fq / lv / 1.38
+                        self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
 
             for i in xrange(gw, imax):
                 for j in xrange(gw, jmax):
@@ -1410,6 +1431,9 @@ cdef class SurfaceSheba(SurfaceBase):
                     self.v_flux[ij] = -cm[ij] * interp_2(windspeed[ij], windspeed[ij+1]) * (PV.values[v_shift + ijk] + Ref.v0)
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa,TS)
+        
+        if self.isotope_tracers:
+            surface_iso_tracer(Gr, Ref, PV, DV, self.qt_flux)    
         
         cdef: 
             Py_ssize_t qt_O18_shift
