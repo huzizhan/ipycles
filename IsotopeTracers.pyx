@@ -1311,82 +1311,82 @@ cdef class IsotopeTracers_SB_Ice:
 
 cpdef iso_stats_io_Base(Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
             ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
-    cdef:
-        Py_ssize_t imin    = 0
-        Py_ssize_t jmin    = 0
-        Py_ssize_t kmin    = 0
-        Py_ssize_t imax    = Gr.dims.nlg[0]
-        Py_ssize_t jmax    = Gr.dims.nlg[1]
-        Py_ssize_t kmax    = Gr.dims.nlg[2]
-        Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
-        Py_ssize_t jstride = Gr.dims.nlg[2]
-        Py_ssize_t ishift, jshift, ijk, i,j,k, iter = 0
-        Py_ssize_t ql_shift     = DV.get_varshift(Gr, 'ql')
-        Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
-        Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
-        Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
-        Py_ssize_t qt_O18_shift = PV.get_varshift(Gr,'qt_O18')
-        Py_ssize_t qv_O18_shift = PV.get_varshift(Gr,'qv_O18')
-        Py_ssize_t ql_O18_shift = PV.get_varshift(Gr,'ql_O18')
-        double[:] tmp
-        double[:] delta_qv       = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-        double[:] delta_qt       = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-        double[:] delta_ql_cloud = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-        double[:] cloud_mask     = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-        double[:] no_cloud_mask  = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
-
-    with nogil:
-        with cython.boundscheck(False):
-            for i in xrange(imin,imax):
-                ishift = i*istride
-                for j in xrange(jmin,jmax):
-                    jshift = j*jstride
-                    for k in xrange(kmin,kmax):
-                        ijk = ishift + jshift + k
-                        if PV.values[ql_shift + ijk] > 0.0:
-                            cloud_mask[ijk] = 1.0
-                            delta_ql_cloud[ijk] = q_2_delta(PV.values[ql_O18_shift + ijk], PV.values[ql_std_shift + ijk])
-                        else:
-                            no_cloud_mask[ijk] = 1.0 
-                        delta_qv[ijk] = q_2_delta(PV.values[qv_O18_shift + ijk], PV.values[qv_std_shift + ijk])
-                        delta_qt[ijk] = q_2_delta(PV.values[qt_O18_shift + ijk], PV.values[qt_std_shift + ijk])
-
-
-    tmp = Pa.HorizontalMean(Gr, &PV.values[qt_std_shift])
-    NS.write_profile('qt_std', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-    
-    tmp = Pa.HorizontalMean(Gr, &PV.values[qv_std_shift])
-    NS.write_profile('qv_std', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-    
-    tmp = Pa.HorizontalMean(Gr, &PV.values[ql_std_shift])
-    NS.write_profile('ql_std', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-
-    tmp = Pa.HorizontalMean(Gr, &PV.values[qt_O18_shift])
-    statsIO_isotope_scaling_magnitude(&Gr.dims, &tmp[0]) # scaling back to correct magnitude
-    NS.write_profile('qt_O18', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-
-    tmp = Pa.HorizontalMean(Gr, &PV.values[ql_O18_shift])
-    statsIO_isotope_scaling_magnitude(&Gr.dims, &tmp[0]) # scaling back to correct magnitude
-    NS.write_profile('ql_O18', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-
-    tmp = Pa.HorizontalMean(Gr, &PV.values[qv_O18_shift])
-    statsIO_isotope_scaling_magnitude(&Gr.dims, &tmp[0]) # scaling back to correct magnitude
-    NS.write_profile('qv_O18', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
-    
-    tmp = Pa.HorizontalMean(Gr, &delta_qv[0])
-    NS.write_profile('delta_qv', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
-
-    tmp = Pa.HorizontalMean(Gr, &delta_qt[0])
-    NS.write_profile('delta_qt', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
-    
-    tmp = Pa.HorizontalMeanConditional(Gr, &delta_ql_cloud[0], &cloud_mask[0])
-    NS.write_profile('delta_ql_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
-        
-    tmp = Pa.HorizontalMeanConditional(Gr, &delta_qv[0], &cloud_mask[0])
-    NS.write_profile('delta_qv_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
-
-    tmp = Pa.HorizontalMeanConditional(Gr, &delta_qv[0], &no_cloud_mask[0])
-    NS.write_profile('delta_qv_Nocloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+    # cdef:
+    #     Py_ssize_t imin    = 0
+    #     Py_ssize_t jmin    = 0
+    #     Py_ssize_t kmin    = 0
+    #     Py_ssize_t imax    = Gr.dims.nlg[0]
+    #     Py_ssize_t jmax    = Gr.dims.nlg[1]
+    #     Py_ssize_t kmax    = Gr.dims.nlg[2]
+    #     Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
+    #     Py_ssize_t jstride = Gr.dims.nlg[2]
+    #     Py_ssize_t ishift, jshift, ijk, i,j,k, iter = 0
+    #     Py_ssize_t ql_shift     = DV.get_varshift(Gr, 'ql')
+    #     Py_ssize_t qt_std_shift = PV.get_varshift(Gr,'qt_std')
+    #     Py_ssize_t qv_std_shift = PV.get_varshift(Gr,'qv_std')
+    #     Py_ssize_t ql_std_shift = PV.get_varshift(Gr,'ql_std')
+    #     Py_ssize_t qt_O18_shift = PV.get_varshift(Gr,'qt_O18')
+    #     Py_ssize_t qv_O18_shift = PV.get_varshift(Gr,'qv_O18')
+    #     Py_ssize_t ql_O18_shift = PV.get_varshift(Gr,'ql_O18')
+    #     double[:] tmp
+    #     double[:] delta_qv       = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+    #     double[:] delta_qt       = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+    #     double[:] delta_ql_cloud = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+    #     double[:] cloud_mask     = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+    #     double[:] no_cloud_mask  = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+    #
+    # with nogil:
+    #     with cython.boundscheck(False):
+    #         for i in xrange(imin,imax):
+    #             ishift = i*istride
+    #             for j in xrange(jmin,jmax):
+    #                 jshift = j*jstride
+    #                 for k in xrange(kmin,kmax):
+    #                     ijk = ishift + jshift + k
+    #                     if PV.values[ql_shift + ijk] > 0.0:
+    #                         cloud_mask[ijk] = 1.0
+    #                         delta_ql_cloud[ijk] = q_2_delta(PV.values[ql_O18_shift + ijk], PV.values[ql_std_shift + ijk])
+    #                     else:
+    #                         no_cloud_mask[ijk] = 1.0 
+    #                     delta_qv[ijk] = q_2_delta(PV.values[qv_O18_shift + ijk], PV.values[qv_std_shift + ijk])
+    #                     delta_qt[ijk] = q_2_delta(PV.values[qt_O18_shift + ijk], PV.values[qt_std_shift + ijk])
+    #
+    #
+    # tmp = Pa.HorizontalMean(Gr, &PV.values[qt_std_shift])
+    # NS.write_profile('qt_std', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+    # 
+    # tmp = Pa.HorizontalMean(Gr, &PV.values[qv_std_shift])
+    # NS.write_profile('qv_std', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+    # 
+    # tmp = Pa.HorizontalMean(Gr, &PV.values[ql_std_shift])
+    # NS.write_profile('ql_std', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+    #
+    # tmp = Pa.HorizontalMean(Gr, &PV.values[qt_O18_shift])
+    # statsIO_isotope_scaling_magnitude(&Gr.dims, &tmp[0]) # scaling back to correct magnitude
+    # NS.write_profile('qt_O18', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+    #
+    # tmp = Pa.HorizontalMean(Gr, &PV.values[ql_O18_shift])
+    # statsIO_isotope_scaling_magnitude(&Gr.dims, &tmp[0]) # scaling back to correct magnitude
+    # NS.write_profile('ql_O18', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+    #
+    # tmp = Pa.HorizontalMean(Gr, &PV.values[qv_O18_shift])
+    # statsIO_isotope_scaling_magnitude(&Gr.dims, &tmp[0]) # scaling back to correct magnitude
+    # NS.write_profile('qv_O18', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+    # 
+    # tmp = Pa.HorizontalMean(Gr, &delta_qv[0])
+    # NS.write_profile('delta_qv', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+    #
+    # tmp = Pa.HorizontalMean(Gr, &delta_qt[0])
+    # NS.write_profile('delta_qt', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+    # 
+    # tmp = Pa.HorizontalMeanConditional(Gr, &delta_ql_cloud[0], &cloud_mask[0])
+    # NS.write_profile('delta_ql_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+    #     
+    # tmp = Pa.HorizontalMeanConditional(Gr, &delta_qv[0], &cloud_mask[0])
+    # NS.write_profile('delta_qv_cloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
+    #
+    # tmp = Pa.HorizontalMeanConditional(Gr, &delta_qv[0], &no_cloud_mask[0])
+    # NS.write_profile('delta_qv_Nocloud', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)   
     return
 cpdef initialize_NS_base(NetCDFIO_Stats NS, Grid.Grid Gr, ParallelMPI.ParallelMPI Pa):
     NS.add_profile('qt_std', Gr, Pa, 'kg/kg', '', 'stander water tracer total')

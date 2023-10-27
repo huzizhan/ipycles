@@ -1165,6 +1165,10 @@ def Sheba():
     namelist['time_stepping']['dt_initial'] = 1.0
     namelist['time_stepping']['dt_max'] = 10.0
     namelist['time_stepping']['t_max'] = 3600.0
+    
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'SB_Ice'
 
     namelist['microphysics'] = {}
     namelist['microphysics']['scheme'] = 'SB_2M'

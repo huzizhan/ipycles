@@ -46,6 +46,8 @@ cdef extern from "entropies.h":
 cdef extern from "isotope_functions.h":
     double C_G_model_O18(double RH,  double temperature, double alpha_k_O18) nogil
     double C_G_model_HDO(double RH,  double temperature, double alpha_k_HDO) nogil
+    double C_G_model_O18_Mpace_ST(double RH,  double temperature, double alpha_k_O18) nogil
+    double C_G_model_HDO_Mpace_ST(double RH,  double temperature, double alpha_k_HDO) nogil
     double equilibrium_fractionation_factor_H2O18_liquid(double temperature) nogil
     double equilibrium_fractionation_factor_HDO_liquid(double temperature) nogil
 
@@ -1495,8 +1497,10 @@ cpdef surface_iso_tracer(Grid.Grid Gr, ReferenceState.ReferenceState Ref,
                 ijk = i * istride + j * jstride + gw
                 ij = i * istride_2d + j
                 RH = PV.values[qt_shift + ijk]/Ref.qtg
-                R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)
-                R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], 1.0)
+                # R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)
+                # R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], 1.0)
+                R_evap_O18 = C_G_model_O18_Mpace_ST(RH, DV.values[t_shift + ijk], 1.0)
+                R_evap_HDO = C_G_model_HDO_Mpace_ST(RH, DV.values[t_shift + ijk], 1.0)
                 PV.tendencies[qt_std_shift + ijk] += qt_flux[ij] * tendency_factor
                 PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
                 PV.tendencies[qt_HDO_shift + ijk] += qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO

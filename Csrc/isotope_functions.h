@@ -67,6 +67,32 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
     return qt_tracer / (1.0+(ql_/qv_)*alpha);
 }
 
+// reference of fresh water fresh water isotope ratio in Lake Tai Hu, see
+// Estimating evaporation over a large and shallow lake using stable isotopic method: 
+// A case study of Lake Taihu, Xiao's 2017
+// reference values are in Fig.5 
+static inline double C_G_model_O18_Mpace_ST(double RH,  double temperature, double alpha_k){
+    double alpha_eq;
+    double R_sur_evap;
+    // in case the relative humidity at surface is large than 1.0
+    double relative_humidity = fmin(RH, 1.0);
+    double R_surfacer_water = 1.9951e-3; // delta_o18 = -5‰
+    alpha_eq = 1.0 / equilibrium_fractionation_factor_O18_liquid(temperature);
+    R_sur_evap = alpha_eq*alpha_k*R_surfacer_water/((1-relative_humidity)+alpha_k*relative_humidity);
+    return R_sur_evap;
+}
+
+static inline double C_G_model_HDO_Mpace_ST(double RH,  double temperature, double alpha_k){
+    double alpha_eq;
+    double R_sur_evap;
+    // in case the relative humidity at surface is large than 1.0
+    double relative_humidity = fmin(RH, 1.0);
+    double R_surfacer_water = 1.52831e-3; // delta_hdo = -20‰
+    alpha_eq = 1.0 / equilibrium_fractionation_factor_HDO_liquid(temperature);
+    R_sur_evap = alpha_eq*alpha_k*R_surfacer_water/((1-relative_humidity)+alpha_k*relative_humidity);
+    return R_sur_evap;
+}
+
 static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
     double alpha_eq;
     double R_sur_evap;

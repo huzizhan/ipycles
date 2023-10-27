@@ -1406,26 +1406,19 @@ cdef class ForcingSheba:
                         PV.tendencies[v_shift + ijk] += nudge_source_v[k]
         
         cdef:
-            Py_ssize_t qt_O18_shift
             Py_ssize_t qt_std_shift
-            double iso_ratio, qt_O18_, qt_
+            Py_ssize_t qt_O18_shift
+            Py_ssize_t qt_HDO_shift
         if self.isotope_tracers:
-            qt_O18_shift = PV.get_varshift(Gr, "qt_O18")
             qt_std_shift = PV.get_varshift(Gr, "qt_std")
-            with nogil:
-                for i in xrange(imin,imax):
-                    ishift = i * istride
-                    for j in xrange(jmin,jmax):
-                        jshift = j * jstride
-                        for k in xrange(kmin,kmax):
-                            ijk = ishift + jshift + k
-                            qt_ = PV.values[qt_std_shift] 
-                            qt_O18_ = PV.values[qt_O18_shift] 
-                            iso_ratio = qt_O18_ / qt_
-                            PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                            PV.tendencies[qt_O18_shift + ijk] += self.dqtdt[k] * iso_ratio
-            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_O18_shift], &PV.tendencies[qt_O18_shift])
-            apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
+            qt_O18_shift = PV.get_varshift(Gr, "qt_O18")
+            qt_HDO_shift = PV.get_varshift(Gr, "qt_HDO")
+            
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_O18_shift],&PV.tendencies[qt_O18_shift])
+            apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_HDO_shift],&PV.tendencies[qt_HDO_shift])
+
+            iso_forcing(Gr, RS, PV, DV, self.dqtdt)
 
         return
 
