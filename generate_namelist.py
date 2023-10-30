@@ -874,17 +874,18 @@ def Isdac():
     namelist['time_stepping']['t_max'] = 3600.0 * 12
 
 
-    # namelist['microphysics'] = {}
-    # namelist['microphysics']['scheme'] = 'SB_2M'
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'Arctic_1M'
-    namelist['microphysics']['phase_partitioning'] = 'Arctic'
-    namelist['microphysics']['n0_ice'] = 1.0e7
+    namelist['microphysics']['scheme'] = 'SB_2M'
+    namelist['microphysics']['ice_nuclei'] = 2.0e2
+    # namelist['microphysics'] = {}
+    # namelist['microphysics']['scheme'] = 'Arctic_1M'
+    # namelist['microphysics']['phase_partitioning'] = 'Arctic'
+    # namelist['microphysics']['n0_ice'] = 1.0e7
 
     namelist['isotopetracers'] = {}
     namelist['isotopetracers']['use_tracers'] = True
-    # namelist['isotopetracers']['scheme'] = 'SB_Ice'
-    namelist['isotopetracers']['scheme'] = 'Arctic_1M'
+    namelist['isotopetracers']['scheme'] = 'SB_Ice'
+    # namelist['isotopetracers']['scheme'] = 'Arctic_1M'
     
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
@@ -970,6 +971,7 @@ def IsdacCC():
     namelist['isotopetracers'] = {}
     namelist['isotopetracers']['use_tracers'] = True
     namelist['isotopetracers']['scheme'] = 'SB_Ice'
+    # namelist['isotopetracers']['scheme'] = 'Arctic_1M'
 
     namelist['microphysics'] = {}
     namelist['microphysics']['scheme'] = 'SB_2M'
@@ -1076,10 +1078,19 @@ def Mpace():
     namelist['time_stepping']['dt_max'] = 10.0
     namelist['time_stepping']['t_max'] = 3600.0 * 12.0
 
+    namelist['isotopetracers'] = {}
+    namelist['isotopetracers']['use_tracers'] = True
+    namelist['isotopetracers']['scheme'] = 'Arctic_1M'
+    # namelist['isotopetracers']['scheme'] = 'SB_Ice'
+
     namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'Arctic_1M'
-    namelist['microphysics']['phase_partitioning'] = 'Arctic'
-    namelist['microphysics']['n0_ice'] = 1.0e7
+    namelist['microphysics']['scheme'] = 'SB_2M'
+    namelist['microphysics']['ice_nuclei'] = 2.0e2
+
+    # namelist['microphysics'] = {}
+    # namelist['microphysics']['scheme'] = 'Arctic_1M'
+    # namelist['microphysics']['phase_partitioning'] = 'Arctic'
+    # namelist['microphysics']['n0_ice'] = 1.0e7
 
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
@@ -1169,6 +1180,7 @@ def Sheba():
     namelist['isotopetracers'] = {}
     namelist['isotopetracers']['use_tracers'] = True
     namelist['isotopetracers']['scheme'] = 'SB_Ice'
+    # namelist['isotopetracers']['scheme'] = 'Arctic_1M'
 
     namelist['microphysics'] = {}
     namelist['microphysics']['scheme'] = 'SB_2M'

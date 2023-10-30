@@ -211,7 +211,6 @@ cdef class ForcingBomex:
         
         cdef:
             # isotope tracer components variables and indexes
-            double iso_ratio_O18, iso_ratio_HDO
             Py_ssize_t qt_O18_shift
             Py_ssize_t qt_HDO_shift
             Py_ssize_t qt_std_shift
@@ -220,18 +219,19 @@ cdef class ForcingBomex:
             qt_O18_shift = PV.get_varshift(Gr, "qt_O18")
             qt_HDO_shift = PV.get_varshift(Gr, "qt_HDO")
             qt_std_shift = PV.get_varshift(Gr, "qt_std")
-            with nogil:
-                for i in xrange(imin,imax):
-                    ishift = i * istride
-                    for j in xrange(jmin,jmax):
-                        jshift = j * jstride
-                        for k in xrange(kmin,kmax):
-                            ijk = ishift + jshift + k
-                            iso_ratio_O18 = PV.values[qt_O18_shift + ijk] / PV.values[qt_std_shift + ijk]
-                            iso_ratio_HDO = PV.values[qt_HDO_shift + ijk] / PV.values[qt_std_shift + ijk]
-                            PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                            PV.tendencies[qt_O18_shift + ijk] += self.dqtdt[k] * iso_ratio_O18
-                            PV.tendencies[qt_HDO_shift + ijk] += self.dqtdt[k] * iso_ratio_HDO
+            # with nogil:
+            #     for i in xrange(imin,imax):
+            #         ishift = i * istride
+            #         for j in xrange(jmin,jmax):
+            #             jshift = j * jstride
+            #             for k in xrange(kmin,kmax):
+            #                 ijk = ishift + jshift + k
+            #                 iso_ratio_O18 = PV.values[qt_O18_shift + ijk] / PV.values[qt_std_shift + ijk]
+            #                 iso_ratio_HDO = PV.values[qt_HDO_shift + ijk] / PV.values[qt_std_shift + ijk]
+            #                 PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
+            #                 PV.tendencies[qt_O18_shift + ijk] += self.dqtdt[k] * iso_ratio_O18
+            #                 PV.tendencies[qt_HDO_shift + ijk] += self.dqtdt[k] * iso_ratio_HDO
+            iso_forcing(Gr, RS, PV, DV, self.dqtdt)
             apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_O18_shift], &PV.tendencies[qt_O18_shift])
             apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_HDO_shift], &PV.tendencies[qt_HDO_shift])
             apply_subsidence(&Gr.dims, &RS.rho0[0], &RS.rho0_half[0], &self.subsidence[0], &PV.values[qt_std_shift], &PV.tendencies[qt_std_shift])
@@ -607,20 +607,21 @@ cdef class ForcingRico:
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_std_shift],&PV.tendencies[qt_std_shift])
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_O18_shift],&PV.tendencies[qt_O18_shift])
             apply_subsidence(&Gr.dims,&RS.rho0[0],&RS.rho0_half[0],&self.subsidence[0],&PV.values[qt_HDO_shift],&PV.tendencies[qt_HDO_shift])
-        
-            with nogil:
-                for i in xrange(imin,imax):
-                    ishift = i * istride
-                    for j in xrange(jmin,jmax):
-                        jshift = j * jstride
-                        for k in xrange(kmin,kmax):
-                            ijk = ishift + jshift + k
-                            iso_ratio_O18 = PV.values[qt_O18_shift + ijk] / PV.values[qt_std_shift + ijk]
-                            iso_ratio_HDO = PV.values[qt_HDO_shift + ijk] / PV.values[qt_std_shift + ijk]
-
-                            PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
-                            PV.tendencies[qt_O18_shift + ijk] += self.dqtdt[k] * iso_ratio_O18
-                            PV.tendencies[qt_HDO_shift + ijk] += self.dqtdt[k] * iso_ratio_HDO
+            
+            iso_forcing(Gr, RS, PV, DV, self.dqtdt)
+            # with nogil:
+            #     for i in xrange(imin,imax):
+            #         ishift = i * istride
+            #         for j in xrange(jmin,jmax):
+            #             jshift = j * jstride
+            #             for k in xrange(kmin,kmax):
+            #                 ijk = ishift + jshift + k
+            #                 iso_ratio_O18 = PV.values[qt_O18_shift + ijk] / PV.values[qt_std_shift + ijk]
+            #                 iso_ratio_HDO = PV.values[qt_HDO_shift + ijk] / PV.values[qt_std_shift + ijk]
+            #
+            #                 PV.tendencies[qt_std_shift + ijk] += self.dqtdt[k]
+            #                 PV.tendencies[qt_O18_shift + ijk] += self.dqtdt[k] * iso_ratio_O18
+            #                 PV.tendencies[qt_HDO_shift + ijk] += self.dqtdt[k] * iso_ratio_HDO
 
         return
 
@@ -950,7 +951,6 @@ cdef class ForcingIsdacCC:
         self.initial_u = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.initial_v = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
         self.w_half =  np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
-        self.initial_qt_O18 = np.zeros(Gr.dims.nlg[2],dtype=np.double,order='c')
 
         cdef:
             Py_ssize_t k
@@ -1019,6 +1019,7 @@ cdef class ForcingIsdacCC:
         cdef:
             Py_ssize_t qt_std_shift
             Py_ssize_t qt_O18_shift
+            Py_ssize_t qt_HDO_shift
 
         # Add Focing for tracers: std+iso
         if self.isotope_tracers:
