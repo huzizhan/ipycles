@@ -994,7 +994,6 @@ cdef class SurfaceZGILS(SurfaceBase):
             Py_ssize_t jstride = Gr.dims.nlg[2]
             Py_ssize_t istride_2d = Gr.dims.nlg[1]
 
-
             double ustar, t_flux, b_flux
             double theta_rho_b, Nb2, Ri
             double zb = Gr.dims.dx[2] * 0.5
@@ -1003,8 +1002,6 @@ cdef class SurfaceZGILS(SurfaceBase):
 
             double pv_star = self.CC.LT.fast_lookup(self.T_surface)
             double qv_star = eps_v * pv_star/(Ref.Pg + (eps_v-1.0)*pv_star)
-
-
 
             # Find the surface entropy
             double pd_star = Ref.Pg - pv_star
@@ -1232,7 +1229,6 @@ cdef class SurfaceMpace(SurfaceBase):
 
         return
 
-
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
                  DiagnosticVariables.DiagnosticVariables DV,  ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS):
 
@@ -1251,7 +1247,6 @@ cdef class SurfaceMpace(SurfaceBase):
             double [:] cm = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
             double [:] windspeed = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
 
-
         compute_windspeed(&Gr.dims, &PV.values[u_shift], &PV.values[v_shift], &windspeed[0],Ref.u0, Ref.v0, self.gustiness)
 
         cdef:
@@ -1264,7 +1259,6 @@ cdef class SurfaceMpace(SurfaceBase):
             Py_ssize_t istride_2d = Gr.dims.nlg[1]
 
             double lam, lv, pv, pd, sv, sd
-
 
         if 'ql' in DV.name_index:
             ql_shift = DV.get_varshift(Gr, 'ql')
@@ -1303,7 +1297,6 @@ cdef class SurfaceMpace(SurfaceBase):
                         sd = sd_c(pd,DV.values[t_shift+ijk])
                         self.qt_flux[ij] = self.fq / lv / 1.22
                         self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk] + self.fq*(sv - sd)/lv)
-        
 
             for i in xrange(gw, imax-gw):
                 for j in xrange(gw, jmax-gw):
@@ -1315,6 +1308,7 @@ cdef class SurfaceMpace(SurfaceBase):
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa,TS)
         if self.isotope_tracers:
             surface_iso_tracer(Gr, Ref, PV, DV, self.qt_flux)    
+            # surface_iso_tracer_change_R(Gr, Ref, PV, DV, self.qt_flux)    
         return
 
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
@@ -1372,7 +1366,6 @@ cdef class SurfaceSheba(SurfaceBase):
             double z1 = Gr.dims.dx[2] * 0.5
             double [:] cm = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
             double [:] windspeed = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
-
 
         compute_windspeed(&Gr.dims, &PV.values[u_shift], &PV.values[v_shift], &windspeed[0],Ref.u0, Ref.v0, self.gustiness)
 
@@ -1497,8 +1490,40 @@ cpdef surface_iso_tracer(Grid.Grid Gr, ReferenceState.ReferenceState Ref,
                 ijk = i * istride + j * jstride + gw
                 ij = i * istride_2d + j
                 RH = PV.values[qt_shift + ijk]/Ref.qtg
-                # R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)
-                # R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], 1.0)
+                R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)
+                R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], 1.0)
+                PV.tendencies[qt_std_shift + ijk] += qt_flux[ij] * tendency_factor
+                PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
+                PV.tendencies[qt_HDO_shift + ijk] += qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO
+
+cpdef surface_iso_tracer_change_R(Grid.Grid Gr, ReferenceState.ReferenceState Ref, 
+        PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
+        double[:] qt_flux):
+    
+    cdef:
+        Py_ssize_t i,j, ijk, ij
+        Py_ssize_t gw = Gr.dims.gw
+        Py_ssize_t imax = Gr.dims.nlg[0]
+        Py_ssize_t jmax = Gr.dims.nlg[1]
+        Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
+        Py_ssize_t jstride = Gr.dims.nlg[2]
+        Py_ssize_t istride_2d = Gr.dims.nlg[1]
+        double dzi = 1.0/Gr.dims.dx[2]
+        double RH
+        double R_evap_O18, R_evap_HDO
+        double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
+        Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
+        Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
+        Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
+        Py_ssize_t qt_O18_shift = PV.get_varshift(Gr, 'qt_O18')
+        Py_ssize_t qt_HDO_shift = PV.get_varshift(Gr, 'qt_HDO')
+
+    with nogil:
+        for i in xrange(gw, imax-gw):
+            for j in xrange(gw,jmax-gw):
+                ijk = i * istride + j * jstride + gw
+                ij = i * istride_2d + j
+                RH = PV.values[qt_shift + ijk]/Ref.qtg
                 R_evap_O18 = C_G_model_O18_Mpace_ST(RH, DV.values[t_shift + ijk], 1.0)
                 R_evap_HDO = C_G_model_HDO_Mpace_ST(RH, DV.values[t_shift + ijk], 1.0)
                 PV.tendencies[qt_std_shift + ijk] += qt_flux[ij] * tendency_factor

@@ -1,4 +1,5 @@
 import argparse
+
 import json
 import pprint
 from sys import exit
@@ -976,6 +977,7 @@ def IsdacCC():
     namelist['microphysics'] = {}
     namelist['microphysics']['scheme'] = 'SB_2M'
     namelist['microphysics']['ice_nuclei'] = 2.0e2
+    # namelist['microphysics']['ice_nuclei'] = 5.0e2
 
     # namelist['microphysics'] = {}
     # namelist['microphysics']['scheme'] = 'Arctic_1M'
@@ -1048,7 +1050,7 @@ def IsdacCC():
     namelist['meta'] = {}
     namelist['meta']['simname'] = 'IsdacCC'
     namelist['meta']['casename'] = 'IsdacCC'
-    namelist['meta']['describe'] = 'IsdacCC-Iso with inversion strenght as 5K'
+    namelist['meta']['describe'] = 'IsdacCC-Iso with SB_2M'
 
     return namelist
 
