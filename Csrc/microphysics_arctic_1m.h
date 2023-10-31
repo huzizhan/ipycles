@@ -786,7 +786,6 @@ void entropy_source_melt(const struct DimStruct *dims, double* restrict temperat
     return;
 };
 
-
 void entropy_source_heating_rain(const struct DimStruct *dims, double* restrict temperature, double* restrict Twet, double* restrict qrain,
                                double* restrict w_qrain, double* restrict w,  double* restrict entropy_tendency){
 
@@ -850,7 +849,6 @@ void entropy_source_heating_snow(const struct DimStruct *dims, double* restrict 
     return;
 
 };
-
 
 void entropy_source_drag(const struct DimStruct *dims, double* restrict temperature,  double* restrict qprec,
                             double* restrict w_qprec, double* restrict entropy_tendency){
@@ -975,7 +973,6 @@ void evaporation_snow_wrapper(const struct DimStruct *dims, struct LookupStruct 
     return;
 
 };
-
 
 void autoconversion_rain_wrapper(const struct DimStruct *dims, double* restrict density, double ccn,
                                  double* restrict ql, double* restrict qrain, double* restrict nrain,

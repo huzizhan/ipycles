@@ -98,6 +98,32 @@ cdef extern from "microphysics_sb_ice.h":
         double* qt_tendency, double* precip_rate, double* evap_rate) nogil
     void sb_2m_qt_source_debug(Grid.DimStruct *dims, 
         double* qt_tendency, double* qr_tend, double* qs_tend) nogil
+    # ========== Wrapper ============
+    void sb_ice_deposition_wrapper(Grid.DimStruct *dims, 
+        Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double* temperature, double* qt, double* p0, double* density,
+        double* qi, double* ni, double dt, double* qi_tendency, double* ni_tendency, 
+        double* ice_dep_tend,double* ice_sub_tend,double* qv_tendency) nogil
+
+    void sb_snow_deposition_wrapper(Grid.DimStruct *dims, 
+        Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double* temperature, double* qt, double dt, 
+        double* qs_tendency, double* ns_tendency, 
+        double* snow_dep_tend,double* snow_sub_tend,double* qv_tendency) nogil
+
+    void sb_ice_self_collection_wrapper(Grid.DimStruct *dims, 
+        double* temperature, double* qi, double* ni, double* density, 
+        double dt, double* qs_tendency, double* ns_tendency, 
+        double* qi_tendency, double* ni_tendency) nogil
+
+    void sb_snow_self_collection_wrapper(Grid.DimStruct *dims, 
+        double* temperature, double* qs, double* ns, double* density, 
+        double dt, double* ns_tendency) nogil
+    
+    void sb_snow_ice_collection_wrapper(Grid.DimStruct *dims, 
+        double* temperature, double* qi, double* ni, 
+        double* qs, double* ns, double* density, double dt,
+        double* qs_tendency, double* qi_tendency, double* ni_tendency) nogil
 
 cdef class No_Microphysics_SB:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -309,6 +335,12 @@ cdef class Microphysics_SB_2M:
         NS.add_profile('S_liq', Gr, Pa, '', '', '')
         NS.add_profile('S_ice', Gr, Pa, '', '', '')
 
+        NS.add_profile('qi_dep_sub_tend', Gr, Pa, '','','')
+        NS.add_profile('ni_dep_sub_tend', Gr, Pa, '','','')
+        NS.add_profile('qi_dep_tend', Gr, Pa, '','','')
+        NS.add_profile('qi_sub_tend', Gr, Pa, '','','')
+        NS.add_profile('qv_ice_dep_sub_tend', Gr, Pa, '','','')
+
         return
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, Th, PrognosticVariables.PrognosticVariables PV, 
@@ -423,8 +455,59 @@ cdef class Microphysics_SB_2M:
             NetCDFIO_Stats NS, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa):
 
         cdef:
+            Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
+            Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
+            Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
+            Py_ssize_t nl_shift = PV.get_varshift(Gr,'nl')
+            Py_ssize_t qi_shift = PV.get_varshift(Gr,'qi')
+            Py_ssize_t ni_shift = PV.get_varshift(Gr,'ni')
+            Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
+            Py_ssize_t nr_shift = PV.get_varshift(Gr, 'nr')
+            Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
+            Py_ssize_t ns_shift = PV.get_varshift(Gr, 'ns')
+            Py_ssize_t qs_shift = PV.get_varshift(Gr, 'qs')
+            Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             double[:] tmp
+            double[:] qi_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ni_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qi_dep_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qi_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_ice_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+            double[:] qs_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ns_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qs_dep_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qs_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qv_snow_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+            double[:] qi_iceself_col_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ni_iceself_col_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qs_iceself_col_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ns_iceself_col_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+            double[:] ns_self_col_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            
+            double[:] qs_snow_col_ice_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qi_snow_col_ice_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ni_snow_col_ice_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+    
         
+        sb_ice_deposition_wrapper(&Gr.dims, 
+            &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp,
+            &DV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0], &Ref.rho0_half[0],
+            &PV.values[qi_shift], &PV.values[ni_shift], TS.dt, 
+            &qi_dep_sub_tend[0], &ni_dep_sub_tend[0],
+            &qi_dep_tend[0], &qi_sub_tend[0], &qv_ice_dep_sub_tend[0])
+
+        tmp = Pa.HorizontalMean(Gr, &qi_dep_sub_tend[0])
+        NS.write_profile('qi_dep_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_dep_tend[0])
+        NS.write_profile('qi_dep_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_sub_tend[0])
+        NS.write_profile('qi_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qv_ice_dep_sub_tend[0])
+        NS.write_profile('qv_ice_dep_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
         tmp = Pa.HorizontalMean(Gr, &self.precip_rate[0])
         NS.write_profile('precip_rate', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &self.evap_rate[0])
