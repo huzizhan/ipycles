@@ -510,11 +510,11 @@ cdef class RadiationIsdac(RadiationBase):
 
         if 'ql' in DV.name_index:
             ql_shift = DV.get_varshift(Gr, 'ql')
-            ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[ql_shift])
+            ql_pencils = self.z_pencil.forward_double(&Gr.dims, Pa, &DV.values[ql_shift])
             # use_ice = True  # testing radiation without ice effect
         if 'ql' in PV.name_index:
             ql_shift = PV.get_varshift(Gr, 'ql')
-            ql_pencil = self.z_pencil.forward_double(&Gr.dims, Pa, &PV.values[ql_shift])
+            ql_pencils = self.z_pencil.forward_double(&Gr.dims, Pa, &PV.values[ql_shift])
 
         with nogil:
             for pi in xrange(self.z_pencil.n_local_pencils):
