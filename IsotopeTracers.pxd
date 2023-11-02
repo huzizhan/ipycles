@@ -44,7 +44,8 @@ cdef class IsotopeTracers_NoMicrophysics:
             Microphysics.No_Microphysics_SA Micro_SA, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
             DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
-            ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
+            ReferenceState.ReferenceState Ref, Microphysics.No_Microphysics_SA Micro_SA, 
+            NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
 cdef class IsotopeTracers_SB_Liquid:
     cdef public bint isotope_tracer
@@ -58,7 +59,8 @@ cdef class IsotopeTracers_SB_Liquid:
             Microphysics_SB_Liquid.Microphysics_SB_Liquid Micro_SB_Liquid, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
             DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
-            ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
+            ReferenceState.ReferenceState Ref, Microphysics_SB_Liquid.Microphysics_SB_Liquid Micro_SB_Liquid, 
+            NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
 cdef class IsotopeTracers_Arctic_1M:
 
@@ -72,7 +74,8 @@ cdef class IsotopeTracers_Arctic_1M:
             Microphysics_Arctic_1M.Microphysics_Arctic_1M Micro_Arctic_1M, ThermodynamicsSA.ThermodynamicsSA Th_sa, 
             DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
-            ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
+            ReferenceState.ReferenceState Ref, Microphysics_Arctic_1M.Microphysics_Arctic_1M Micro_Arctic_1M, 
+            NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
 cdef class IsotopeTracers_SBSI:
     
@@ -133,4 +136,5 @@ cdef class IsotopeTracers_SB_Ice:
         Microphysics_SB_2M.Microphysics_SB_2M Micro_SB_2M, ThermodynamicsSB.ThermodynamicsSB Th_sb, 
         DiagnosticVariables.DiagnosticVariables DV, TimeStepping.TimeStepping TS, ParallelMPI.ParallelMPI Pa)
     cpdef stats_io(self, Grid.Grid Gr, PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
-            ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
+            ReferenceState.ReferenceState Ref,Microphysics_SB_2M.Microphysics_SB_2M Micro_SB_2M,
+            NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)

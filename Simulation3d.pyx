@@ -254,7 +254,8 @@ class Simulation3d:
                 self.MD.stats_io(self.Gr, self.PV, self.DV, self.Ke, self.StatsIO, self.Pa)
                 self.Ke.stats_io(self.Gr,self.Ref,self.PV,self.StatsIO,self.Pa)
                 self.Tr.stats_io(self.Gr, self.PV, self.DV, self.TS, self.StatsIO, self.Pa)
-                self.IsoTracer.stats_io(self.Gr, self.PV, self.DV, self.Ref, self.StatsIO, self.Pa)
+                if self.IsoTracer.isotope_tracer:
+                    self.IsoTracer.stats_io(self.Gr, self.PV, self.DV, self.Ref, slef.Micro, self.StatsIO, self.Pa)
                 self.Ra.stats_io(self.Gr, self.Ref, self.DV, self.StatsIO, self.Pa)
                 self.Budg.stats_io(self.Sur, self.StatsIO, self.Pa)
                 self.Aux.stats_io(self.Gr, self.Ref, self.PV, self.DV, self.MA, self.MD, self.StatsIO, self.Pa)

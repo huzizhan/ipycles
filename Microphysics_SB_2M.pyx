@@ -99,6 +99,13 @@ cdef extern from "microphysics_sb_ice.h":
     void sb_2m_qt_source_debug(Grid.DimStruct *dims, 
         double* qt_tendency, double* qr_tend, double* qs_tend) nogil
     # ========== Wrapper ============
+    void sb_2m_prameters_wrapper(Grid.DimStruct *dims, 
+        double* ql, double* nl, double* qi, double* ni,
+        double* qr, double* nr, double* qs, double* ns, double* density, 
+        double* Dm_l, double* Dm_i, double* Dm_r, double* Dm_s,
+        double* mass_l, double* mass_i, double* mass_r, double* mass_s,
+        double* velocity_l, double* velocity_i, double* velocity_r, double* velocity_s)
+
     void sb_ice_deposition_wrapper(Grid.DimStruct *dims, 
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
         double* temperature, double* qt, double* p0, double* density,
@@ -107,8 +114,8 @@ cdef extern from "microphysics_sb_ice.h":
 
     void sb_snow_deposition_wrapper(Grid.DimStruct *dims, 
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
-        double* temperature, double* qt, double dt, 
-        double* qs_tendency, double* ns_tendency, 
+        double* temperature, double* qt, double* p0, double* density,
+        double* qs, double* ns, double dt, double* qs_tendency, double* ns_tendency, 
         double* snow_dep_tend,double* snow_sub_tend,double* qv_tendency) nogil
 
     void sb_ice_self_collection_wrapper(Grid.DimStruct *dims, 
@@ -124,6 +131,20 @@ cdef extern from "microphysics_sb_ice.h":
         double* temperature, double* qi, double* ni, 
         double* qs, double* ns, double* density, double dt,
         double* qs_tendency, double* qi_tendency, double* ni_tendency) nogil
+    
+    void sb_snow_riming_wrapper(Grid.DimStruct *dims, 
+        double* temperature, double* ql, double* nl, double* qr, double* nr, 
+        double* qs, double* ns, double* density, double* qs_tend_dep, double dt,
+        double* ql_tendency, double* nl_tendency, 
+        double* qi_tendency, double* ni_tendency,
+        double* qr_tendency, double* nr_tendency,
+        double* qs_tendency, double* ns_tendency) nogil
+    
+    void sb_snow_melting_wrapper(Grid.DimStruct *dims, 
+        Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
+        double* p0, double* temperature, double* qt, double* qv, double* qs, 
+        double* ns, double* density, double dt, double* qs_tendency, double* ns_tendency,
+        double* qr_tendency, double* nr_tendency) nogil
 
 cdef class No_Microphysics_SB:
     def __init__(self, ParallelMPI.ParallelMPI Par, LatentHeat LH, namelist):
@@ -340,6 +361,50 @@ cdef class Microphysics_SB_2M:
         NS.add_profile('qi_dep_tend', Gr, Pa, '','','')
         NS.add_profile('qi_sub_tend', Gr, Pa, '','','')
         NS.add_profile('qv_ice_dep_sub_tend', Gr, Pa, '','','')
+        
+        NS.add_profile('qs_dep_sub_tend', Gr, Pa, '','','')
+        NS.add_profile('ns_dep_sub_tend', Gr, Pa, '','','')
+        NS.add_profile('qs_dep_tend', Gr, Pa, '','','')
+        NS.add_profile('qs_sub_tend', Gr, Pa, '','','')
+        NS.add_profile('qv_snow_dep_sub_tend', Gr, Pa, '','','')
+            
+        NS.add_profile('qi_iceself_col_tend', Gr, Pa, '','','')
+        NS.add_profile('ni_iceself_col_tend', Gr, Pa, '','','')
+        NS.add_profile('qs_iceself_col_tend', Gr, Pa, '','','')
+        NS.add_profile('ns_iceself_col_tend', Gr, Pa, '','','')
+
+        NS.add_profile('ns_self_col_tend', Gr, Pa, '','','')
+
+        NS.add_profile('qs_snow_col_ice_tend', Gr, Pa, '','','')
+        NS.add_profile('qi_snow_col_ice_tend', Gr, Pa, '','','')
+        NS.add_profile('ni_snow_col_ice_tend', Gr, Pa, '','','')
+            
+        NS.add_profile('ql_riming_tend', Gr, Pa, '', '', '')
+        NS.add_profile('nl_riming_tend', Gr, Pa, '', '', '')
+        NS.add_profile('qr_riming_tend', Gr, Pa, '', '', '')
+        NS.add_profile('nr_riming_tend', Gr, Pa, '', '', '')
+        NS.add_profile('qs_riming_tend', Gr, Pa, '', '', '')
+        NS.add_profile('ns_riming_tend', Gr, Pa, '', '', '')
+        NS.add_profile('qi_riming_tend', Gr, Pa, '', '', '')
+        NS.add_profile('ni_riming_tend', Gr, Pa, '', '', '')
+            
+        NS.add_profile('qs_melting_tend', Gr, Pa, '', '', '')
+        NS.add_profile('ns_melting_tend', Gr, Pa, '', '', '')
+        NS.add_profile('qr_melting_tend', Gr, Pa, '', '', '')
+        NS.add_profile('nr_melting_tend', Gr, Pa, '', '', '')
+            
+        NS.add_profile('Dm_l', Gr, Pa, '','','')
+        NS.add_profile('Dm_i', Gr, Pa, '','','')
+        NS.add_profile('Dm_r', Gr, Pa, '','','')
+        NS.add_profile('Dm_s', Gr, Pa, '','','')
+        NS.add_profile('mass_l', Gr, Pa, '','','')
+        NS.add_profile('mass_i', Gr, Pa, '','','')
+        NS.add_profile('mass_r', Gr, Pa, '','','')
+        NS.add_profile('mass_s', Gr, Pa, '','','')
+        NS.add_profile('velocity_l', Gr, Pa, '','','')
+        NS.add_profile('velocity_i', Gr, Pa, '','','')
+        NS.add_profile('velocity_r', Gr, Pa, '','','')
+        NS.add_profile('velocity_s', Gr, Pa, '','','')
 
         return
 
@@ -468,6 +533,20 @@ cdef class Microphysics_SB_2M:
             Py_ssize_t qs_shift = PV.get_varshift(Gr, 'qs')
             Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
             double[:] tmp
+            
+            double[:] Dm_l = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] Dm_i = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] Dm_r = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] Dm_s = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] mass_l = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] mass_i = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] mass_r = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] mass_s = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] velocity_l = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] velocity_i = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] velocity_r = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] velocity_s = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
             double[:] qi_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ni_dep_sub_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qi_dep_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
@@ -491,6 +570,53 @@ cdef class Microphysics_SB_2M:
             double[:] qi_snow_col_ice_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ni_snow_col_ice_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
     
+            double[:] ql_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nl_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qs_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ns_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qi_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ni_riming_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            
+            double[:] qs_melting_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] ns_melting_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_melting_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_melting_tend = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        
+        sb_2m_prameters_wrapper(&Gr.dims, 
+            &PV.values[ql_shift], &PV.values[nl_shift], &PV.values[qi_shift], &PV.values[ni_shift],
+            &PV.values[qr_shift], &PV.values[nr_shift], &PV.values[qs_shift], &PV.values[ns_shift],
+            &Ref.rho0_half[0], &Dm_l[0], &Dm_i[0], &Dm_r[0], &Dm_s[0],
+            &mass_l[0], &mass_i[0], &mass_r[0], &mass_s[0],
+            &velocity_l[0], &velocity_i[0], &velocity_r[0], &velocity_s[0])
+        tmp = Pa.HorizontalMean(Gr, &Dm_l[0])
+        NS.write_profile('Dm_l', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &Dm_i[0])
+        NS.write_profile('Dm_i', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &Dm_r[0])
+        NS.write_profile('Dm_r', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &Dm_s[0])
+        NS.write_profile('Dm_s', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        tmp = Pa.HorizontalMean(Gr, &mass_l[0])
+        NS.write_profile('mass_l', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &mass_i[0])
+        NS.write_profile('mass_i', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &mass_r[0])
+        NS.write_profile('mass_r', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &mass_s[0])
+        NS.write_profile('mass_s', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        tmp = Pa.HorizontalMean(Gr, &velocity_l[0])
+        NS.write_profile('velocity_l', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &velocity_i[0])
+        NS.write_profile('velocity_i', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &velocity_r[0])
+        NS.write_profile('velocity_r', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &velocity_s[0])
+        NS.write_profile('velocity_s', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         
         sb_ice_deposition_wrapper(&Gr.dims, 
             &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp,
@@ -498,7 +624,6 @@ cdef class Microphysics_SB_2M:
             &PV.values[qi_shift], &PV.values[ni_shift], TS.dt, 
             &qi_dep_sub_tend[0], &ni_dep_sub_tend[0],
             &qi_dep_tend[0], &qi_sub_tend[0], &qv_ice_dep_sub_tend[0])
-
         tmp = Pa.HorizontalMean(Gr, &qi_dep_sub_tend[0])
         NS.write_profile('qi_dep_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &qi_dep_tend[0])
@@ -507,6 +632,97 @@ cdef class Microphysics_SB_2M:
         NS.write_profile('qi_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &qv_ice_dep_sub_tend[0])
         NS.write_profile('qv_ice_dep_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        sb_snow_deposition_wrapper(&Gr.dims, 
+            &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp,
+            &DV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0], &Ref.rho0_half[0],
+            &PV.values[qs_shift], &PV.values[ns_shift], TS.dt, 
+            &qs_dep_sub_tend[0], &ns_dep_sub_tend[0],
+            &qs_dep_tend[0], &qs_sub_tend[0], &qv_snow_dep_sub_tend[0])
+        tmp = Pa.HorizontalMean(Gr, &qs_dep_sub_tend[0])
+        NS.write_profile('qs_dep_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qs_dep_tend[0])
+        NS.write_profile('qs_dep_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qs_sub_tend[0])
+        NS.write_profile('qs_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qv_snow_dep_sub_tend[0])
+        NS.write_profile('qv_snow_dep_sub_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        sb_ice_self_collection_wrapper(&Gr.dims,
+            &PV.values[t_shift], &PV.values[qi_shift], &PV.values[ni_shift],
+            &Ref.rho0_half[0], TS.dt, &qs_iceself_col_tend[0], &ns_self_col_tend[0],
+            &qi_iceself_col_tend[0], &ni_iceself_col_tend[0])
+        
+        tmp = Pa.HorizontalMean(Gr, &qs_iceself_col_tend[0])
+        NS.write_profile('qs_iceself_col_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ns_self_col_tend[0])
+        NS.write_profile('ns_iceself_col_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_iceself_col_tend[0])
+        NS.write_profile('qi_iceself_col_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ni_iceself_col_tend[0])
+        NS.write_profile('ni_iceself_col_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        sb_snow_self_collection_wrapper(&Gr.dims,
+            &PV.values[t_shift], &PV.values[qs_shift], &PV.values[ns_shift],
+            &Ref.rho0_half[0], TS.dt, &ns_self_col_tend[0])
+    
+        tmp = Pa.HorizontalMean(Gr, &ns_self_col_tend[0])
+        NS.write_profile('ns_self_col_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        sb_snow_ice_collection_wrapper(&Gr.dims,
+            &PV.values[t_shift], &PV.values[qs_shift], &PV.values[ns_shift],
+            &PV.values[qi_shift], &PV.values[ni_shift],
+            &Ref.rho0_half[0], TS.dt, &qs_snow_col_ice_tend[0],
+            &qi_snow_col_ice_tend[0], &ni_snow_col_ice_tend[0])
+
+        tmp = Pa.HorizontalMean(Gr, &qs_snow_col_ice_tend[0])
+        NS.write_profile('qs_snow_col_ice_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_snow_col_ice_tend[0])
+        NS.write_profile('qi_snow_col_ice_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ni_snow_col_ice_tend[0])
+        NS.write_profile('ni_snow_col_ice_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        # TODO: diagnose riming effect of snow riming effect
+        # in current stage all values are zero
+        sb_snow_riming_wrapper(&Gr.dims,
+            &PV.values[t_shift], &PV.values[ql_shift], &PV.values[nl_shift],
+            &PV.values[qr_shift], &PV.values[nr_shift], &PV.values[qs_shift], 
+            &PV.values[ns_shift], &Ref.rho0_half[0], &qs_dep_sub_tend[0], TS.dt, 
+            &ql_riming_tend[0], &nl_riming_tend[0], &qi_riming_tend[0], &ni_riming_tend[0],
+            &qr_riming_tend[0], &nr_riming_tend[0], &qs_riming_tend[0], &ns_riming_tend[0])
+
+        tmp = Pa.HorizontalMean(Gr, &ql_riming_tend[0])
+        NS.write_profile('ql_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &nl_riming_tend[0])
+        NS.write_profile('nl_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qr_riming_tend[0])
+        NS.write_profile('qr_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &nr_riming_tend[0])
+        NS.write_profile('nr_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qs_riming_tend[0])
+        NS.write_profile('qs_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ns_riming_tend[0])
+        NS.write_profile('ns_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qi_riming_tend[0])
+        NS.write_profile('qi_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ni_riming_tend[0])
+        NS.write_profile('ni_riming_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
+        sb_snow_melting_wrapper(&Gr.dims, 
+            &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp,
+            &Ref.p0_half[0], &PV.values[t_shift], &PV.values[qt_shift], &PV.values[qv_shift], 
+            &PV.values[qs_shift], &PV.values[ns_shift], &Ref.rho0_half[0], TS.dt, 
+            &qs_melting_tend[0], &ns_melting_tend[0], 
+            &qr_melting_tend[0], &nr_melting_tend[0])
+        
+        tmp = Pa.HorizontalMean(Gr, &qs_melting_tend[0])
+        NS.write_profile('qs_melting_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ns_melting_tend[0])
+        NS.write_profile('ns_melting_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qr_melting_tend[0])
+        NS.write_profile('qr_melting_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &nr_melting_tend[0])
+        NS.write_profile('nr_melting_tend', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
 
         tmp = Pa.HorizontalMean(Gr, &self.precip_rate[0])
         NS.write_profile('precip_rate', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)

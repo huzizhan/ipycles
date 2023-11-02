@@ -2380,6 +2380,81 @@ void sb_entropy_source_drag_tmp(
 
 
 /// ================ To Facilitate Output ================
+void sb_2m_prameters_wrapper(
+        const struct DimStruct *dims, 
+        double* restrict ql,
+        double* restrict nl,
+        double* restrict qi,
+        double* restrict ni,
+        double* restrict qr,
+        double* restrict nr,
+        double* restrict qs,
+        double* restrict ns,
+        double* restrict density,
+        double* restrict Dm_l,
+        double* restrict Dm_i,
+        double* restrict Dm_r,
+        double* restrict Dm_s,
+        double* restrict mass_l,
+        double* restrict mass_i,
+        double* restrict mass_r,
+        double* restrict mass_s,
+        double* restrict velocity_l,
+        double* restrict velocity_i,
+        double* restrict velocity_r,
+        double* restrict velocity_s
+    ){
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+            
+                double ql_tmp = fmax(ql[ijk],0.0);
+                double nl_tmp = fmax(fmin(nl[ijk], ql_tmp/LIQUID_MIN_MASS),ql_tmp/LIQUID_MAX_MASS);
+                double qi_tmp = fmax(qi[ijk],0.0);
+                double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+                double qr_tmp = fmax(qr[ijk],0.0);
+                double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                double qs_tmp = fmax(qs[ijk],0.0);
+                double ns_tmp = fmax(fmin(ns[ijk], qs_tmp/SB_SNOW_MIN_MASS),qs_tmp/SB_SNOW_MAX_MASS);
+                
+                double liquid_mass = microphysics_mean_mass(nl_tmp, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
+                Dm_l[ijk] =  cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
+                velocity_l[ijk] = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[k]);
+                mass_l[ijk] = liquid_mass;
+
+                double ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);// average mass of cloud droplets
+                Dm_i[ijk] = SB_ICE_A * pow(ice_mass, SB_ICE_B);
+                velocity_i[ijk] = SB_ICE_alpha * pow(ice_mass, SB_ICE_beta) * sqrt(DENSITY_SB/density[k]);
+                mass_i[ijk] = ice_mass;
+
+                double rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS); //average mass of rain droplet
+                Dm_r[ijk] = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi); // mass weighted diameter of rain droplets
+                velocity_r[ijk] = 159.0 * pow(rain_mass, 0.266) * sqrt(DENSITY_SB/density[k]);
+                mass_r[ijk] = rain_mass;
+
+                //obtain some parameters of snow
+                double snow_mass = microphysics_mean_mass(ns_tmp, qs_tmp, SB_SNOW_MIN_MASS, SB_SNOW_MAX_MASS);
+                Dm_s[ijk] = SB_SNOW_A * pow(snow_mass, SB_SNOW_B);
+                velocity_s[ijk] = SB_SNOW_alpha * pow(snow_mass, SB_SNOW_beta) * sqrt(DENSITY_SB/density[k]);
+                mass_s[ijk] = snow_mass;
+            }
+        }
+    }
+    return;
+}
+
 void  sb_ice_deposition_wrapper(
         const struct DimStruct *dims, 
         struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
@@ -2571,10 +2646,10 @@ void sb_snow_self_collection_wrapper(
 void sb_snow_ice_collection_wrapper(
         const struct DimStruct *dims, 
         double* restrict temperature, 
-        double* restrict qi,         // ice specific humidity
-        double* restrict ni,         // ice number density
         double* restrict qs,         // ice specific humidity
         double* restrict ns,         // ice number density
+        double* restrict qi,
+        double* restrict ni,
         double* restrict density,
         double dt,
         double* restrict qs_tendency,
@@ -2619,10 +2694,125 @@ void sb_snow_ice_collection_wrapper(
     return;
 }
 
-// void sb_snow_riming_wrapper(){
-//
-// }
-//
-// void sb_snow_melting_wrapper(){
-//
-// }
+void sb_snow_riming_wrapper(
+        const struct DimStruct *dims, 
+        double* restrict temperature, 
+        double* restrict ql,
+        double* restrict nl,
+        double* restrict qr,
+        double* restrict nr,
+        double* restrict qs,
+        double* restrict ns,
+        double* restrict density,
+        double* restrict qs_tend_dep,
+        double dt,
+        double* restrict ql_tendency,
+        double* restrict nl_tendency,
+        double* restrict qi_tendency,
+        double* restrict ni_tendency,
+        double* restrict qr_tendency,
+        double* restrict nr_tendency,
+        double* restrict qs_tendency,
+        double* restrict ns_tendency
+    ){
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                
+                double ql_tmp = fmax(ql[ijk],0.0);
+                double nl_tmp = fmax(fmin(nl[ijk], ql_tmp/LIQUID_MIN_MASS),ql_tmp/LIQUID_MAX_MASS);
+                double qr_tmp = fmax(qr[ijk],0.0);
+                double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                double qs_tmp = fmax(qs[ijk],0.0);
+                double ns_tmp = fmax(fmin(ns[ijk], qs_tmp/SB_SNOW_MIN_MASS),qs_tmp/SB_SNOW_MAX_MASS);
+
+                //obtain some parameters of cloud droplets
+                double liquid_mass = microphysics_mean_mass(nl_tmp, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
+                double Dm_l =  cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
+                double velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[k]);
+
+                //obtain some parameters of rain droplets
+                double rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS); //average mass of rain droplet
+                double Dm_r = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi); // mass weighted diameter of rain droplets
+                // simplified rain velocity based on equation 28 in SB06
+                double velocity_rain = 159.0 * pow(rain_mass, 0.266) * sqrt(DENSITY_SB/density[k]);
+
+                //obtain some parameters of snow
+                double snow_mass = microphysics_mean_mass(ns_tmp, qs_tmp, SB_SNOW_MIN_MASS, SB_SNOW_MAX_MASS);
+                double Dm_s = SB_SNOW_A * pow(snow_mass, SB_SNOW_B);
+                double velocity_snow = SB_SNOW_alpha * pow(snow_mass, SB_SNOW_beta) * sqrt(DENSITY_SB/density[k]);
+                    
+                sb_snow_riming(temperature[ijk], ql_tmp, nl_tmp, Dm_l, velocity_liquid, 
+                        qr_tmp, nr_tmp, Dm_r, velocity_rain, rain_mass, 
+                        qs_tmp, ns_tmp, Dm_s, velocity_snow, dt, qs_tend_dep[ijk],
+                        &ql_tendency[ijk], &nl_tendency[ijk],
+                        &qi_tendency[ijk], &ni_tendency[ijk],
+                        &qr_tendency[ijk], &nr_tendency[ijk],
+                        &qs_tendency[ijk], &ns_tendency[ijk]);
+            }
+        }
+    }
+    return;
+}
+
+void sb_snow_melting_wrapper(
+        const struct DimStruct *dims, 
+        struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+        double* restrict p0,
+        double* restrict temperature,
+        double* restrict qt,
+        double* restrict qv,
+        double* restrict qs,
+        double* restrict ns,
+        double* restrict density,
+        double dt,
+        double* restrict qs_tendency,
+        double* restrict ns_tendency,
+        double* restrict qr_tendency,
+        double* restrict nr_tendency
+    ){
+    
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                
+                double qs_tmp = fmax(qs[ijk],0.0);
+                double ns_tmp = fmax(fmin(ns[ijk], qs_tmp/SB_SNOW_MIN_MASS),qs_tmp/SB_SNOW_MAX_MASS);
+                double snow_mass = microphysics_mean_mass(ns_tmp, qs_tmp, SB_SNOW_MIN_MASS, SB_SNOW_MAX_MASS);
+                double Dm_s = SB_SNOW_A * pow(snow_mass, SB_SNOW_B);
+                double velocity_snow = SB_SNOW_alpha * pow(snow_mass, SB_SNOW_beta) * sqrt(DENSITY_SB/density[k]);
+                    
+                sb_snow_melting(LT, lam_fp, L_fp, p0[k], temperature[ijk], 
+                        qt[ijk], qv[ijk], qs_tmp, ns_tmp, 
+                        snow_mass, Dm_s, velocity_snow, dt,
+                        &ns_tendency[ijk], &qs_tendency[ijk],
+                        &nr_tendency[ijk], &qr_tendency[ijk]);
+            }
+        }
+    }
+    return;
+}

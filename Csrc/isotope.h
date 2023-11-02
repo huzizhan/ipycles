@@ -1225,7 +1225,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     double iso_type_O18 = 1.0; // 1.0 means O18;
 
                     // ice deposition and sublimation
-                    iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                    iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_O18,
                             temperature[ijk], p0[k], qt_tmp, qi_tmp, qi_O18_tmp,
                             DVAPOR, diff_O18, dep_tend_ice, 
                             &qv_O18_tendency_tmp, &qi_O18_tendency_dep);
@@ -1258,7 +1258,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             &qr_O18_tendency_melt, &qs_O18_tendency_melt);
                     
                     // snow deposition and sublimation
-                    iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                    iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_O18,
                             temperature[ijk], p0[k], qt_tmp, qs_tmp, qs_O18_tmp,
                             DVAPOR, diff_O18, dep_tend_snow, 
                             &qv_O18_tendency_tmp, &qs_O18_tendency_dep);
@@ -1302,7 +1302,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     double iso_type_HDO = 2.0;
 
                     // ice deposition and sublimation
-                    iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                    iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_HDO, 
                             temperature[ijk], p0[k], qt_tmp, qi_tmp, qi_HDO_tmp,
                             DVAPOR, diff_HDO, dep_tend_ice, 
                             &qv_HDO_tendency_tmp, &qi_HDO_tendency_dep);
@@ -1335,7 +1335,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             &qr_HDO_tendency_melt, &qs_HDO_tendency_melt);
                     
                     // snow deposition and sublimation
-                    iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                    iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_HDO,
                             temperature[ijk], p0[k], qt_tmp, qs_tmp, qs_HDO_tmp,
                             DVAPOR, diff_HDO, dep_tend_snow, 
                             &qv_HDO_tendency_tmp, &qs_HDO_tendency_dep);
@@ -1497,6 +1497,217 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                 precip_HDO_rate[ijk] = precip_HDO_tmp/dt;
                 evap_HDO_rate[ijk]   = evap_HDO_tmp/dt;
                 melt_HDO_rate[ijk]   = melt_HDO_tmp/dt;
+            }
+        }
+    }
+    return;
+}
+
+// ================ To Facilitate Output ================
+void sb_iso_ice_nucleation_wapper(
+        const struct DimStruct *dims, 
+        struct LookupStruct *LT,
+        double ice_in,
+        double* restrict temperature, 
+        double* restrict qt,
+        double* restrict p0,
+        double* restrict qv,
+        double* restrict ni,
+        double* restrict qv_O18,
+        double* restrict qv_HDO,
+        double dt,
+        double* restrict qi_tendency,
+        double* restrict qi_O18_tendency,
+        double* restrict qi_HDO_tendency){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                const double dzi = 1.0/dims->dx[2];
+                double qi_tend_nuc, ni_tend_nuc;
+
+                    sb_ice_nucleation_mayer(LT, ice_in,
+                        temperature[ijk], qt[ijk], p0[k], 
+                        qv[ijk], ni[ijk], dt,
+                        &qi_tend_nuc, &ni_tend_nuc);
+                    qi_tendency[ijk] = qi_tend_nuc;
+                    // O18 ice Nucleation tend
+                    iso_sb_2m_cloud_ice_fraction(1.0,
+                        temperature[ijk], qi_tend_nuc, qv[ijk], qv_O18[ijk],
+                        &qi_O18_tendency[ijk]);
+                    // HDO ice Nucleation tend
+                    iso_sb_2m_cloud_ice_fraction(2.0,
+                        temperature[ijk], qi_tend_nuc, qv[ijk], qv_HDO[ijk],
+                        &qi_HDO_tendency[ijk]);
+            }
+        }
+    }
+    return;
+}
+
+void sb_iso_ice_deposition_wrapper(
+        const struct DimStruct *dims, 
+        struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+        // INPUT VARIABLES
+        double* restrict temperature, 
+        double* restrict qt,         // total water specific humidity
+        double* restrict p0,         // air pressure
+        double* restrict density,
+        double* restrict qi,         // ice specific humidity
+        double* restrict ni,         // ice number density
+        double* restrict qi_O18,         // ice specific humidity
+        double* restrict qi_HDO,         // ice number density
+        double dt, 
+        // OUTPUT VARIABLES INDEX
+        // double* restrict qi_tendency,
+        // double* restrict ni_tendency, 
+        // double* restrict ice_dep_tend,
+        // double* restrict ice_sub_tend,
+        // double* restrict qv_tendency
+        double* restrict qi_O18_tend_dep,
+        double* restrict qi_HDO_tend_dep,
+        double* restrict qi_O18_tend_sub,
+        double* restrict qi_HDO_tend_sub
+    ){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                
+                double qi_tmp = fmax(qi[ijk],0.0);
+                double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+                double ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
+                double Dm_i = SB_ICE_A * pow(ice_mass, SB_ICE_B);
+                double velocity_ice = SB_ICE_alpha * pow(ice_mass, SB_ICE_beta) * sqrt(DENSITY_SB/density[k]);
+                double sat_ratio_ice = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
+                double qi_tend, ni_tend, qi_tend_dep, qi_tend_sub, qv_tend;
+                sb_ice_deposition(LT, lam_fp, L_fp, 
+                    temperature[ijk], qt[ijk], p0[k], qi_tmp, ni_tmp, 
+                    Dm_i, ice_mass, velocity_ice, dt, sat_ratio_ice,
+                    &qi_tend, &ni_tend, &qi_tend_dep, &qi_tend_sub, &qv_tend);
+
+                double qi_O18_tmp = fmax(qi_O18[ijk],0.0);
+                double qi_HDO_tmp = fmax(qi_HDO[ijk],0.0);
+                double diff_O18 = DVAPOR*DIFF_O18_RATIO;
+                double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
+                double qv_O18_tend_dep, qv_HDO_tend_dep, qv_O18_tend_sub, qv_HDO_tend_sub;
+
+                iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                    temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
+                    DVAPOR, diff_O18, qi_tend_dep, 
+                    &qv_O18_tend_dep, &qi_O18_tend_dep[ijk]);
+
+                iso_sb_2m_depostion(LT, lam_fp, L_fp, 2.0,
+                    temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
+                    DVAPOR, diff_HDO, qi_tend_dep, 
+                    &qv_HDO_tend_dep, &qi_HDO_tend_dep[ijk]);
+                
+                iso_sb_2m_sublimation(qi_tmp, qi_O18_tmp, qi_tend_sub, 
+                    &qv_O18_tend_sub, &qi_O18_tend_sub[ijk]);
+                iso_sb_2m_sublimation(qi_tmp, qi_HDO_tmp, qi_tend_sub, 
+                    &qv_HDO_tend_sub, &qi_HDO_tend_sub[ijk]);
+            }
+        }
+    }
+    return;
+}
+
+void sb_iso_snow_deposition_wrapper(
+        const struct DimStruct *dims, 
+        struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+        // INPUT VARIABLES
+        double* restrict temperature, 
+        double* restrict qt,         // total water specific humidity
+        double* restrict p0,         // air pressure
+        double* restrict density,
+        double* restrict qs,         // ice specific humidity
+        double* restrict ns,         // ice number density
+        double* restrict qs_O18,         // ice specific humidity
+        double* restrict qs_HDO,         // ice number density
+        double dt, 
+        // OUTPUT VARIABLES INDEX
+        // double* restrict qi_tendency,
+        // double* restrict ni_tendency, 
+        // double* restrict ice_dep_tend,
+        // double* restrict ice_sub_tend,
+        // double* restrict qv_tendency
+        double* restrict qs_O18_tend_dep,
+        double* restrict qs_HDO_tend_dep,
+        double* restrict qs_O18_tend_sub,
+        double* restrict qs_HDO_tend_sub
+    ){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                
+                double qs_tmp = fmax(qs[ijk],0.0);
+                double ns_tmp = fmax(fmin(ns[ijk], qs_tmp/ICE_MIN_MASS),qs_tmp/ICE_MAX_MASS);
+                double snow_mass = microphysics_mean_mass(ns_tmp, qs_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
+                double Dm_s = SB_ICE_A * pow(snow_mass, SB_ICE_B);
+                double velocity_snow = SB_ICE_alpha * pow(snow_mass, SB_ICE_beta) * sqrt(DENSITY_SB/density[k]);
+                double sat_ratio_ice = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
+                double qs_tend, ns_tend, qs_tend_dep, qs_tend_sub, qv_tend;
+                sb_ice_deposition(LT, lam_fp, L_fp, 
+                    temperature[ijk], qt[ijk], p0[k], qs_tmp, ns_tmp, 
+                    Dm_s, snow_mass, velocity_snow, dt, sat_ratio_ice,
+                    &qs_tend, &ns_tend, &qs_tend_dep, &qs_tend_sub, &qv_tend);
+
+                double qs_O18_tmp = fmax(qs_O18[ijk],0.0);
+                double qs_HDO_tmp = fmax(qs_HDO[ijk],0.0);
+                double diff_O18 = DVAPOR*DIFF_O18_RATIO;
+                double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
+                double qv_O18_tend_dep, qv_HDO_tend_dep, qv_O18_tend_sub, qv_HDO_tend_sub;
+
+                iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                    temperature[ijk], p0[k], qt[ijk], qs_tmp, qs_HDO_tmp,
+                    DVAPOR, diff_O18, qs_tend_dep, 
+                    &qv_O18_tend_dep, &qs_O18_tend_dep[ijk]);
+
+                iso_sb_2m_depostion(LT, lam_fp, L_fp, 2.0,
+                    temperature[ijk], p0[k], qt[ijk], qs_tmp, qs_HDO_tmp,
+                    DVAPOR, diff_HDO, qs_tend_dep, 
+                    &qv_HDO_tend_dep, &qs_HDO_tend_dep[ijk]);
+                
+                iso_sb_2m_sublimation(qs_tmp, qs_O18_tmp, qs_tend_sub, 
+                    &qv_O18_tend_sub, &qs_O18_tend_sub[ijk]);
+                iso_sb_2m_sublimation(qs_tmp, qs_HDO_tmp, qs_tend_sub, 
+                    &qv_HDO_tend_sub, &qs_HDO_tend_sub[ijk]);
             }
         }
     }
