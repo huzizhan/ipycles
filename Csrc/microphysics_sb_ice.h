@@ -699,6 +699,7 @@ void sb_ice_deposition(
 
         *qi_tendency = qi_dep/dt;
         *ni_tendency = ni_dep/dt;
+        // TODO: can't be += all there will be a big wrong effect
         *qv_tendency += -qi_dep/dt;
 
         // *diag_1 = F_v_ice;

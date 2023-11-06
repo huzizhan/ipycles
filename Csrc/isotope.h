@@ -1504,7 +1504,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
 }
 
 // ================ To Facilitate Output ================
-void sb_iso_ice_nucleation_wapper(
+void sb_iso_ice_nucleation_wrapper(
         const struct DimStruct *dims, 
         struct LookupStruct *LT,
         double ice_in,
@@ -1604,31 +1604,42 @@ void sb_iso_ice_deposition_wrapper(
                 double velocity_ice = SB_ICE_alpha * pow(ice_mass, SB_ICE_beta) * sqrt(DENSITY_SB/density[k]);
                 double sat_ratio_ice = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
                 double qi_tend, ni_tend, qi_tend_dep, qi_tend_sub, qv_tend;
+
                 sb_ice_deposition(LT, lam_fp, L_fp, 
                     temperature[ijk], qt[ijk], p0[k], qi_tmp, ni_tmp, 
                     Dm_i, ice_mass, velocity_ice, dt, sat_ratio_ice,
-                    &qi_tend, &ni_tend, &qi_tend_dep, &qi_tend_sub, &qv_tend);
+                    &qi_tend, &ni_tend,
+                    &qi_tend_dep, &qi_O18_tend_sub[ijk], &qv_tend);
 
-                double qi_O18_tmp = fmax(qi_O18[ijk],0.0);
-                double qi_HDO_tmp = fmax(qi_HDO[ijk],0.0);
-                double diff_O18 = DVAPOR*DIFF_O18_RATIO;
-                double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
-                double qv_O18_tend_dep, qv_HDO_tend_dep, qv_O18_tend_sub, qv_HDO_tend_sub;
+                // double qi_O18_tmp = fmax(qi_O18[ijk],0.0);
+                // double qi_HDO_tmp = fmax(qi_HDO[ijk],0.0);
+                // double diff_O18 = DVAPOR*DIFF_O18_RATIO;
+                // double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
+                // double qv_O18_tend_dep, qv_HDO_tend_dep, qv_O18_tend_sub, qv_HDO_tend_sub;
 
-                iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
-                    temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
-                    DVAPOR, diff_O18, qi_tend_dep, 
-                    &qv_O18_tend_dep, &qi_O18_tend_dep[ijk]);
+                // iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                //     temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
+                //     DVAPOR, diff_O18, qi_tend_dep, 
+                //     &qv_O18_tend_dep, &qi_O18_tend_dep[ijk]);
+                //
+                // iso_sb_2m_depostion(LT, lam_fp, L_fp, 2.0,
+                //     temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
+                //     DVAPOR, diff_HDO, qi_tend_dep, 
+                //     &qv_HDO_tend_dep, &qi_HDO_tend_dep[ijk]);
+                // 
+                // iso_sb_2m_depostion(qi_tmp, qi_O18_tmp, qi_tend_sub, 
+                //     &qv_O18_tend_sub, &qi_O18_tend_sub[ijk]);
+                // iso_sb_2m_depostion(qi_tmp, qi_HDO_tmp, qi_tend_sub, 
+                //     &qv_HDO_tend_sub, &qi_HDO_tend_sub[ijk]);
 
-                iso_sb_2m_depostion(LT, lam_fp, L_fp, 2.0,
-                    temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
-                    DVAPOR, diff_HDO, qi_tend_dep, 
-                    &qv_HDO_tend_dep, &qi_HDO_tend_dep[ijk]);
-                
-                iso_sb_2m_sublimation(qi_tmp, qi_O18_tmp, qi_tend_sub, 
-                    &qv_O18_tend_sub, &qi_O18_tend_sub[ijk]);
-                iso_sb_2m_sublimation(qi_tmp, qi_HDO_tmp, qi_tend_sub, 
-                    &qv_HDO_tend_sub, &qi_HDO_tend_sub[ijk]);
+                // sublimation tendency 
+                // else{
+                    // qi_O18_tend_sub[ijk] = 0.0;
+                // }
+                // qi_O18_tend_dep[ijk] = qi_tend_sub;
+                // qi_HDO_tend_dep[ijk] = qi_tend_dep;
+                // qi_HDO_tend_sub[ijk] = qv_tend;
+                // qi_O18_tend_sub[ijk] = qi_tend;
             }
         }
     }
