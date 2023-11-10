@@ -1709,3 +1709,130 @@ void sb_iso_snow_deposition_wrapper(
     }
     return;
 }
+
+void cloud_liquid_wrapper(struct DimStruct *dims, 
+    struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
+    double* restrict p0, 
+    double IN,
+    double dt,
+    double* restrict s, 
+    double* restrict qt, 
+    double* restrict T,
+    double* restrict qv, 
+    double* restrict ql, 
+    // double* restrict nl, 
+    double* restrict qi, 
+    double* restrict ni,
+    double* restrict qt_O18,
+    double* restrict qv_O18,
+    double* restrict ql_O18,
+    double* restrict qi_O18,
+    double* restrict qt_HDO,
+    double* restrict qv_HDO,
+    double* restrict ql_HDO,
+    double* restrict qi_HDO,
+    double* restrict ql_cond,
+    double* restrict ql_evap,
+    double* restrict ql_O18_cond,
+    double* restrict ql_O18_evap,
+    double* restrict ql_HDO_cond,
+    double* restrict ql_HDO_evap
+    // double* restrict ql_tendency, double* restrict nl_tendency,
+    // double* restrict qi_tendency, double* restrict ni_tendency,
+    // double* restrict ql_O18_tendency, double* restrict qi_O18_tendency,
+    // double* restrict ql_HDO_tendency, double* restrict qi_HDO_tendency
+    ){
+    
+    ssize_t i,j,k;
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = 0;
+    const ssize_t jmin = 0;
+    const ssize_t kmin = 0;
+    const ssize_t imax = dims->nlg[0];
+    const ssize_t jmax = dims->nlg[1];
+    const ssize_t kmax = dims->nlg[2];
+
+
+    for (i=imin; i<imax; i++){
+       const ssize_t ishift = i * istride;
+        for (j=jmin;j<jmax;j++){
+            const ssize_t jshift = j * jstride;
+                for (k=kmin;k<kmax;k++){
+                    const ssize_t ijk = ishift + jshift + k;
+                    double nl_tmp, ql_tmp, qi_tmp, ni_tmp, qv_tmp;
+                    double ql_tend;
+                    double t_tmp = T[ijk];
+                    
+                    ql[ijk] = fmax(ql[ijk],0.0);
+                    qi[ijk] = fmax(qi[ijk],0.0);
+                    qv[ijk] = qt[ijk] - ql[ijk] - qi[ijk];
+
+                    // only update T[ijk] here
+                     
+                    eos_c(LT, lam_fp, L_fp, p0[k], s[ijk],qt[ijk], 
+                        &t_tmp, &qv_tmp, &ql_tmp, &qi_tmp);
+                    
+                    ql_tend = (ql_tmp - ql[ijk])/dt;
+
+                    if (ql_tend > 0.0){
+                        ql_cond[ijk] = ql_tend;
+                    }
+                    else if(ql_tend < 0.0){
+                        ql_evap[ijk] = ql_tend;
+                    }
+                   
+                    // ------------ Iso O18 Computation ------------
+
+                    double iso_type_O18 = 1.0;
+                    double qv_O18_tmp, ql_O18_tmp, ql_O18_tend;
+
+                    ql_O18[ijk] = fmax(ql_O18[ijk],0.0);
+                    qi_O18[ijk] = fmax(qi_O18[ijk],0.0);
+                    qv_O18[ijk] = qt_O18[ijk] - ql_O18[ijk] - qi_O18[ijk];
+                    double qvl_O18 = qt_O18[ijk] - qi_O18[ijk];
+
+                    iso_sb_2m_cloud_liquid_fraction(iso_type_O18,
+                        t_tmp, qv_tmp, ql_tmp, dt,
+                        qvl_O18, qv_O18[ijk], ql_O18[ijk],
+                        &qv_O18_tmp, &ql_O18_tmp);
+                    
+                    ql_O18_tend = (ql_O18_tmp - ql_O18[ijk])/dt;
+
+                    if (ql_O18_tend > 0.0){
+                        ql_O18_cond[ijk] = ql_O18_tend;
+                        // ql_O18_evap[ijk] = 0.0;
+                    }
+                    else if(ql_O18_tend < 0.0){
+                        ql_O18_evap[ijk] = ql_O18_tend;
+                        // ql_O18_cond[ijk] = 0.0;
+                    }
+
+                    // ------------ Iso HDO Computation ------------
+                    double iso_type_HDO = 2.0;
+                    double qv_HDO_tmp, ql_HDO_tmp, ql_HDO_tend;
+
+                    ql_HDO[ijk] = fmax(ql_HDO[ijk],0.0);
+                    qi_HDO[ijk] = fmax(qi_HDO[ijk],0.0);
+                    qv_HDO[ijk] = qt_HDO[ijk] - ql_HDO[ijk] - qi_HDO[ijk];
+                    double qvl_HDO = qt_HDO[ijk] - qi_HDO[ijk];
+
+                    iso_sb_2m_cloud_liquid_fraction(iso_type_HDO,
+                        t_tmp, qv_tmp, ql_tmp, dt,
+                        qvl_HDO, qv_HDO[ijk], ql_HDO[ijk],
+                        &qv_HDO_tmp, &ql_HDO_tmp);
+                    
+                    ql_HDO_tend = (ql_HDO_tmp - ql_HDO[ijk])/dt;
+
+                    if (ql_HDO_tend > 0.0){
+                        ql_HDO_cond[ijk] = ql_HDO_tend;
+                    }
+                    else if(ql_HDO_tend < 0.0){
+                        ql_HDO_evap[ijk] = ql_HDO_tend;
+                    }
+
+                } // End k loop
+            } // End j loop
+        } // End i loop
+    return;
+}

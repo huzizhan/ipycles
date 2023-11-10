@@ -943,7 +943,21 @@ cdef extern from "isotope.h":
         double* diag_1, double* diag_2, double* diag_3,
         double* nl_tendency, double* ql_tendency,
         double* ni_tendency, double* qi_tendency)
+
     # ======= Wapper =======
+    void cloud_liquid_wrapper(Grid.DimStruct * dims, 
+        Lookup.LookupStruct * LT, double(*lam_fp)(double), double(*L_fp)(double, double),
+        double* p0, double IN, double dt,
+        double* s, double* qt, double* temperature,
+        double* qv, double* ql, double* qi, double* ni,
+        double* qt_O18, double* qv_O18,
+        double* ql_O18, double* qi_O18,
+        double* qt_HDO, double* qv_HDO,
+        double* ql_HDO, double* qi_HDO,
+        double* ql_cond, double* ql_evap,
+        double* ql_O18_cond, double* ql_O18_evap,
+        double* ql_HDO_cond, double* ql_HDO_evap)
+
     void sb_iso_ice_nucleation_wrapper(Grid.DimStruct *dims,  
         Lookup.LookupStruct *LT, double ice_in, double* temperature, double* qt,
         double* p0, double* qv, double* ni, double* qv_o18, double* qv_HDO, 
@@ -1116,6 +1130,13 @@ cdef class IsotopeTracers_SB_Ice:
         NS.add_profile('qi_tend_nuc', Gr, Pa, '', '', '')
         NS.add_profile('qi_O18_tend_nuc', Gr, Pa, '', '', '')
         NS.add_profile('qi_HDO_tend_nuc', Gr, Pa, '', '', '')
+            
+        NS.add_profile('ql_tend_cond', Gr, Pa, '','','')
+        NS.add_profile('ql_tend_evap', Gr, Pa, '','','')
+        NS.add_profile('ql_O18_tend_cond', Gr, Pa, '','','')
+        NS.add_profile('ql_O18_tend_evap', Gr, Pa, '','','')
+        NS.add_profile('ql_HDO_tend_cond', Gr, Pa, '','','')
+        NS.add_profile('ql_HDO_tend_evap', Gr, Pa, '','','')
 
         NS.add_profile('qi_O18_tend_dep', Gr, Pa, '', '', '')
         NS.add_profile('qi_HDO_tend_dep', Gr, Pa, '', '', '')
@@ -1207,11 +1228,6 @@ cdef class IsotopeTracers_SB_Ice:
             double[:] qs_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qr_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qs_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-
-        # saturation_ratio(&Gr.dims, 
-        #     &Micro_SB_2M.CC.LT.LookupStructC,
-        #     &Ref.p0_half[0], &DV.values[t_shift], 
-        #     &PV.values[qt_shift], &S_ratio[0])
 
         tracer_sb_cloud_fractionation(&Gr.dims,
             &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
@@ -1340,6 +1356,7 @@ cdef class IsotopeTracers_SB_Ice:
 
         cdef:
             Py_ssize_t t_shift  = DV.get_varshift(Gr,'temperature')
+            Py_ssize_t s_shift  = PV.get_varshift(Gr,'s')
             Py_ssize_t qt_shift = PV.get_varshift(Gr,'qt')
             Py_ssize_t qv_shift = DV.get_varshift(Gr,'qv')
             Py_ssize_t ql_shift = PV.get_varshift(Gr,'ql')
@@ -1360,10 +1377,18 @@ cdef class IsotopeTracers_SB_Ice:
             Py_ssize_t qi_HDO_shift = PV.get_varshift(Gr,'qi_HDO')
             Py_ssize_t qr_HDO_shift = PV.get_varshift(Gr,'qr_HDO')
             Py_ssize_t qs_HDO_shift = PV.get_varshift(Gr,'qs_HDO')
+
             double[:] tmp
             double[:] qi_tend_nuc = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             double[:] qi_O18_tend_nuc = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             double[:] qi_HDO_tend_nuc = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+            
+            double[:] ql_tend_cond = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+            double[:] ql_tend_evap = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+            double[:] ql_O18_tend_cond = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+            double[:] ql_O18_tend_evap = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+            double[:] ql_HDO_tend_cond = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+            double[:] ql_HDO_tend_evap = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
 
             double[:] qi_O18_tend_dep = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             double[:] qi_HDO_tend_dep = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
@@ -1376,6 +1401,32 @@ cdef class IsotopeTracers_SB_Ice:
             double[:] qs_HDO_tend_sub = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             double[:] tmp_tend = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             
+        cloud_liquid_wrapper(&Gr.dims,
+            &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
+            &Ref.p0_half[0], Micro_SB_2M.ice_nucl, TS.dt,
+            &PV.values[s_shift], &PV.values[qt_shift], &DV.values[t_shift],
+            &DV.values[qv_shift], &PV.values[ql_shift],
+            &PV.values[qi_shift], &PV.values[ni_shift],
+            &PV.values[qt_O18_shift], &DV.values[qv_O18_shift], 
+            &PV.values[ql_O18_shift], &PV.values[qi_O18_shift],
+            &PV.values[qt_HDO_shift], &DV.values[qv_HDO_shift], 
+            &PV.values[ql_HDO_shift], &PV.values[qi_HDO_shift],
+            &ql_tend_cond[0], &ql_tend_evap[0], &ql_O18_tend_cond[0],
+            &ql_O18_tend_evap[0], &ql_HDO_tend_cond[0], &ql_HDO_tend_evap[0])
+
+        tmp = Pa.HorizontalMean(Gr, &ql_tend_cond[0])
+        NS.write_profile('ql_tend_cond', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ql_tend_evap[0])
+        NS.write_profile('ql_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ql_O18_tend_cond[0])
+        NS.write_profile('ql_O18_tend_cond', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ql_O18_tend_evap[0])
+        NS.write_profile('ql_O18_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ql_HDO_tend_cond[0])
+        NS.write_profile('ql_HDO_tend_cond', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &ql_HDO_tend_evap[0])
+        NS.write_profile('ql_HDO_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
         sb_iso_ice_nucleation_wrapper(&Gr.dims, 
             &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.ice_nucl,
             &DV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0], 
