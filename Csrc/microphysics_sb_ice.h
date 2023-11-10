@@ -686,11 +686,13 @@ void sb_ice_deposition(
 
         if(satratio >= 0.0){
             qi_tendency_dep = 4.0*pi/c_i * g_therm_ice * Dm_i * F_v_ice * satratio;
-            *dep_tend += qi_tendency_dep;
+            *dep_tend = qi_tendency_dep;
+            *sub_tend = 0.0;
         }
         else{
             qi_tendency_sub = 4.0*pi/c_i * g_therm_ice * Dm_i * F_v_ice * satratio;
-            *sub_tend += qi_tendency_sub;
+            *sub_tend = qi_tendency_sub;
+            *dep_tend = 0.0;
         }
         qi_tendency_diff = qi_tendency_dep + qi_tendency_sub;
 
@@ -1564,7 +1566,7 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                 double time_added = 0.0, dt_, rate;
                 ssize_t iter_count = 0;
 
-                double dep_tend, sub_tend;
+                double qi_dep_tend, qi_sub_tend, qs_dep_tend, qs_sub_tend;
 
                 do{
                     iter_count       += 1;
@@ -1623,8 +1625,10 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     nr_tendency_melt = 0.0; 
                     qr_tendency_melt = 0.0;
 
-                    dep_tend = 0.0;
-                    sub_tend = 0.0;
+                    qi_dep_tend = 0.0;
+                    qi_sub_tend = 0.0;
+                    qs_dep_tend = 0.0;
+                    qs_sub_tend = 0.0;
 
                     //obtain some parameters of cloud droplets
                     liquid_mass = microphysics_mean_mass(nl_tmp, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
@@ -1674,7 +1678,7 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                             temperature[ijk], qt_tmp, p0[k], qi_tmp, ni_tmp, 
                             Dm_i, ice_mass, velocity_ice, dt_, sat_ratio_ice,
                             &qi_tendency_dep, &ni_tendency_dep,
-                            &dep_tend, &sub_tend,
+                            &qi_dep_tend, &qi_sub_tend,
                             &qv_tendency_dep);
 
                     // TODO: freezing process still need to include
@@ -1685,7 +1689,7 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                             temperature[ijk], qt_tmp, p0[k], qs_tmp, ns_tmp, 
                             Dm_s, snow_mass, velocity_snow, dt_, sat_ratio_ice,
                             &qs_tendency_dep, &ns_tendency_dep, 
-                            &dep_tend, &sub_tend,
+                            &qs_dep_tend, &qs_sub_tend,
                             // &Dm[ijk], &mass[ijk],
                             &qv_tendency_dep);
 
@@ -1750,8 +1754,8 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     }
                     
                     precip_tend = qr_tendency_au + qr_tendency_ac + qs_tendency_rime +
-                                 qs_tendency_ice_selcol + qs_tendency_si_col + dep_tend; // keep POSITIVE when precipation formed
-                    evap_tend = -(sub_tend + qv_tendency_evp); // keep POSITIVE when evap/sub formed
+                                 qs_tendency_ice_selcol + qs_tendency_si_col + qi_dep_tend + qs_dep_tend; // keep POSITIVE when precipation formed
+                    evap_tend = -(qi_sub_tend + qs_sub_tend + qv_tendency_evp); // keep POSITIVE when evap/sub formed
                     
                     precip_tmp += precip_tend * dt_;
                     evap_tmp   += evap_tend * dt_;

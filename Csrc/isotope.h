@@ -1226,7 +1226,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
 
                     // ice deposition and sublimation
                     iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_O18,
-                            temperature[ijk], p0[k], qt_tmp, qi_tmp, qi_O18_tmp,
+                            temperature[ijk], p0[k], qt_tmp, qv_tmp, qv_O18_tmp,
                             DVAPOR, diff_O18, dep_tend_ice, 
                             &qv_O18_tendency_tmp, &qi_O18_tendency_dep);
                     iso_sb_2m_sublimation(qi_tmp, qi_O18_tmp, sub_tend_ice, 
@@ -1259,7 +1259,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     
                     // snow deposition and sublimation
                     iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_O18,
-                            temperature[ijk], p0[k], qt_tmp, qs_tmp, qs_O18_tmp,
+                            temperature[ijk], p0[k], qt_tmp, qv_tmp, qv_O18_tmp,
                             DVAPOR, diff_O18, dep_tend_snow, 
                             &qv_O18_tendency_tmp, &qs_O18_tendency_dep);
                     iso_sb_2m_sublimation(qs_tmp, qs_O18_tmp, sub_tend_ice, 
@@ -1303,7 +1303,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
 
                     // ice deposition and sublimation
                     iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_HDO, 
-                            temperature[ijk], p0[k], qt_tmp, qi_tmp, qi_HDO_tmp,
+                            temperature[ijk], p0[k], qt_tmp, qv_tmp, qv_HDO_tmp,
                             DVAPOR, diff_HDO, dep_tend_ice, 
                             &qv_HDO_tendency_tmp, &qi_HDO_tendency_dep);
                     iso_sb_2m_sublimation(qi_tmp, qi_HDO_tmp, sub_tend_ice, 
@@ -1336,7 +1336,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     
                     // snow deposition and sublimation
                     iso_sb_2m_depostion(LT, lam_fp, L_fp, iso_type_HDO,
-                            temperature[ijk], p0[k], qt_tmp, qs_tmp, qs_HDO_tmp,
+                            temperature[ijk], p0[k], qt_tmp, qv_tmp, qv_HDO_tmp,
                             DVAPOR, diff_HDO, dep_tend_snow, 
                             &qv_HDO_tendency_tmp, &qs_HDO_tendency_dep);
                     iso_sb_2m_sublimation(qs_tmp, qs_HDO_tmp, sub_tend_ice, 
@@ -1564,20 +1564,17 @@ void sb_iso_ice_deposition_wrapper(
         double* restrict qt,         // total water specific humidity
         double* restrict p0,         // air pressure
         double* restrict density,
+        double dt, 
         double* restrict qi,         // ice specific humidity
         double* restrict ni,         // ice number density
+        double* restrict qv,
+        double* restrict qv_O18,
+        double* restrict qv_HDO,
         double* restrict qi_O18,         // ice specific humidity
         double* restrict qi_HDO,         // ice number density
-        double dt, 
-        // OUTPUT VARIABLES INDEX
-        // double* restrict qi_tendency,
-        // double* restrict ni_tendency, 
-        // double* restrict ice_dep_tend,
-        // double* restrict ice_sub_tend,
-        // double* restrict qv_tendency
         double* restrict qi_O18_tend_dep,
-        double* restrict qi_HDO_tend_dep,
         double* restrict qi_O18_tend_sub,
+        double* restrict qi_HDO_tend_dep,
         double* restrict qi_HDO_tend_sub
     ){
 
@@ -1609,37 +1606,28 @@ void sb_iso_ice_deposition_wrapper(
                     temperature[ijk], qt[ijk], p0[k], qi_tmp, ni_tmp, 
                     Dm_i, ice_mass, velocity_ice, dt, sat_ratio_ice,
                     &qi_tend, &ni_tend,
-                    &qi_tend_dep, &qi_O18_tend_sub[ijk], &qv_tend);
+                    &qi_tend_dep, &qi_tend_sub, &qv_tend);
 
-                // double qi_O18_tmp = fmax(qi_O18[ijk],0.0);
-                // double qi_HDO_tmp = fmax(qi_HDO[ijk],0.0);
-                // double diff_O18 = DVAPOR*DIFF_O18_RATIO;
-                // double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
-                // double qv_O18_tend_dep, qv_HDO_tend_dep, qv_O18_tend_sub, qv_HDO_tend_sub;
+                double qi_O18_tmp = fmax(qi_O18[ijk],0.0);
+                double qi_HDO_tmp = fmax(qi_HDO[ijk],0.0);
+                double diff_O18 = DVAPOR*DIFF_O18_RATIO;
+                double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
+                double qv_O18_tend_dep, qv_HDO_tend_dep, qv_O18_tend_sub, qv_HDO_tend_sub;
 
-                // iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
-                //     temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
-                //     DVAPOR, diff_O18, qi_tend_dep, 
-                //     &qv_O18_tend_dep, &qi_O18_tend_dep[ijk]);
-                //
-                // iso_sb_2m_depostion(LT, lam_fp, L_fp, 2.0,
-                //     temperature[ijk], p0[k], qt[ijk], qi_tmp, qi_HDO_tmp,
-                //     DVAPOR, diff_HDO, qi_tend_dep, 
-                //     &qv_HDO_tend_dep, &qi_HDO_tend_dep[ijk]);
-                // 
-                // iso_sb_2m_depostion(qi_tmp, qi_O18_tmp, qi_tend_sub, 
-                //     &qv_O18_tend_sub, &qi_O18_tend_sub[ijk]);
-                // iso_sb_2m_depostion(qi_tmp, qi_HDO_tmp, qi_tend_sub, 
-                //     &qv_HDO_tend_sub, &qi_HDO_tend_sub[ijk]);
+                iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
+                    temperature[ijk], p0[k], qt[ijk], qv[ijk], qv_O18[ijk],
+                    DVAPOR, diff_O18, qi_tend_dep, 
+                    &qv_O18_tend_dep, &qi_O18_tend_dep[ijk]);
 
-                // sublimation tendency 
-                // else{
-                    // qi_O18_tend_sub[ijk] = 0.0;
-                // }
-                // qi_O18_tend_dep[ijk] = qi_tend_sub;
-                // qi_HDO_tend_dep[ijk] = qi_tend_dep;
-                // qi_HDO_tend_sub[ijk] = qv_tend;
-                // qi_O18_tend_sub[ijk] = qi_tend;
+                iso_sb_2m_depostion(LT, lam_fp, L_fp, 2.0,
+                    temperature[ijk], p0[k], qt[ijk], qv[ijk], qv_HDO[ijk],
+                    DVAPOR, diff_HDO, qi_tend_dep, 
+                    &qv_HDO_tend_dep, &qi_HDO_tend_dep[ijk]);
+
+                iso_sb_2m_sublimation(qi_tmp, qi_O18_tmp, qi_tend_sub, 
+                    &qv_O18_tend_sub, &qi_O18_tend_sub[ijk]);
+                iso_sb_2m_sublimation(qi_tmp, qi_HDO_tmp, qi_tend_sub, 
+                    &qv_HDO_tend_sub, &qi_HDO_tend_sub[ijk]);
             }
         }
     }
@@ -1651,23 +1639,20 @@ void sb_iso_snow_deposition_wrapper(
         struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
         // INPUT VARIABLES
         double* restrict temperature, 
-        double* restrict qt,         // total water specific humidity
-        double* restrict p0,         // air pressure
+        double* restrict qt, 
+        double* restrict p0, 
         double* restrict density,
-        double* restrict qs,         // ice specific humidity
-        double* restrict ns,         // ice number density
-        double* restrict qs_O18,         // ice specific humidity
-        double* restrict qs_HDO,         // ice number density
         double dt, 
-        // OUTPUT VARIABLES INDEX
-        // double* restrict qi_tendency,
-        // double* restrict ni_tendency, 
-        // double* restrict ice_dep_tend,
-        // double* restrict ice_sub_tend,
-        // double* restrict qv_tendency
+        double* restrict qs, 
+        double* restrict ns, 
+        double* restrict qv,
+        double* restrict qv_O18, 
+        double* restrict qv_HDO, 
+        double* restrict qs_O18, 
+        double* restrict qs_HDO, 
         double* restrict qs_O18_tend_dep,
-        double* restrict qs_HDO_tend_dep,
         double* restrict qs_O18_tend_sub,
+        double* restrict qs_HDO_tend_dep,
         double* restrict qs_HDO_tend_sub
     ){
 
@@ -1706,12 +1691,12 @@ void sb_iso_snow_deposition_wrapper(
                 double qv_O18_tend_dep, qv_HDO_tend_dep, qv_O18_tend_sub, qv_HDO_tend_sub;
 
                 iso_sb_2m_depostion(LT, lam_fp, L_fp, 1.0,
-                    temperature[ijk], p0[k], qt[ijk], qs_tmp, qs_HDO_tmp,
+                    temperature[ijk], p0[k], qt[ijk], qv[ijk], qv_O18[ijk],
                     DVAPOR, diff_O18, qs_tend_dep, 
                     &qv_O18_tend_dep, &qs_O18_tend_dep[ijk]);
 
                 iso_sb_2m_depostion(LT, lam_fp, L_fp, 2.0,
-                    temperature[ijk], p0[k], qt[ijk], qs_tmp, qs_HDO_tmp,
+                    temperature[ijk], p0[k], qt[ijk], qv[ijk], qv_HDO[ijk],
                     DVAPOR, diff_HDO, qs_tend_dep, 
                     &qv_HDO_tend_dep, &qs_HDO_tend_dep[ijk]);
                 

@@ -752,8 +752,8 @@ void iso_sb_2m_depostion(
         const double T, 
         const double p0, 
         const double qt,
-        const double q_var,
-        const double q_var_iso,
+        const double qv,
+        const double qv_iso,
         const double diff_vapor, 
         const double diff_iso,
         const double q_tend_dep,
@@ -761,7 +761,8 @@ void iso_sb_2m_depostion(
         double* q_iso_tend
     ){
 
-    if(q_var > 1e-10 && q_var_iso > 1e-10 && q_tend_dep > 0.0){
+    // if(q_var > 1e-10 && q_var_iso > 1e-10 && q_tend_dep > 0.0){
+    if(q_tend_dep > 0.0){
 
         double alpha_s, alpha_k;
         if(type == 1.0){
@@ -773,7 +774,8 @@ void iso_sb_2m_depostion(
 
         alpha_k = alpha_k_ice_equation_Blossey(LT, lam_fp, L_fp, 
                 T, p0, qt, alpha_s, DVAPOR, diff_iso);
-        *q_iso_tend = alpha_s * alpha_k * q_tend_dep * (q_var_iso/q_var);
+        *q_iso_tend = alpha_s * alpha_k * q_tend_dep * (qv_iso/qv);
+        // *q_iso_tend = q_tend_dep * (qv_iso/qv);
     }
     else{
         *q_iso_tend = 0.0;

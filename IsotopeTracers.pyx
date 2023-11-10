@@ -949,19 +949,19 @@ cdef extern from "isotope.h":
         double* p0, double* qv, double* ni, double* qv_o18, double* qv_HDO, 
         double dt, double* qi_tend, double* qi_O18_tend, double* qi_HDO_tend) nogil
     
-    void sb_iso_ice_deposition_wrapper(Grid.DimStruct *dims,  
+    void sb_iso_ice_deposition_wrapper(Grid.DimStruct *dims,
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
-        double* temperature, double* qt, double* p0, double* density,
-        double* qi, double* ni, double* qi_o18, double* qi_HDO, double dt, 
-        double* qi_O18_tend_dep, double* qi_HDO_tend_dep,
-        double* qi_O18_tend_sub, double* qi_HDO_tend_sub) nogil
+        double* temperature, double* qt, double* p0, double* density,double dt,
+        double* qi, double* ni, double* qv, double* qv_O18, double* qv_HDO,
+        double* qi_O18, double* qi_HDO, double* qi_O18_tend_dep, double* qi_O18_tend_sub, 
+        double* qi_HDO_tend_dep, double* qi_HDO_tend_sub) nogil
         
     void sb_iso_snow_deposition_wrapper(Grid.DimStruct *dims,  
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
-        double* temperature, double* qt, double* p0, double* density,
-        double* qs, double* ns, double* qs_o18, double* qs_HDO, double dt, 
-        double* qs_O18_tend_dep, double* qs_HDO_tend_dep,
-        double* qs_O18_tend_sub, double* qs_HDO_tend_sub) nogil
+        double* temperature, double* qt, double* p0, double* density, double dt,
+        double* qs, double* ns, double* qv, double* qv_O18, double* qv_HDO,
+        double* qs_O18, double* qs_HDO, double* qs_O18_tend_dep, double* qs_O18_tend_sub, 
+        double* qs_HDO_tend_dep, double* qs_HDO_tend_sub) nogil
 
 cdef class IsotopeTracers_SB_Ice:
 
@@ -1374,6 +1374,7 @@ cdef class IsotopeTracers_SB_Ice:
             double[:] qs_HDO_tend_dep = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             double[:] qs_O18_tend_sub = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             double[:] qs_HDO_tend_sub = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
+            double[:] tmp_tend = np.zeros(Gr.dims.npg, dtype=np.double, order='c')
             
         sb_iso_ice_nucleation_wrapper(&Gr.dims, 
             &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.ice_nucl,
@@ -1389,20 +1390,20 @@ cdef class IsotopeTracers_SB_Ice:
         tmp = Pa.HorizontalMean(Gr, &qi_HDO_tend_nuc[0])
         NS.write_profile('qi_HDO_tend_nuc', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
 
-        sb_ice_deposition_wrapper(&Gr.dims, 
-            &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2 .L_fp,
-            &DV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0], &Ref.rho0_half[0],
-            &PV.values[qi_shift], &PV.values[ni_shift], TS.dt, 
-            &qi_O18_tend_sub[0], &qi_HDO_tend_dep[0],
-            &qi_O18_tend_dep[0], &qi_HDO_tend_sub[0], &qs_O18_tend_dep[0])
-
-        # sb_iso_ice_deposition_wrapper(&Gr.dims,
+        # sb_ice_deposition_wrapper(&Gr.dims, 
         #     &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
-        #     &PV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0], &Ref.rho0_half[0],
-        #     &PV.values[qi_shift], &PV.values[ni_shift], &PV.values[qi_O18_shift],
-        #     &PV.values[qi_HDO_shift], TS.dt, 
-        #     &qi_O18_tend_dep[0], &qi_HDO_tend_dep[0],
-        #     &qi_O18_tend_sub[0], &qi_HDO_tend_sub[0])
+        #     &DV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0], &Ref.rho0_half[0],
+        #     &PV.values[qi_shift], &PV.values[ni_shift], TS.dt, 
+        #     &tmp_tend[0], &tmp_tend[0],
+        #     &qi_O18_tend_dep[0], &qi_O18_tend_sub[0], &tmp_tend[0])
+
+        sb_iso_ice_deposition_wrapper(&Gr.dims, 
+            &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
+            &DV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0], &Ref.rho0_half[0], TS.dt,
+            &PV.values[qi_shift], &PV.values[ni_shift], &DV.values[qv_shift], 
+            &DV.values[qv_O18_shift], &DV.values[qv_HDO_shift], &PV.values[qi_O18_shift], &PV.values[qi_HDO_shift],
+            &qi_O18_tend_dep[0], &qi_O18_tend_sub[0], &qi_HDO_tend_dep[0], &qi_HDO_tend_sub[0])
+
         tmp = Pa.HorizontalMean(Gr, &qi_O18_tend_dep[0])
         NS.write_profile('qi_O18_tend_dep', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &qi_HDO_tend_dep[0])
@@ -1412,21 +1413,21 @@ cdef class IsotopeTracers_SB_Ice:
         tmp = Pa.HorizontalMean(Gr, &qi_HDO_tend_sub[0])
         NS.write_profile('qi_HDO_tend_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
 
-        # sb_iso_snow_deposition_wrapper(&Gr.dims,
-        #     &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
-        #     &PV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0],&Ref.rho0_half[0],
-        #     &PV.values[qs_shift], &PV.values[ns_shift], &PV.values[qs_O18_shift],
-        #     &PV.values[qs_HDO_shift], TS.dt, &qs_O18_tend_dep[0], &qs_HDO_tend_dep[0],
-        #     &qs_O18_tend_sub[0], &qs_HDO_tend_sub[0])
-        # 
+        sb_iso_snow_deposition_wrapper(&Gr.dims,
+            &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
+            &DV.values[t_shift], &PV.values[qt_shift], &Ref.p0_half[0],&Ref.rho0_half[0], TS.dt, 
+            &PV.values[qs_shift], &PV.values[ns_shift], &DV.values[qv_shift], 
+            &DV.values[qs_O18_shift], &DV.values[qs_HDO_shift], &PV.values[qs_O18_shift], &PV.values[qs_HDO_shift], 
+            &qs_O18_tend_dep[0], &qs_O18_tend_sub[0], &qs_HDO_tend_dep[0], &qs_HDO_tend_sub[0])
+        
         tmp = Pa.HorizontalMean(Gr, &qs_O18_tend_dep[0])
         NS.write_profile('qs_O18_tend_dep', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
-        # tmp = Pa.HorizontalMean(Gr, &qs_HDO_tend_dep[0])
-        # NS.write_profile('qs_HDO_tend_dep', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
-        # tmp = Pa.HorizontalMean(Gr, &qs_O18_tend_sub[0])
-        # NS.write_profile('qs_O18_tend_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
-        # tmp = Pa.HorizontalMean(Gr, &qs_HDO_tend_sub[0])
-        # NS.write_profile('qs_HDO_tend_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qs_HDO_tend_dep[0])
+        NS.write_profile('qs_HDO_tend_dep', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qs_O18_tend_sub[0])
+        NS.write_profile('qs_O18_tend_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qs_HDO_tend_sub[0])
+        NS.write_profile('qs_HDO_tend_sub', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         
         tmp = Pa.HorizontalMean(Gr, &self.Dm[0])
         NS.write_profile('Dm_tracer', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
