@@ -226,6 +226,16 @@ cdef class IsotopeTracers_NoMicrophysics:
         iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
         return
 
+cdef extern from "isotope.h":
+    void sb_iso_rain_evaporation_wrapper(
+        Grid.DimStruct *dims, Lookup.LookupStruct *LT, 
+        double (*lam_fp)(double), double (*L_fp)(double, double),
+        double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
+        double* density, double* p0, double* temperature, double* qt, 
+        double* qv, double* qr, double* nr, double* qv_O18, double* qr_O18,
+        double* qv_HDO, double* qr_HDO, double* qr_tend, double* nr_tend,
+        double* qr_O18_tend, double* qr_HD0_tend)nogil
+
 cdef class IsotopeTracers_SB_Liquid:
     def __init__(self, namelist):
         self.isotope_tracer = True
@@ -271,6 +281,11 @@ cdef class IsotopeTracers_SB_Liquid:
         NS.add_profile('qr_std', Gr, Pa, 'kg/kg', '', 'stander water tarcer rain')
         NS.add_profile('qr_O18', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity of H2O18')
         NS.add_profile('qr_HDO', Gr, Pa, 'kg/kg', '', 'Finial result of rain isotopic sepcific humidity of HDO')
+
+        NS.add_profile('qr_tend_evap', Gr, Pa, '','','')
+        NS.add_profile('nr_tend_evap', Gr, Pa, '','','')
+        NS.add_profile('qr_O18_tend_evap', Gr, Pa, '','','')
+        NS.add_profile('qr_HDO_tend_evap', Gr, Pa, '','','')
 
         initialize_NS_base(NS, Gr, Pa)
         return
@@ -370,6 +385,48 @@ cdef class IsotopeTracers_SB_Liquid:
             DiagnosticVariables.DiagnosticVariables DV, ReferenceState.ReferenceState Ref, 
             Microphysics_SB_Liquid.Microphysics_SB_Liquid Micro_SB_Liquid,
             TimeStepping.TimeStepping TS, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        cdef:
+            Py_ssize_t t_shift      = DV.get_varshift(Gr,'temperature')
+            Py_ssize_t qt_std_shift  = PV.get_varshift(Gr,'qt_std')
+            Py_ssize_t qv_std_shift  = PV.get_varshift(Gr,'qv_std')
+            Py_ssize_t ql_std_shift  = PV.get_varshift(Gr,'ql_std')
+            Py_ssize_t qr_std_shift  = PV.get_varshift(Gr,'qr_std')
+            Py_ssize_t nr_std_shift  = PV.get_varshift(Gr,'nr_std')
+
+            Py_ssize_t qt_O18_shift  = PV.get_varshift(Gr,'qt_O18')
+            Py_ssize_t qv_O18_shift  = PV.get_varshift(Gr,'qv_O18')
+            Py_ssize_t ql_O18_shift  = PV.get_varshift(Gr,'ql_O18')
+            Py_ssize_t qr_O18_shift  = PV.get_varshift(Gr, 'qr_O18')
+
+            Py_ssize_t qt_HDO_shift  = PV.get_varshift(Gr,'qt_HDO')
+            Py_ssize_t qv_HDO_shift  = PV.get_varshift(Gr,'qv_HDO')
+            Py_ssize_t ql_HDO_shift  = PV.get_varshift(Gr,'ql_HDO')
+            Py_ssize_t qr_HDO_shift  = PV.get_varshift(Gr, 'qr_HDO')
+            
+            double[:] qr_tend_evap = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] nr_tend_evap = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_O18_tend_evap = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] qr_HDO_tend_evap = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] tmp
+
+        sb_iso_rain_evaporation_wrapper(&Gr.dims, &Micro_SB_Liquid.CC.LT.LookupStructC, 
+            Micro_SB_Liquid.Lambda_fp, Micro_SB_Liquid.L_fp, 
+            Micro_SB_Liquid.compute_rain_shape_parameter, Micro_SB_Liquid.compute_droplet_nu, 
+            &Ref.rho0_half[0],  &Ref.p0_half[0], &DV.values[t_shift], &PV.values[qt_std_shift], 
+            &PV.values[qv_std_shift], &PV.values[qr_std_shift], &PV.values[nr_std_shift], 
+            &PV.values[qv_O18_shift], &PV.values[qr_O18_shift], 
+            &PV.values[qv_HDO_shift], &PV.values[qr_HDO_shift],
+            &qr_tend_evap[0], &nr_tend_evap[0], &qr_O18_tend_evap[0], &qr_HDO_tend_evap[0])
+        
+        tmp = Pa.HorizontalMean(Gr, &qr_tend_evap[0])
+        NS.write_profile('qr_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &nr_tend_evap[0])
+        NS.write_profile('nr_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qr_O18_tend_evap[0])
+        NS.write_profile('qr_O18_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &qr_HDO_tend_evap[0])
+        NS.write_profile('qr_HDO_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
         iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
         return
 

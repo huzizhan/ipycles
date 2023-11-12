@@ -142,14 +142,21 @@ double microphysics_g_iso_SB_Liquid(struct LookupStruct *LT, double (*lam_fp)(do
     double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
 
     double S_l          = sat_ratio + 1.0;
-    
-    double R_qr         = qr_iso / qr;
+   
+    double R_qr;
+    if(qr_iso > 1e-10 && qr > 1e-10){
+        R_qr = qr_iso/qr;
+    }
+    else{
+        R_qr = R_std_O18;
+    }
     double R_qv_ambient = qv_iso / qv;
     double alpha_eq     = equilibrium_fractionation_factor_O18_liquid(temperature);
     double R_qr_surface = R_qr / alpha_eq;
-    // double rat = R_qr_surface/R_qv_ambient;
+    // double R_qr_surface = 1.0;
+    // double rat = R_qr/R_qv_ambient;
     
-    // double g_therm_iso = D_O18*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
+    // double g_therm_iso = dvap*rho_sat*R_qv_ambient*((rat)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
     double g_therm_iso = dvap*rho_sat*R_qv_ambient*((R_qr_surface/R_qv_ambient)*(1.0 + b_l*S_l)/(1+b_l) - S_l);
     return g_therm_iso;
 };

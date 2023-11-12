@@ -1504,6 +1504,90 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
 }
 
 // ================ To Facilitate Output ================
+
+void sb_iso_rain_evaporation_wrapper(
+        const struct DimStruct *dims, 
+        struct LookupStruct *LT, 
+        double (*lam_fp)(double), 
+        double (*L_fp)(double, double),
+        double (*rain_mu)(double,double,double), 
+        double (*droplet_nu)(double,double),
+        double* restrict density, 
+        double* restrict p0, 
+        double* restrict temperature,
+        double* restrict qt,
+        double* restrict qv,
+        double* restrict qr,
+        double* restrict nr,
+        double* restrict qv_O18, 
+        double* restrict qr_O18,
+        double* restrict qv_HDO, 
+        double* restrict qr_HDO,
+        double* restrict qr_tend_evap, 
+        double* restrict nr_tend_evap, 
+        double* restrict qr_O18_tend_evap, 
+        double* restrict qr_HDO_tend_evap
+    ){
+
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+
+                double qv_tmp = qv[ijk];
+                double qt_tmp = qt[ijk];
+                double qr_tmp = fmax(qr[ijk],0.0);
+                double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature[ijk]);
+                
+                double qr_O18_tmp = fmax(qr_O18[ijk], 0.0);
+                double qv_O18_tmp = qv_O18[ijk];
+
+                double qr_HDO_tmp = fmax(qr_HDO[ijk], 0.0);
+                double qv_HDO_tmp = qv_HDO[ijk];
+                    
+                //obtain some parameters
+                double rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS);
+                double Dm = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi);
+                double mu = rain_mu(density[k], qr_tmp, Dm);
+                double Dp = sb_Dp(Dm, mu);
+                double sat_ratio = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt_tmp);
+
+                double nr_tendency_evp, qr_tendency_evp, qr_O18_evap_tendency, qr_HDO_evap_tendency;
+
+                sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm, &nr_tendency_evp, &qr_tendency_evp);
+                double diff_O18 = DVAPOR*DIFF_O18_RATIO;
+                double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
+                double g_therm_O18 = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], 
+                        p0[k], qr_tmp, qr_O18_tmp, qv_tmp, qv_O18_tmp, sat_ratio, diff_O18, KT);
+                double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], 
+                        p0[k], qr_tmp, qr_HDO_tmp, qv_tmp, qv_HDO_tmp, sat_ratio, diff_HDO, KT);
+
+                sb_iso_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, qr_O18_tmp, 
+                        rain_mass, Dp, Dm, &qr_O18_evap_tendency);
+                sb_iso_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, qr_HDO_tmp, 
+                        rain_mass, Dp, Dm, &qr_HDO_evap_tendency);
+
+                qr_tend_evap[ijk] = qr_tendency_evp;
+                nr_tend_evap[ijk] = nr_tendency_evp;
+                qr_O18_tend_evap[ijk] = g_therm_O18;
+                qr_HDO_tend_evap[ijk] = g_therm;
+            }
+        }
+    }
+    return;
+}
+
 void sb_iso_ice_nucleation_wrapper(
         const struct DimStruct *dims, 
         struct LookupStruct *LT,
