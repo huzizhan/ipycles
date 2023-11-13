@@ -181,10 +181,14 @@ void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct 
 
                     double diff_O18 = DVAPOR*DIFF_O18_RATIO;
                     double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
-                    double g_therm_O18 = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_O18_tmp, qv_tmp, qv_O18_tmp, sat_ratio, diff_O18, KT);
-                    double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], p0[k], qr_tmp, qr_HDO_tmp, qv_tmp, qv_HDO_tmp, sat_ratio, diff_HDO, KT);
-                    sb_iso_evaporation_rain(g_therm_O18, sat_ratio, nr_tmp, qr_tmp, mu, qr_O18_tmp, rain_mass, Dp, Dm, &qr_O18_evap_tendency);
-                    sb_iso_evaporation_rain(g_therm_O18, sat_ratio, nr_tmp, qr_tmp, mu, qr_HDO_tmp, rain_mass, Dp, Dm, &qr_HDO_evap_tendency);
+                    double g_therm_O18 = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, 1.0, temperature[ijk], p0[k], 
+                            qr_tmp, qr_O18_tmp, qv_tmp, qv_O18_tmp, sat_ratio, diff_O18, KT);
+                    double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, 2.0, temperature[ijk], p0[k], 
+                            qr_tmp, qr_HDO_tmp, qv_tmp, qv_HDO_tmp, sat_ratio, diff_HDO, KT);
+                    sb_iso_evaporation_rain(g_therm_O18, sat_ratio, nr_tmp, qr_tmp, mu, qr_O18_tmp, 
+                            rain_mass, Dp, Dm, &qr_O18_evap_tendency);
+                    sb_iso_evaporation_rain(g_therm_HDO, sat_ratio, nr_tmp, qr_tmp, mu, qr_HDO_tmp, 
+                            rain_mass, Dp, Dm, &qr_HDO_evap_tendency);
                     
                     // iso_tendencies add
                     qr_O18_tendency_tmp = qr_O18_auto_tendency + qr_O18_accre_tendency + qr_O18_evap_tendency;
@@ -1240,6 +1244,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     ql_O18_tendency_au = -qr_O18_tendency_ac;
 
                     double g_therm_O18 = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, 
+                            iso_type_O18,
                             temperature[ijk], p0[k], qr_tmp, qr_O18_tmp, 
                             qv_tmp, qv_O18_tmp, sat_ratio_liq, diff_O18, KT);
                     sb_iso_evaporation_rain(g_therm_O18, sat_ratio_liq, nr_tmp, qr_tmp, 
@@ -1316,7 +1321,8 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     ql_HDO_tendency_au = -qr_HDO_tendency_au;
                     ql_HDO_tendency_au = -qr_HDO_tendency_ac;
 
-                    double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, 
+                    double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp,
+                            iso_type_HDO,
                             temperature[ijk], p0[k], qr_tmp, qr_HDO_tmp, 
                             qv_tmp, qv_HDO_tmp, sat_ratio_liq, diff_HDO, KT);
                     sb_iso_evaporation_rain(g_therm_HDO, sat_ratio_liq, nr_tmp, qr_tmp, 
@@ -1568,14 +1574,14 @@ void sb_iso_rain_evaporation_wrapper(
                 sb_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm, &nr_tendency_evp, &qr_tendency_evp);
                 double diff_O18 = DVAPOR*DIFF_O18_RATIO;
                 double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
-                double g_therm_O18 = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], 
+                double g_therm_O18 = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, 1.0, temperature[ijk], 
                         p0[k], qr_tmp, qr_O18_tmp, qv_tmp, qv_O18_tmp, sat_ratio, diff_O18, KT);
-                double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, temperature[ijk], 
+                double g_therm_HDO = microphysics_g_iso_SB_Liquid(LT, lam_fp, L_fp, 2.0, temperature[ijk], 
                         p0[k], qr_tmp, qr_HDO_tmp, qv_tmp, qv_HDO_tmp, sat_ratio, diff_HDO, KT);
 
-                sb_iso_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, qr_O18_tmp, 
+                sb_iso_evaporation_rain(g_therm_O18, sat_ratio, nr_tmp, qr_tmp, mu, qr_O18_tmp, 
                         rain_mass, Dp, Dm, &qr_O18_evap_tendency);
-                sb_iso_evaporation_rain(g_therm, sat_ratio, nr_tmp, qr_tmp, mu, qr_HDO_tmp, 
+                sb_iso_evaporation_rain(g_therm_HDO, sat_ratio, nr_tmp, qr_tmp, mu, qr_HDO_tmp, 
                         rain_mass, Dp, Dm, &qr_HDO_evap_tendency);
 
                 qr_tend_evap[ijk] = qr_tendency_evp;
