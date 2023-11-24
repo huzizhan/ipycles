@@ -139,11 +139,25 @@ cdef class ThermodynamicsSB:
         NS.add_profile('rh_max', Gr, Pa)
         NS.add_profile('rh_min', Gr, Pa)
 
-        NS.add_profile('cloud_fraction', Gr, Pa)
-        NS.add_ts('cloud_fraction', Gr, Pa)
-        NS.add_ts('cloud_top', Gr, Pa)
-        NS.add_ts('cloud_base', Gr, Pa)
+        NS.add_profile('cloud_fraction_liquid', Gr, Pa)
+        NS.add_ts('cloud_fraction_liquid', Gr, Pa)
+        NS.add_ts('cloud_base_liquid', Gr, Pa)
+        NS.add_ts('cloud_top_liquid', Gr, Pa)
         NS.add_ts('lwp', Gr, Pa)
+        
+        NS.add_profile('cloud_fraction_ice', Gr, Pa)
+        NS.add_ts('cloud_fraction_ice', Gr, Pa)
+        NS.add_ts('cloud_base_ice', Gr, Pa)
+        NS.add_ts('cloud_top_ice', Gr, Pa)
+        NS.add_ts('iwp', Gr, Pa)
+        
+        NS.add_profile('cloud_fraction_mixed_phase', Gr, Pa)
+        NS.add_ts('cloud_fraction_mixed_phase', Gr, Pa)
+        NS.add_ts('cloud_base_mixed_phase', Gr, Pa)
+        NS.add_ts('cloud_top_mixed_phase', Gr, Pa)
+
+        NS.add_ts('rwp', Gr, Pa)
+        NS.add_ts('swp', Gr, Pa)
 
         NS.add_profile('pv_star_lookup', Gr, Pa, '', '')
         NS.add_profile('pv_star_water', Gr, Pa, '', '')
@@ -477,6 +491,7 @@ cdef class ThermodynamicsSB:
         # Output profiles of thetali  (liquid-ice potential temperature)
         # Compute additional stats
         self.liquid_stats(Gr, RS, PV, DV, NS, Pa)
+        self.ice_stats(Gr, RS, PV, NS, Pa)
 
         return
 
@@ -517,7 +532,7 @@ cdef class ThermodynamicsSB:
                         cf_profile[k] += 1.0 / mean_divisor
 
         cf_profile = Pa.domain_vector_sum(cf_profile, Gr.dims.n[2])
-        NS.write_profile('cloud_fraction', cf_profile, Pa)
+        NS.write_profile('cloud_fraction_liquid', cf_profile, Pa)
 
         # Compute all or nothing cloud fraction
         ci = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
@@ -534,7 +549,7 @@ cdef class ThermodynamicsSB:
             ci_weighted_sum /= mean_divisor
 
         ci_weighted_sum = Pa.domain_scalar_sum(ci_weighted_sum)
-        NS.write_ts('cloud_fraction', ci_weighted_sum, Pa)
+        NS.write_ts('cloud_fraction_liquid', ci_weighted_sum, Pa)
 
         # Compute cloud top and cloud base height
         cb = 99999.9
@@ -548,8 +563,8 @@ cdef class ThermodynamicsSB:
 
         cb = Pa.domain_scalar_min(cb)
         ct = Pa.domain_scalar_max(ct)
-        NS.write_ts('cloud_base', cb, Pa)
-        NS.write_ts('cloud_top', ct, Pa)
+        NS.write_ts('cloud_base_liquid', cb, Pa)
+        NS.write_ts('cloud_top_liquid', ct, Pa)
 
         # Compute liquid water path
         lwp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
@@ -566,5 +581,173 @@ cdef class ThermodynamicsSB:
 
         lwp_weighted_sum = Pa.domain_scalar_sum(lwp_weighted_sum)
         NS.write_ts('lwp', lwp_weighted_sum, Pa)
+
+        return
+    
+    cpdef ice_stats(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, 
+        PrognosticVariables.PrognosticVariables PV,
+        NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+
+        cdef:
+            Py_ssize_t kmin = 0
+            Py_ssize_t kmax = Gr.dims.n[2]
+            Py_ssize_t gw = Gr.dims.gw
+            Py_ssize_t pi, k
+            ParallelMPI.Pencil z_pencil = ParallelMPI.Pencil()
+            Py_ssize_t qi_shift = PV.get_varshift(Gr, 'qi')
+            Py_ssize_t qr_shift = PV.get_varshift(Gr, 'qr')
+            Py_ssize_t qs_shift = PV.get_varshift(Gr, 'qs')
+            Py_ssize_t ql_shift = PV.get_varshift(Gr, 'ql')
+            double[:, :] qi_pencils
+            double[:, :] ql_pencils
+            double[:, :] qr_pencils
+            double[:, :] qs_pencils
+
+            # Cloud indicator
+            double[:] ci
+            double cbi
+            double cti
+            double cbli
+            double ctli
+
+            # Weighted sum of local cloud indicator
+            double ci_weighted_sum = 0.0
+            double mean_divisor = np.double(Gr.dims.n[0] * Gr.dims.n[1])
+
+            double dz = Gr.dims.dx[2]
+            double[:] iwp
+            double[:] rwp
+            double[:] swp
+            double iwp_weighted_sum = 0.0
+            double rwp_weighted_sum = 0.0
+            double swp_weighted_sum = 0.0
+
+            double[:] cf_profile = np.zeros((Gr.dims.n[2]), dtype=np.double, order='c')
+
+        # Initialize the z-pencil
+        z_pencil.initialize(Gr, Pa, 2)
+        qi_pencils =  z_pencil.forward_double( &Gr.dims, Pa, &PV.values[qi_shift])
+        ql_pencils =  z_pencil.forward_double( &Gr.dims, Pa, &PV.values[ql_shift])
+        qr_pencils =  z_pencil.forward_double( &Gr.dims, Pa, &PV.values[qr_shift])
+        qs_pencils =  z_pencil.forward_double( &Gr.dims, Pa, &PV.values[qs_shift])
+
+        # Compute liquid, ice, rain, and snow water paths
+        iwp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
+        rwp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
+        swp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
+        
+        with nogil:
+            for pi in xrange(z_pencil.n_local_pencils):
+                iwp[pi] = 0.0
+                rwp[pi] = 0.0
+                swp[pi] = 0.0
+                for k in xrange(kmin, kmax):
+                    iwp[pi] += RS.rho0_half[k] * qi_pencils[pi, k] * dz
+                    rwp[pi] += RS.rho0_half[k] * qr_pencils[pi, k] * dz
+                    swp[pi] += RS.rho0_half[k] * qs_pencils[pi, k] * dz
+
+            for pi in xrange(z_pencil.n_local_pencils):
+                iwp_weighted_sum += iwp[pi]
+                rwp_weighted_sum += rwp[pi]
+                swp_weighted_sum += swp[pi]
+
+            iwp_weighted_sum /= mean_divisor
+            rwp_weighted_sum /= mean_divisor
+            swp_weighted_sum /= mean_divisor
+
+        iwp_weighted_sum = Pa.domain_scalar_sum(iwp_weighted_sum)
+        NS.write_ts('iwp', iwp_weighted_sum, Pa)
+
+        rwp_weighted_sum = Pa.domain_scalar_sum(rwp_weighted_sum)
+        NS.write_ts('rwp', rwp_weighted_sum, Pa)
+
+        swp_weighted_sum = Pa.domain_scalar_sum(swp_weighted_sum)
+        NS.write_ts('swp', swp_weighted_sum, Pa)
+
+        # Compute cloud fraction for ice
+        with nogil:
+            for pi in xrange(z_pencil.n_local_pencils):
+                for k in xrange(kmin, kmax):
+                    if qi_pencils[pi, k] > 0.0:
+                        cf_profile[k] += 1.0 / mean_divisor
+
+        cf_profile = Pa.domain_vector_sum(cf_profile, Gr.dims.n[2])
+        NS.write_profile('cloud_fraction_ice', cf_profile, Pa)
+
+        # Compute all or nothing ice cloud fraction
+        ci = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
+        with nogil:
+            for pi in xrange(z_pencil.n_local_pencils):
+                for k in xrange(kmin, kmax):
+                    if qi_pencils[pi, k] > 0.0:
+                        ci[pi] = 1.0
+                        break
+                    else:
+                        ci[pi] = 0.0
+            for pi in xrange(z_pencil.n_local_pencils):
+                ci_weighted_sum += ci[pi]
+            ci_weighted_sum /= mean_divisor
+
+        ci_weighted_sum = Pa.domain_scalar_sum(ci_weighted_sum)
+        NS.write_ts('cloud_fraction_ice', ci_weighted_sum, Pa)
+
+        # Compute mixed-phase cloud fraction
+        cf_profile = np.zeros((Gr.dims.n[2]), dtype=np.double, order='c')
+        with nogil:
+            for pi in xrange(z_pencil.n_local_pencils):
+                for k in xrange(kmin, kmax):
+                    if (ql_pencils[pi, k]+qi_pencils[pi, k]) > 0.0:
+                        cf_profile[k] += 1.0 / mean_divisor
+
+        cf_profile = Pa.domain_vector_sum(cf_profile, Gr.dims.n[2])
+        NS.write_profile('cloud_fraction_mixed_phase', cf_profile, Pa)
+
+
+        # Compute all or nothing mixed-phase cloud fraction
+        ci = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
+        with nogil:
+            for pi in xrange(z_pencil.n_local_pencils):
+                for k in xrange(kmin, kmax):
+                    if (ql_pencils[pi, k]+qi_pencils[pi, k]) > 0.0:
+                        ci[pi] = 1.0
+                        break
+                    else:
+                        ci[pi] = 0.0
+            for pi in xrange(z_pencil.n_local_pencils):
+                ci_weighted_sum += ci[pi]
+            ci_weighted_sum /= mean_divisor
+
+        ci_weighted_sum = Pa.domain_scalar_sum(ci_weighted_sum)
+        NS.write_ts('cloud_fraction_mixed_phase', ci_weighted_sum, Pa)
+        
+        # compute ice cloud top and bottom
+        cbi = 99999.9
+        cti = -99999.9
+        with nogil:
+            for pi in xrange(z_pencil.n_local_pencils):
+                for k in xrange(kmin, kmax):
+                    if qi_pencils[pi, k] > 0.0:
+                        cbi = fmin(cbi, Gr.z_half[gw + k])
+                        cti = fmax(cti, Gr.z_half[gw + k])
+
+        cbi = Pa.domain_scalar_min(cbi)
+        cti = Pa.domain_scalar_max(cti)
+        NS.write_ts('cloud_base_ice', cbi, Pa)
+        NS.write_ts('cloud_top_ice', cti, Pa)
+        
+        # compute mix cloud top and bottom
+        cbli = 99999.9
+        ctli = -99999.9
+        with nogil:
+            for pi in xrange(z_pencil.n_local_pencils):
+                for k in xrange(kmin, kmax):
+                    if (ql_pencils[pi, k] + qi_pencils[pi, k]) > 0.0:
+                        cbli = fmin(cbli, Gr.z_half[gw + k])
+                        ctli = fmax(ctli, Gr.z_half[gw + k])
+
+        cbli = Pa.domain_scalar_min(cbli)
+        ctli = Pa.domain_scalar_max(ctli)
+        NS.write_ts('cloud_base_mixed_phase', cbli, Pa)
+        NS.write_ts('cloud_top_mixed_phase', ctli, Pa)
 
         return
