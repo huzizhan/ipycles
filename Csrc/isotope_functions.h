@@ -67,6 +67,42 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
     return qt_tracer / (1.0+(ql_/qv_)*alpha);
 }
 
+static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
+    double alpha_eq;
+    double R_sur_evap;
+    // in case the relative humidity at surface is large than 1.0
+    double relative_humidity = fmin(RH, 1.0);
+    alpha_eq = 1.0 / equilibrium_fractionation_factor_O18_liquid(temperature);
+    R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-relative_humidity)+alpha_k*relative_humidity);
+    return R_sur_evap;
+}
+
+static inline double C_G_model_HDO(double RH,  double temperature, double alpha_k){
+    double alpha_eq;
+    double R_sur_evap;
+    // in case the relative humidity at surface is large than 1.0
+    double relative_humidity = fmin(RH, 1.0);
+    alpha_eq = 1.0 / equilibrium_fractionation_factor_HDO_liquid(temperature);
+    R_sur_evap = alpha_eq*alpha_k*R_std_HDO/((1-relative_humidity)+alpha_k*relative_humidity);
+    return R_sur_evap;
+}
+
+// ======== C_G_model_Dar_2020 ======= 
+// This section is adopted from Dar, 2020, equation 18
+static inline double C_G_model_Dar_2020(double R_Liquid, 
+        double RH, 
+        double temperature, 
+        double alpha_eq,
+        double alpha_k,
+        double Diffusivity_Iso
+        ){
+    double R_sur_evap;
+    double x = 0.6; // the turbulence index of atmosphere, 1.0 means no turbulence, 0.0 means no fractionation
+    double relative_humidity = fmin(RH, 1.0);
+    R_sur_evap = (R_Liquid/1.0)/alpha_eq*(Diffusivity_Iso*(1.0 - RH) + RH);
+    return R_sur_evap;
+}
+
 // reference of fresh water fresh water isotope ratio in Lake Tai Hu, see
 // Estimating evaporation over a large and shallow lake using stable isotopic method: 
 // A case study of Lake Taihu, Xiao's 2017
@@ -90,26 +126,6 @@ static inline double C_G_model_HDO_Mpace_ST(double RH,  double temperature, doub
     double R_surfacer_water = 1.52831e-3; // delta_hdo = -20‰
     alpha_eq = 1.0 / equilibrium_fractionation_factor_HDO_liquid(temperature);
     R_sur_evap = alpha_eq*alpha_k*R_surfacer_water/((1-relative_humidity)+alpha_k*relative_humidity);
-    return R_sur_evap;
-}
-
-static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
-    double alpha_eq;
-    double R_sur_evap;
-    // in case the relative humidity at surface is large than 1.0
-    double relative_humidity = fmin(RH, 1.0);
-    alpha_eq = 1.0 / equilibrium_fractionation_factor_O18_liquid(temperature);
-    R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-relative_humidity)+alpha_k*relative_humidity);
-    return R_sur_evap;
-}
-
-static inline double C_G_model_HDO(double RH,  double temperature, double alpha_k){
-    double alpha_eq;
-    double R_sur_evap;
-    // in case the relative humidity at surface is large than 1.0
-    double relative_humidity = fmin(RH, 1.0);
-    alpha_eq = 1.0 / equilibrium_fractionation_factor_HDO_liquid(temperature);
-    R_sur_evap = alpha_eq*alpha_k*R_std_HDO/((1-relative_humidity)+alpha_k*relative_humidity);
     return R_sur_evap;
 }
 
@@ -365,6 +381,7 @@ void sb_iso_evaporation_rain(double g_therm_iso,
 
 // ===========<<< iso 1-m ice scheme >>> ============
 
+// ============= Default equilibrium_fractionation_factor of O18 and HDO =============
 static inline double equilibrium_fractionation_factor_O18_ice(double t){
 // fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1970
 	double alpha_ice = exp(11.839/t - 2.8224e-2);  
@@ -377,16 +394,23 @@ static inline double equilibrium_fractionation_factor_HDO_ice(double t){
     return alpha_ice;
 }
 
+// ====== Default equilibrium_fractionation_factor of O18 and HDO =======
 static inline double equilibrium_fractionation_factor_O18_ice_Ellehoj(double t){
-// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
+// fractionation factor α_eq for 018 for vapor between ice, based equations from Elleboj 2013
 	double alpha_ice_O18 = exp(0.0831 - 49.192/t + 8312.5/(t*t));  
     return alpha_ice_O18;
 }
-
 static inline double equilibrium_fractionation_factor_HDO_ice_Ellehoj(double t){
-// fractionation factor α_eq for 018 for vapor between ice, based equations from Majoube 1971
+// fractionation factor α_eq for HDO for vapor between ice, based equations from Elleboj 2013
 	double alpha_ice_O18 = exp(0.2133 - 203.10/t + 48888.0/(t*t));  
     return alpha_ice_O18;
+}
+
+
+static inline double equilibrium_fractionation_factor_HDO_ice_Lamb(double t){
+// fractionation factor α_eq for HDO for vapor between ice, based equations from Lamb 2017
+	double alpha_ice = exp(13525/(t*t) - 5.59e-2);  
+    return alpha_ice;
 }
 
 // ===========<<< alpha_k of ice fractionation based on Blossey'10 scheme >>> ============
