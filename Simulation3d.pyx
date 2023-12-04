@@ -194,7 +194,6 @@ class Simulation3d:
 
         self.Restart.cleanup()
 
-
         return
 
     def io(self):

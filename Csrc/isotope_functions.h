@@ -25,6 +25,32 @@ static inline double equilibrium_fractionation_factor_HDO_liquid(double t){
     return alpha_lv;
 }
 
+// ================ alpha_k in surface evaporation =================
+
+static inline double kinetic_fractionation_factor_C_G_model(
+        double eD, // diffusivity ratio of vapor D/D_i
+        double ustar, // fraction velocity
+        double zlevel // z height
+    ){
+    // kinetic fractionation during evaporation from ocean based on Merlivat and Jouzel 1979(JGR, v84, 5029-5033)
+    double chi = 0.4;
+    // calculate roughness height, air viscosity, and Reynolds number
+    double z0 = (ustar*ustar)/(81.1*g);
+    double Re = (ustar*z0)/KIN_VISC_AIR;
+    double dvap = DVAPOR;
+    
+    // small Reynolds number, assume smooth ocean surface
+    // double n = 2.0/3.0;
+    // double rho_t_rho_M = ((1/chi)*log((ustar*zlevel)/(30*KIN_VISC_AIR)))/pow(13.6*(KIN_VISC_AIR/dvap), n);
+    
+    // large Reynolds number, assume rough ocean surface
+    double n = 1.0/4.0;
+    double rho_t_rho_M = ((1/chi)*log(zlevel/z0) - 5.0)/(7.3*pow(Re, 0.25)*pow(KIN_VISC_AIR/dvap, n));
+    
+    double alpha_k = (pow(eD,n) - 1.0)/(pow(eD,n) + rho_t_rho_M);
+    return alpha_k;
+}
+
 // Rayleigh distillation is adopted from Wei's paper in 2018 for qt_iso initialization
 static inline void Rayleigh_distillation(double qt, double* qt_O18, double* qt_HDO){
     double delta_O18 = 8.99 * log((qt*1000)/0.622) - 42.9;
@@ -96,6 +122,7 @@ static inline double C_G_model_Dar_2020(double R_Liquid,
         double alpha_k,
         double Diffusivity_Iso
         ){
+    // TODO: need to double check the Diffusivity_Iso
     double R_sur_evap;
     double x = 0.6; // the turbulence index of atmosphere, 1.0 means no turbulence, 0.0 means no fractionation
     double relative_humidity = fmin(RH, 1.0);
