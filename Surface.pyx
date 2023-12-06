@@ -69,7 +69,8 @@ def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         elif casename == 'Isdac':
             return SurfaceIsdac(namelist, LH)
         elif casename == 'IsdacCC':
-            return SurfaceIsdacCC(namelist, LH)
+            # return SurfaceIsdacCC(namelist, LH)
+            return SurfaceIsdacExp(namelist, LH)
         elif casename == 'Mpace':
             return SurfaceMpace(namelist, LH)
         elif casename == 'Sheba':
@@ -1101,6 +1102,92 @@ cdef class SurfaceIsdac(SurfaceBase):
                     ij = i * istride_2d + j
                     self.u_flux[ij] = -interp_2(self.friction_velocity[ij], self.friction_velocity[ij+istride_2d])**2/interp_2(windspeed[ij], windspeed[ij+istride_2d]) * (PV.values[u_shift + ijk] + Ref.u0)
                     self.v_flux[ij] = -interp_2(self.friction_velocity[ij], self.friction_velocity[ij+1])**2/interp_2(windspeed[ij], windspeed[ij+1]) * (PV.values[v_shift + ijk] + Ref.v0)
+
+        SurfaceBase.update(self, Gr, Ref, PV, DV, Pa, TS)
+        return
+
+
+    cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        SurfaceBase.stats_io(self, Gr, NS, Pa)
+        return
+
+cdef class SurfaceIsdacExp(SurfaceBase):
+    def __init__(self,namelist, LatentHeat LH):
+        self.gustiness = 0.0
+        self.z0 = 4.0e-4
+        self.L_fp = LH.L_fp
+        self.Lambda_fp = LH.Lambda_fp
+        self.dry_case = False
+
+        self.ft = namelist['surface']['sensible']
+        # sst = namelist['initial']['SST'] + namelist['initial']['dSST'] #Temperature at ground
+        # p0 = 1.02e5
+        # theta_flux = self.ft/cpd/1.3
+        # self.buoyancy_flux = theta_flux * exner(p0) * g / sst
+    
+        # isotope tracer type
+        try:
+            if namelist['isotopetracers']['use_tracers']:
+                self.isotope_tracers = True
+            else:
+                self.isotope_tracers = False
+        except:
+            self.isotope_tracers = False
+        return
+
+    cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
+        SurfaceBase.initialize(self,Gr,Ref,NS,Pa)
+        return
+
+
+    cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
+                 DiagnosticVariables.DiagnosticVariables DV,  ParallelMPI.ParallelMPI Pa, TimeStepping.TimeStepping TS):
+
+        if Pa.sub_z_rank != 0:
+            return
+
+        cdef:
+            Py_ssize_t u_shift = PV.get_varshift(Gr,'u')
+            Py_ssize_t v_shift = PV.get_varshift(Gr,'v')
+            Py_ssize_t s_shift = PV.get_varshift(Gr, 's')
+            Py_ssize_t t_shift = DV.get_varshift(Gr, 'temperature')
+            double [:] windspeed = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1],dtype=np.double,order='c')
+
+        compute_windspeed(&Gr.dims, &PV.values[u_shift], &PV.values[v_shift], &windspeed[0],Ref.u0, Ref.v0,self.gustiness)
+
+        cdef:
+            Py_ssize_t i,j, ijk, ij
+            Py_ssize_t gw = Gr.dims.gw
+            Py_ssize_t imax = Gr.dims.nlg[0]
+            Py_ssize_t jmax = Gr.dims.nlg[1]
+            Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
+            Py_ssize_t jstride = Gr.dims.nlg[2]
+            Py_ssize_t istride_2d = Gr.dims.nlg[1]
+            double dzi = 1.0/Gr.dims.dx[2]
+
+            double zb = Gr.dims.dx[2] * 0.5
+
+        # Get the shear stresses
+        with nogil:
+            for i in xrange(1,imax):
+                for j in xrange(1,jmax):
+                    ij = i * istride_2d + j
+                    self.friction_velocity[ij] = compute_ustar(windspeed[ij],self.b_flux[ij],self.z0, Gr.dims.dx[2]/2.0)
+            for i in xrange(1,imax-1):
+                for j in xrange(1,jmax-1):
+                    ijk = i * istride + j * jstride + gw
+                    ij = i * istride_2d + j
+                    self.u_flux[ij] = -interp_2(self.friction_velocity[ij], self.friction_velocity[ij+istride_2d])**2/interp_2(windspeed[ij], windspeed[ij+istride_2d]) * (PV.values[u_shift + ijk] + Ref.u0)
+                    self.v_flux[ij] = -interp_2(self.friction_velocity[ij], self.friction_velocity[ij+1])**2/interp_2(windspeed[ij], windspeed[ij+1]) * (PV.values[v_shift + ijk] + Ref.v0)
+
+        # Now the heat flux (sensible only!)
+        with nogil:
+            for i in xrange(gw-1, imax-gw+1):
+                for j in xrange(gw-1, jmax-gw+1):
+                    ijk = i * istride + j * jstride + gw
+                    ij = i * istride_2d + j
+
+                    self.s_flux[ij] = Ref.alpha0_half[gw] * (self.ft/DV.values[t_shift+ijk])
 
         SurfaceBase.update(self, Gr, Ref, PV, DV, Pa, TS)
         return

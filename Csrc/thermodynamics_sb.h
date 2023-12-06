@@ -9,6 +9,41 @@
 #include "microphysics_sb_ice.h"
 #include <stdio.h>
 
+void saturation_ratio(const struct DimStruct *dims, 
+        // thermodynamic settings
+        struct LookupStruct *LT,
+        double* restrict p0, // reference air pressure
+        double* restrict temperature,  // temperature of air parcel
+        double* restrict qt, // total water specific humidity
+        double* restrict S_lookup,
+        double* restrict S_liq,
+        double* restrict S_ice
+    ){
+    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
+    const ssize_t jstride = dims->nlg[2];
+    const ssize_t imin = dims->gw;
+    const ssize_t jmin = dims->gw;
+    const ssize_t kmin = dims->gw;
+    const ssize_t imax = dims->nlg[0]-dims->gw;
+    const ssize_t jmax = dims->nlg[1]-dims->gw;
+    const ssize_t kmax = dims->nlg[2]-dims->gw;
+    for(ssize_t i=imin; i<imax; i++){
+        const ssize_t ishift = i * istride;
+        for(ssize_t j=jmin; j<jmax; j++){
+            const ssize_t jshift = j * jstride;
+            for(ssize_t k=kmin; k<kmax; k++){
+                const ssize_t ijk = ishift + jshift + k;
+                
+                // lookup table method 
+                S_lookup[ijk] = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
+                S_liq[ijk] = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt[ijk]);
+                S_ice[ijk] = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
+            }
+        }
+    }
+    return;
+}
+
 void liquid_saturation_adjustment(
         struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
         const double p0, 
@@ -93,7 +128,10 @@ void eos_sb_update(struct DimStruct *dims,
     double* restrict p0, 
     double dt,
     double IN, // given ice nuclei
+    double CCN, 
+    double* restrict saturation_ratio,
     double* restrict s, 
+    double* restrict w,
     double* restrict qt, 
     double* restrict T,
     double* restrict qv, 
@@ -114,7 +152,7 @@ void eos_sb_update(struct DimStruct *dims,
     const ssize_t imax = dims->nlg[0];
     const ssize_t jmax = dims->nlg[1];
     const ssize_t kmax = dims->nlg[2];
-
+    const double dzi = 1.0/dims->dx[2];
 
     for (i=imin; i<imax; i++){
        const ssize_t ishift = i * istride;
@@ -131,15 +169,19 @@ void eos_sb_update(struct DimStruct *dims,
                     // TODO: whether calculate the qv use the updated ql contend.
                     qv[ijk] = qt[ijk] - ql[ijk] - qi[ijk];
 
+                    double dS = saturation_ratio[ijk +1] - saturation_ratio[ijk];
+                    sb_ccn(CCN, saturation_ratio[ijk], dS, dzi, w[ijk],
+                            &ql_tendency[ijk], &nl_tendency[ijk]);
+                    // sb_cloud_activation_hdcp(p0[k], qv[ijk], 
+                    //         ql[ijk], nl[ijk], w[ijk], dt, saturation_ratio[ijk],
+                    //         &ql_tendency[ijk], &nl_tendency[ijk]);
+
                     // only update T[ijk] here
                     eos_c(LT, lam_fp, L_fp, p0[k], s[ijk],qt[ijk],&T[ijk],&qv_tmp,&ql_tmp,&qi_tmp);
                     alpha[ijk] = alpha_c(p0[k], T[ijk],qt[ijk],qv[ijk]);
-                    
-                    nl_tmp = ql_tmp/LIQUID_MIN_MASS;
-                    ni_tmp = qi_tmp/ICE_MIN_MASS;
-
+                    // 
                     ql_tendency[ijk] += (ql_tmp - ql[ijk])/dt;
-                    nl_tendency[ijk] += (nl_tmp - nl[ijk])/dt;
+                    nl_tendency[ijk] += (ql_tmp/1.0e-10 - nl[ijk])/dt;
                     
                     // ------------ Ice particle Nucleation --------
                     double qi_tend_nuc, ni_tend_nuc;

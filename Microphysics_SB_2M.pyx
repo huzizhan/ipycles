@@ -58,8 +58,7 @@ cdef extern from "microphysics_sb_ice.h":
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         double* density, double* p0, double dt, 
         double CCN, double IN, 
-        double* temperature, double* w,
-        double*S, double* qt,
+        double* temperature, double* w, double* qt,
         double* nl, double* ql,
         double* ni, double* qi,
         double* nr, double* qr, 
@@ -86,11 +85,6 @@ cdef extern from "microphysics_sb_ice.h":
         double* sm, double* sq, double* sw, 
         double* s_tend)nogil
     
-    void saturation_ratio(Grid.DimStruct *dims,  
-        Lookup.LookupStruct *LT, double* p0, 
-        double* temperature,  double* qt, 
-        double* S_lookup, double* S_liq, double* S_ice)
-
     void sb_sedimentation_velocity_snow(Grid.DimStruct *dims,
         double* ns, double* qs, double* ns_velocity, double* qs_velocity)nogil
 
@@ -210,8 +204,6 @@ cdef class Microphysics_SB_2M:
         LH.L_fp = latent_heat_variable
         self.L_fp = latent_heat_variable
 
-        Par.root_print('Using Arctic specific liquid fraction by Kaul et al. 2015!')
-
         self.CC = ClausiusClapeyron()
         self.CC.initialize(namelist, LH, Par)
 
@@ -325,9 +317,6 @@ cdef class Microphysics_SB_2M:
         self.snow_riming   = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         self.snow_dep      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         self.snow_sub      = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        self.S_lookup = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        self.S_liq = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-        self.S_ice = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
         
         NS.add_profile('Dm', Gr, Pa, '','','')
         NS.add_profile('mass', Gr, Pa, '','','')
@@ -351,10 +340,6 @@ cdef class Microphysics_SB_2M:
         NS.add_profile('sm', Gr, Pa, '', '', '')
         NS.add_profile('sq', Gr, Pa, '', '', '')
         NS.add_profile('sw', Gr, Pa, '', '', '')
-        
-        NS.add_profile('S_lookup', Gr, Pa, '', '', '')
-        NS.add_profile('S_liq', Gr, Pa, '', '', '')
-        NS.add_profile('S_ice', Gr, Pa, '', '', '')
 
         NS.add_profile('qi_dep_sub_tend', Gr, Pa, '','','')
         NS.add_profile('ni_dep_sub_tend', Gr, Pa, '','','')
@@ -437,13 +422,6 @@ cdef class Microphysics_SB_2M:
             double[:] nr_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qs_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] ns_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-            # double[:] S_ratio = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
-
-        saturation_ratio(&Gr.dims, 
-            &self.CC.LT.LookupStructC,
-            &Ref.p0_half[0], &DV.values[t_shift], 
-            &PV.values[qt_shift],
-            &self.S_lookup[0], &self.S_liq[0], &self.S_ice[0])
 
         # SB 2 moment microphysics source calculation
         sb_ice_microphysics_sources(&Gr.dims, 
@@ -453,9 +431,8 @@ cdef class Microphysics_SB_2M:
             self.compute_rain_shape_parameter, self.compute_droplet_nu, 
             # INPUT ARRAY INDEX
             &Ref.rho0_half[0],  &Ref.p0_half[0], TS.dt,
-            self.CCN, self.ice_nucl,
-            &DV.values[t_shift], &PV.values[w_shift],
-            &self.S_lookup[0], &PV.values[qt_shift], 
+            self.CCN, self.ice_nucl, &DV.values[t_shift], 
+            &PV.values[w_shift],&PV.values[qt_shift], 
             &PV.values[nl_shift], &PV.values[ql_shift],
             &PV.values[ni_shift], &PV.values[qi_shift],
             &PV.values[nr_shift], &PV.values[qr_shift],
@@ -758,12 +735,5 @@ cdef class Microphysics_SB_2M:
         NS.write_profile('sq', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &self.sw[0])
         NS.write_profile('sw', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
-        
-        tmp = Pa.HorizontalMean(Gr, &self.S_lookup[0])
-        NS.write_profile('S_lookup', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
-        tmp = Pa.HorizontalMean(Gr, &self.S_liq[0])
-        NS.write_profile('S_liq', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
-        tmp = Pa.HorizontalMean(Gr, &self.S_ice[0])
-        NS.write_profile('S_ice', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
 
         return

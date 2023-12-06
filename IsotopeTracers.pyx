@@ -921,6 +921,12 @@ cdef class IsotopeTracers_SBSI:
         return
 
 cdef extern from "microphysics_sb_ice.h":
+    
+    void saturation_ratio(Grid.DimStruct *dims,  
+        Lookup.LookupStruct *LT, double* p0, 
+        double* temperature,  double* qt, 
+        double* S_lookup, double* S_liq, double* S_ice)
+
     void sb_ice_deposition_wrapper(Grid.DimStruct *dims, 
         Lookup.LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
         double* temperature, double* qt, double* p0, double* density,
@@ -970,10 +976,9 @@ cdef extern from "isotope.h":
     
     void tracer_sb_cloud_fractionation(Grid.DimStruct * dims, 
         Lookup.LookupStruct * LT, double(*lam_fp)(double), double(*L_fp)(double, double),
-        double* p0, double IN, double dt,
-        double* s, double* qt, double* temperature,
-        double* qv, double* ql, double* nl, 
-        double* qi, double* ni,
+        double* p0, double IN, double CCN, double* sat_ratio, double dt,
+        double* s, double* w, double* qt, double* temperature,
+        double* qv, double* ql, double* nl, double* qi, double* ni,
         double* qt_O18, double* qv_O18,
         double* ql_O18, double* qi_O18,
         double* qt_HDO, double* qv_HDO,
@@ -1285,11 +1290,22 @@ cdef class IsotopeTracers_SB_Ice:
             double[:] qs_O18_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qr_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qs_HDO_tend_micro = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] saturation_ratio_lookup = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] saturation_ratio_liquid = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] saturation_ratio_ice = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            
+        saturation_ratio(&Gr.dims, 
+            &Micro_SB_2M.CC.LT.LookupStructC,
+            &Ref.p0_half[0], &DV.values[t_shift], 
+            &PV.values[qt_shift],
+            &saturation_ratio_lookup[0], &saturation_ratio_liquid[0], &saturation_ratio_ice[0])
 
         tracer_sb_cloud_fractionation(&Gr.dims,
             &Micro_SB_2M.CC.LT.LookupStructC, Micro_SB_2M.Lambda_fp, Micro_SB_2M.L_fp,
-            &Ref.p0_half[0], Micro_SB_2M.ice_nucl, TS.dt,
-            &PV.values[s_shift], &PV.values[qt_std_shift], &DV.values[t_shift],
+            &Ref.p0_half[0], Micro_SB_2M.ice_nucl, 
+            Micro_SB_2M.CCN, &saturation_ratio_liquid[0], TS.dt,
+            &PV.values[s_shift], &PV.values[w_shift],
+            &PV.values[qt_std_shift], &DV.values[t_shift],
             &DV.values[qv_std_shift], &PV.values[ql_std_shift], &PV.values[nl_std_shift],
             &PV.values[qi_std_shift], &PV.values[ni_std_shift],
             &PV.values[qt_O18_shift], &DV.values[qv_O18_shift], 
@@ -1308,7 +1324,7 @@ cdef class IsotopeTracers_SB_Ice:
             Micro_SB_2M.compute_rain_shape_parameter, Micro_SB_2M.compute_droplet_nu, 
             # INPUT ARRAY INDEX
             &Ref.rho0_half[0], &Ref.p0_half[0], TS.dt,
-            Micro_SB_2M.CCN, Micro_SB_2M.ice_nucl,
+            Micro_SB_2M.CCN, Micro_SB_2M.ice_nucl, 
             &DV.values[t_shift], &PV.values[s_shift], &PV.values[w_shift],
             &PV.values[qt_std_shift], &DV.values[qv_std_shift],
             &PV.values[nl_std_shift], &PV.values[ql_std_shift],

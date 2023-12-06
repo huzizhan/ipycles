@@ -124,6 +124,27 @@ cdef class ForcingIsdac:
                  PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
                    NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
 
+cdef class ForcingIsdacExp:
+    cdef:
+
+        double [:] initial_u
+        double [:] initial_v
+        double [:] initial_entropy
+        double [:] initial_qt
+        double [:] nudge_coeff_velocities
+        double [:] nudge_coeff_scalars
+        double [:] w_half
+        double z_top
+        bint isotope_tracers
+
+        double divergence
+    cpdef initialize(self, Grid.Grid Gr, ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
+    cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
+                 PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, ParallelMPI.ParallelMPI Pa)
+    cpdef stats_io(self, Grid.Grid Gr, ReferenceState.ReferenceState RS,
+                 PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV,
+                   NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa)
+
 cdef class ForcingIsdacCC:
     cdef:
 

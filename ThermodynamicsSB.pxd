@@ -14,6 +14,10 @@ cdef class ThermodynamicsSB:
         double (*L_fp)(double T, double Lambda) nogil
         double (*Lambda_fp)(double T) nogil
         ClausiusClapeyron CC
+        double [:] S_lookup
+        double [:] S_liq
+        double [:] S_ice
+        double CCN
         double ice_nucl
 
     cpdef initialize(self,Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,

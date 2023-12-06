@@ -1016,6 +1016,7 @@ def IsdacCC():
     namelist['initial']['dSST'] = 8.0 #SST change (climate change)
     namelist['initial']['divergence'] = 5.0e-6 # LS divergence
     namelist['initial']['fix_dqt'] = True
+    namelist['initial']['qt_baseline'] = -0.000454106424679
 
     namelist['surface'] = {}
     namelist['surface']['sensible'] = 0.0 #surface sensible heat flux Wm-2

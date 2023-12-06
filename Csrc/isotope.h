@@ -11,6 +11,7 @@
 #include "microphysics_sb_liquid.h"
 #include "microphysics_sb_ice.h"
 #include "microphysics_arctic_1m.h"
+#include "advection_interpolation.h"
 #include <math.h>
 // #define SB_EPS 1.0e-13
 
@@ -678,8 +679,11 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
     struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
     double* restrict p0, 
     double IN,
+    double CCN, 
+    double* restrict saturation_ratio,
     double dt,
     double* restrict s, 
+    double* restrict w,
     double* restrict qt, 
     double* restrict T,
     double* restrict qv, 
@@ -710,7 +714,7 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
     const ssize_t imax = dims->nlg[0];
     const ssize_t jmax = dims->nlg[1];
     const ssize_t kmax = dims->nlg[2];
-
+    const double dzi = 1.0/dims->dx[2];
 
     for (i=imin; i<imax; i++){
        const ssize_t ishift = i * istride;
@@ -719,6 +723,7 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
                 for (k=kmin;k<kmax;k++){
                     const ssize_t ijk = ishift + jshift + k;
                     double nl_tmp, ql_tmp, qi_tmp, ni_tmp, qv_tmp;
+                    double ql_activation, nl_activation;
                     double t_tmp = T[ijk];
                     
                     ql[ijk] = fmax(ql[ijk],0.0);
@@ -728,13 +733,18 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
                     // only update T[ijk] here
                     // TODO: it missed the CCN in here
                 
+                    double dS = saturation_ratio[ijk +1] - saturation_ratio[ijk];
+                    sb_ccn(CCN, saturation_ratio[ijk], dS, dzi, w[ijk],
+                            &ql_tendency[ijk], &nl_tendency[ijk]);
+                    // sb_cloud_activation_hdcp(p0[k], qv[ijk], 
+                    //         ql[ijk], nl[ijk], w[ijk], dt, saturation_ratio[ijk],
+                    //         &ql_tendency[ijk], &nl_tendency[ijk]);
+
                     eos_c(LT, lam_fp, L_fp, p0[k], s[ijk],qt[ijk], 
                         &t_tmp, &qv_tmp, &ql_tmp, &qi_tmp);
-                    
-                    nl_tmp = ql_tmp/LIQUID_MIN_MASS;
 
                     ql_tendency[ijk] += (ql_tmp - ql[ijk])/dt;
-                    nl_tendency[ijk] += (nl_tmp - nl[ijk])/dt;
+                    // nl_tendency[ijk] += (nl_tmp - nl[ijk])/dt;
 
                     // ------------ Ice particle Nucleation --------
                     double qi_tend_nuc, ni_tend_nuc;

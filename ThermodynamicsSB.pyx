@@ -29,8 +29,9 @@ cdef extern from "thermodynamics_sa.h":
 
 cdef extern from "thermodynamics_sb.h":
     void eos_sb_update(Grid.DimStruct * dims, Lookup.LookupStruct * LT, double(*lam_fp)(double), double(*L_fp)(double, double),
-            double* p0, double dt, double IN,
-            double* s, double* qt, double* temperature,
+            double* p0, double dt, double IN, double CCN, 
+            double* saturation_ratio, double* s, double* w,
+            double* qt, double* temperature,
             double* qv, double* ql, double* nl, 
             double* qi, double* ni, double* alpha,
             double* ql_tend, double* nl_tend,
@@ -38,6 +39,11 @@ cdef extern from "thermodynamics_sb.h":
     void thetali_sb_update(Grid.DimStruct * dims, double(*lam_fp)(double), double(*L_fp)(double, double),
             double* p0, double* T, double* qt, 
             double* ql, double* qi, double* thetali) nogil
+    void saturation_ratio(Grid.DimStruct *dims,  
+        Lookup.LookupStruct *LT, double* p0, 
+        double* temperature,  double* qt, 
+        double* S_lookup, double* S_liq, double* S_ice)
+
 
 cdef extern from "thermodynamic_functions.h":
     # Dry air partial pressure
@@ -75,9 +81,15 @@ cdef class ThermodynamicsSB:
         except:
             self.do_qt_clipping = True
 
+        self.CCN = 100.0e6
+        try:
+            self.CCN = namelist['microphysics']['CCN']
+        except:
+            pass
+        
         self.ice_nucl = 2.0e2 # unit: L^-1, Cotton assumption of contact nucleation.
         try:
-            self.ice_nucl = namelist['microphysics']['ice_nuclei']
+            self.ice_nucl = namelist['isotopetracers']['ice_nuclei']
         except:
             pass
 
@@ -166,6 +178,14 @@ cdef class ThermodynamicsSB:
         NS.add_profile('RH_water', Gr, Pa, 'unit', '', 'supper_saturation_ratio')
         NS.add_profile('RH_ice', Gr, Pa, 'unit', '', 'supper_saturation_ratio')
 
+        self.S_lookup = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.S_liq = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+        self.S_ice = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+
+        NS.add_profile('S_lookup', Gr, Pa, '', '', '')
+        NS.add_profile('S_liq', Gr, Pa, '', '', '')
+        NS.add_profile('S_ice', Gr, Pa, '', '', '')
+
         return
     
     cpdef entropy(self, double p0, double T, double qt, double ql, double qi):
@@ -239,24 +259,33 @@ cdef class ThermodynamicsSB:
         '''
         if self.do_qt_clipping:
             clip_qt(&Gr.dims, &PV.values[qt_shift], 1e-11)
+        
+        saturation_ratio(&Gr.dims, 
+            &self.CC.LT.LookupStructC,
+            &RS.p0_half[0], &DV.values[t_shift], 
+            &PV.values[qt_shift],
+            &self.S_lookup[0], &self.S_liq[0], &self.S_ice[0])
 
         eos_sb_update(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
-                &RS.p0_half[0], dt, self.ice_nucl,
-                &PV.values[s_shift], &PV.values[qt_shift], &DV.values[t_shift], 
-                &DV.values[qv_shift], &PV.values[ql_shift], &PV.values[nl_shift], 
-                &PV.values[qi_shift], &PV.values[ni_shift], &DV.values[alpha_shift],
-                &PV.tendencies[ql_shift], &PV.tendencies[nl_shift],
-                &PV.tendencies[qi_shift], &PV.tendencies[ni_shift])
+            &RS.p0_half[0], dt, self.ice_nucl,
+            self.CCN, &self.S_liq[0],
+            &PV.values[s_shift], &PV.values[w_shift],
+            &PV.values[qt_shift], &DV.values[t_shift],
+            &DV.values[qv_shift], &PV.values[ql_shift], &PV.values[nl_shift], 
+            &PV.values[qi_shift], &PV.values[ni_shift], &DV.values[alpha_shift],
+            &PV.tendencies[ql_shift], &PV.tendencies[nl_shift],
+            &PV.tendencies[qi_shift], &PV.tendencies[ni_shift])
 
-        buoyancy_update_sa(&Gr.dims, &RS.alpha0_half[0], &DV.values[alpha_shift], &DV.values[buoyancy_shift], &PV.tendencies[w_shift])
+        buoyancy_update_sa(&Gr.dims, &RS.alpha0_half[0], &DV.values[alpha_shift], 
+            &DV.values[buoyancy_shift], &PV.tendencies[w_shift])
 
-        bvf_sa( &Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
-                &RS.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
-                &DV.values[thr_shift], &DV.values[bvf_shift])
+        bvf_sa(&Gr.dims, &self.CC.LT.LookupStructC, self.Lambda_fp, self.L_fp, 
+            &RS.p0_half[0], &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], 
+            &DV.values[thr_shift], &DV.values[bvf_shift])
 
         thetali_sb_update(&Gr.dims,self.Lambda_fp, self.L_fp, &RS.p0_half[0], 
-                &DV.values[t_shift], &PV.values[qt_shift], &PV.values[ql_shift],&PV.values[qi_shift],
-                &DV.values[thl_shift])
+            &DV.values[t_shift], &PV.values[qt_shift], &PV.values[ql_shift],&PV.values[qi_shift],
+            &DV.values[thl_shift])
 
         return
     
@@ -372,6 +401,13 @@ cdef class ThermodynamicsSB:
         NS.write_profile('RH_water', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &RH_ice[0])
         NS.write_profile('RH_ice', tmp[Gr.dims.gw:-Gr.dims.gw], Pa)
+        
+        tmp = Pa.HorizontalMean(Gr, &self.S_lookup[0])
+        NS.write_profile('S_lookup', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
+        tmp = Pa.HorizontalMean(Gr, &self.S_liq[0])
+        NS.write_profile('S_liq', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
+        tmp = Pa.HorizontalMean(Gr, &self.S_ice[0])
+        NS.write_profile('S_ice', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)       
         
         # Ouput profiles of thetas
         with nogil:

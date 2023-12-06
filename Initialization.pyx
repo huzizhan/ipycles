@@ -45,7 +45,8 @@ def InitializationFactory(namelist):
         elif casename == 'Isdac':
             return InitIsdac
         elif casename == 'IsdacCC':
-            return InitIsdacCC
+            # return InitIsdacCC
+            return InitIsdacExp
         elif casename == 'Mpace':
             return InitMpace
         elif casename == 'Sheba':
@@ -990,6 +991,157 @@ def InitIsdac(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
                 PV.values[ijk + s_varshift] = Th.entropy(RS.p0_half[k], T, qt[k], ql, 0.0)
     
     # initialize r_vapor profile using rayleigh approach, based on Equ 66 in Wei 2018
+    try:
+        isotope_tracers = namelist["isotopetracers"]["use_tracers"]
+        if isotope_tracers:
+            initialize_Rayleigh(Gr, PV, Pa)
+    except:
+        return
+
+    return
+
+def InitIsdacExp(namelist, Grid.Grid Gr,PrognosticVariables.PrognosticVariables PV,
+                ReferenceState.ReferenceState RS, Th, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa, LatentHeat LH):
+
+    '''
+    Idealized ISDAC setup initialization based on the ISDAC case described in Ovchinnikov et al. (2014):
+    Intercomparison of large-eddy simulations of Arctic mixed-phase clouds:
+    Importance of ice size distribution assumptions
+    :param Gr: Grid cdef extension class
+    :param PV: PrognosticVariables cdef extension class
+    :param RS: ReferenceState cdef extension class
+    :param Th: Thermodynamics class
+    :return: None
+    '''
+
+    #First generate the reference profiles
+    RS.Pg = 1.02e5  #Pressure at ground
+    RS.Tg = namelist['initial']['SST'] + namelist['initial']['dSST']
+    pv_sat = Th.get_pv_star(RS.Tg)
+    pv = pv_sat * namelist['initial']['rh0']
+    RS.qtg =  1.0/(eps_vi * (RS.Pg - pv) / pv + 1.0)  #Total water mixing ratio at surface
+
+    RS.initialize(Gr, Th, NS, Pa)
+
+
+    #Get the variable number for each of the velocity components
+    cdef:
+        Py_ssize_t i
+        Py_ssize_t j
+        Py_ssize_t k
+        Py_ssize_t ijk, ishift, jshift
+        Py_ssize_t istride = Gr.dims.nlg[1] * Gr.dims.nlg[2]
+        Py_ssize_t jstride = Gr.dims.nlg[2]
+        Py_ssize_t u_varshift = PV.get_varshift(Gr,'u')
+        Py_ssize_t v_varshift = PV.get_varshift(Gr,'v')
+        Py_ssize_t w_varshift = PV.get_varshift(Gr,'w')
+        Py_ssize_t s_varshift = PV.get_varshift(Gr,'s')
+        Py_ssize_t qt_varshift = PV.get_varshift(Gr,'qt')
+        double [:] v = np.zeros((Gr.dims.nlg[2],),dtype=np.double,order='c')
+        double [:] rh = np.zeros((Gr.dims.nlg[2],),dtype=np.double,order='c')
+
+        #Specify initial condition variables
+        double thetal_inv = namelist['initial']['dTi'] #inversion jump at cloud top
+        double thetal_gamma = namelist['initial']['gamma'] #lapse rate above cloud top
+        double rh_tropo = namelist['initial']['rh'] #lower tropospheric relative humidity
+        double z_top = namelist['initial']['z_top'] #cloud top height
+        double dz_inv = namelist['initial']['dzi'] #inversion depth
+        bint fix_dqt = namelist['initial']['fix_dqt'] #Whether dqt is fixed
+        double dqt_baseline = namelist['initial']['qt_baseline'] # dqt from climate
+        double [:] temp = np.zeros((Gr.dims.nlg[2],),dtype=np.double,order='c')
+        double [:] p0_half = np.zeros((Gr.dims.nlg[2],),dtype=np.double,order='c')
+        double t_above_inv, p_above_inv
+
+
+    RS.ic_qt = np.zeros((Gr.dims.nlg[2],),dtype=np.double,order='c')
+    RS.ic_thetal = np.zeros((Gr.dims.nlg[2],),dtype=np.double,order='c')
+    RS.ic_rh = np.zeros((Gr.dims.nlg[2],),dtype=np.double,order='c')
+
+    for k in xrange(Gr.dims.nlg[2]):
+        #Set thetal and qt profile
+        if Gr.zl_half[k] <= z_top:
+            RS.ic_thetal[k] = RS.Tg
+        if z_top < Gr.zl_half[k] <= (z_top + dz_inv):
+            RS.ic_thetal[k] = RS.Tg + (Gr.zl_half[k] - z_top) * thetal_inv / dz_inv
+        if Gr.zl_half[k] > (z_top + dz_inv):
+            RS.ic_thetal[k] = RS.ic_thetal[k-1] + Gr.dims.dx[2] * thetal_gamma
+            temp[k] = RS.ic_thetal[k] * (RS.p0_half[k] / p_tilde)**(Rd/cpd)
+            pv_sat = Th.get_pv_star(temp[k])
+            pv = pv_sat * rh_tropo
+            RS.ic_qt[k] = qv_unsat(RS.p0_half[k], pv)
+            p0_half[k] = RS.p0_half[k]
+            rh[k] = rh_tropo
+
+
+    cdef double qt_above_inv = np.amax(RS.ic_qt)
+
+    #If to fix dqt above the cloud top to be the baseline value, calculate the qt values above cloud top here
+    if fix_dqt:
+        qt_above_inv = RS.qtg + dqt_baseline
+        t_above_inv = np.amax(temp)
+        p_above_inv = np.amax(p0_half)
+        pv_sat = Th.get_pv_star(t_above_inv)
+        pv = (p_above_inv * qt_above_inv) / (eps_v * (1.0 - qt_above_inv) + qt_above_inv)
+        rh_tropo = pv / pv_sat
+        Pa.root_print(rh_tropo)
+
+        for k in xrange(Gr.dims.nlg[2]):
+            if Gr.zl_half[k] > (z_top + dz_inv):
+                pv_sat = Th.get_pv_star(temp[k])
+                pv = pv_sat * rh_tropo
+                RS.ic_qt[k] = qv_unsat(RS.p0_half[k], pv)
+                rh[k] = rh_tropo
+
+    for k in xrange(Gr.dims.nlg[2]):
+        if Gr.zl_half[k] <= z_top:
+            RS.ic_qt[k] = RS.qtg
+
+    for k in xrange(Gr.dims.nlg[2]):
+        if z_top < Gr.zl_half[k] <= (z_top + dz_inv):
+            RS.ic_qt[k] = RS.qtg - (Gr.zl_half[k] - z_top) * (RS.qtg - qt_above_inv) / dz_inv
+
+    for k in xrange(Gr.dims.nlg[2]):
+        if Gr.zl_half[k] <= (z_top + dz_inv):
+            T, ql = sat_adjst(RS.p0_half[k], RS.ic_thetal[k], RS.ic_qt[k], Th)
+            pv_sat = Th.get_pv_star(T)
+            qv = RS.ic_qt[k] - ql
+            pv = (RS.p0_half[k] * qv) / (eps_v * (1.0 - RS.ic_qt[k]) + qv)
+            rh[k] = pv / pv_sat
+
+
+    for k in xrange(Gr.dims.nlg[2]):
+        #Set u profile
+        v[k] = -2.0 + 0.003 * Gr.zl_half[k]
+
+    #Set velocities for Galilean transformation
+    RS.u0 = -7.0
+    RS.v0 = 0.5 * (np.amax(v)+np.amin(v))
+
+    #Generate initial perturbations (here we are generating more than we need)
+    cdef double [:] theta_pert = np.random.random_sample(Gr.dims.npg)
+    cdef double theta_pert_
+
+    #Now loop and set the initial condition
+    for i in xrange(Gr.dims.nlg[0]):
+        ishift = istride * i
+        for j in xrange(Gr.dims.nlg[1]):
+            jshift = jstride * j
+            for k in xrange(Gr.dims.nlg[2]):
+                ijk = ishift + jshift + k
+                PV.values[ijk + u_varshift] = -7.0 - RS.u0
+                PV.values[ijk + v_varshift] = v[k] - RS.v0
+                PV.values[ijk + w_varshift] = 0.0
+                PV.values[ijk + qt_varshift]  = RS.ic_qt[k]
+
+                #Now set the entropy prognostic variable including a potential temperature perturbation
+                if Gr.zl_half[k] < 825.0:
+                    theta_pert_ = (theta_pert[ijk] - 0.5)* 0.1
+                else:
+                    theta_pert_ = 0.0
+                T,ql = sat_adjst(RS.p0_half[k],RS.ic_thetal[k] + theta_pert_, RS.ic_qt[k], Th)
+                PV.values[ijk + s_varshift] = Th.entropy(RS.p0_half[k], T, RS.ic_qt[k], ql, 0.0)
+
+    # initialize r_vapor profile using rayleigh approach, based on equation 66 in Wei 2018
     try:
         isotope_tracers = namelist["isotopetracers"]["use_tracers"]
         if isotope_tracers:

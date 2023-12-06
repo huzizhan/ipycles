@@ -29,11 +29,6 @@ cdef extern from "thermodynamics_sa.h":
     void bvf_sa(Grid.DimStruct * dims, Lookup.LookupStruct * LT, double(*lam_fp)(double), double(*L_fp)(double, double), double *p0, double *T, double *qt, double *qv, double *theta_rho, double *bvf)
     void thetali_update(Grid.DimStruct *dims, double (*lam_fp)(double), double (*L_fp)(double, double), double *p0, double *T, double *qt, double *ql, double *qi, double *thetali)
     void clip_qt(Grid.DimStruct *dims, double  *qt, double clip_value)
-cdef extern from "thermodynamics_sb.h":
-    void eos_sb_update(Grid.DimStruct *dims, Lookup.LookupStruct *LT, double(*lam_fp)(double), double(*L_fp)(double, double), 
-            double *p0, double dt, double *s, double *qt, double *T,
-            double * qv, double * ql, double * nl, double * qi, double * alpha,
-            double * ql_tend, double * nl_tend)nogil
 
 cdef extern from "thermodynamic_functions.h":
     # Dry air partial pressure

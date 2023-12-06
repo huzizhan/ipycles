@@ -7,6 +7,7 @@
 #include "entropies.h"
 #include "thermodynamic_functions.h"
 #include "thermodynamics_sa.h"
+#include "advection_interpolation.h"
 #include <math.h>
 
 // ===========<<< SB Ice phase parameterization >>> ============
@@ -157,6 +158,8 @@ void sb_ccn(
     if (S > 0.0 && S < S_max && var_1 > 0.0){
         *nl_tendency += C_ccn * kappa_mar * pow(S,kappa_mar) * var_1;
         *ql_tendency += *nl_tendency * cloud_x_min;
+        // *nl_tendency += 1.0;
+        // *ql_tendency += 1.0;
     }
     else{
         *nl_tendency += 0.0;
@@ -1311,41 +1314,6 @@ void sb_snow_melting(
     }
 }
 
-void saturation_ratio(const struct DimStruct *dims, 
-        // thermodynamic settings
-        struct LookupStruct *LT,
-        double* restrict p0, // reference air pressure
-        double* restrict temperature,  // temperature of air parcel
-        double* restrict qt, // total water specific humidity
-        double* restrict S_lookup,
-        double* restrict S_liq,
-        double* restrict S_ice
-    ){
-    const ssize_t istride = dims->nlg[1] * dims->nlg[2];
-    const ssize_t jstride = dims->nlg[2];
-    const ssize_t imin = dims->gw;
-    const ssize_t jmin = dims->gw;
-    const ssize_t kmin = dims->gw;
-    const ssize_t imax = dims->nlg[0]-dims->gw;
-    const ssize_t jmax = dims->nlg[1]-dims->gw;
-    const ssize_t kmax = dims->nlg[2]-dims->gw;
-    for(ssize_t i=imin; i<imax; i++){
-        const ssize_t ishift = i * istride;
-        for(ssize_t j=jmin; j<jmax; j++){
-            const ssize_t jshift = j * jstride;
-            for(ssize_t k=kmin; k<kmax; k++){
-                const ssize_t ijk = ishift + jshift + k;
-                
-                // lookup table method 
-                S_lookup[ijk] = microphysics_saturation_ratio(LT, temperature[ijk], p0[k], qt[ijk]);
-                S_liq[ijk] = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt[ijk]);
-                S_ice[ijk] = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt[ijk]);
-            }
-        }
-    }
-    return;
-}
-
 // void sb_nuc(const struct DimStruct *dims, 
 //         // thermodynamic settings
 //         struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double), 
@@ -1426,7 +1394,7 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
         double IN, // given ice nuclei
         double* restrict temperature,  // temperature of air parcel
         double* restrict w, // vertical velocity
-        double* restrict S, // satratio of ice
+        // double* restrict S, // satratio of ice
         double* restrict qt, // total water specific humidity
         double* restrict nl, // cloud liquid number density
         double* restrict ql, // cloud liquid water specific humidity
