@@ -181,7 +181,7 @@ void eos_sb_update(struct DimStruct *dims,
                     alpha[ijk] = alpha_c(p0[k], T[ijk],qt[ijk],qv[ijk]);
                     // 
                     ql_tendency[ijk] += (ql_tmp - ql[ijk])/dt;
-                    nl_tendency[ijk] += (ql_tmp/1.0e-10 - nl[ijk])/dt;
+                    nl_tendency[ijk] += (ql_tmp/1.0e-12 - nl[ijk])/dt;
                     
                     // ------------ Ice particle Nucleation --------
                     double qi_tend_nuc, ni_tend_nuc;

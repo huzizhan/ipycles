@@ -744,7 +744,7 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
                         &t_tmp, &qv_tmp, &ql_tmp, &qi_tmp);
 
                     ql_tendency[ijk] += (ql_tmp - ql[ijk])/dt;
-                    // nl_tendency[ijk] += (nl_tmp - nl[ijk])/dt;
+                    nl_tendency[ijk] += (ql_tmp/1.0e-12 - nl[ijk])/dt;
 
                     // ------------ Ice particle Nucleation --------
                     double qi_tend_nuc, ni_tend_nuc;
