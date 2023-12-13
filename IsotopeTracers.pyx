@@ -1399,10 +1399,8 @@ cdef class IsotopeTracers_SB_Ice:
                 &PV.values[ql_shift], &DV.values[wqt_O18_shift])
 
         sb_2m_qt_source_debug(&Gr.dims, &PV.tendencies[qt_HDO_shift], 
-            &qs_HDO_tend_micro[0], &qs_HDO_tend_micro[0])
+            &qr_HDO_tend_micro[0], &qs_HDO_tend_micro[0])
 
-        sb_2m_qt_source_formation(&Gr.dims, &PV.tendencies[qt_HDO_shift], 
-            &precip_HDO_rate[0], &evap_HDO_rate[0])
         # sedimentation processes of rain and single_ice: w_qr and w_qs
         sb_sedimentation_velocity_rain(&Gr.dims, Micro_SB_2M.compute_rain_shape_parameter, 
             &Ref.rho0_half[0], &PV.values[nr_std_shift], &PV.values[qr_std_shift], 
