@@ -186,8 +186,15 @@ double microphysics_heterogenous_freezing_rate(double temperature){
     // A_het and B_het are adopted from Pruppacher1997
     double A_het = 0.2; // kg^-1 s^-1
     double B_het = 0.65; // K^-1
-    double t_3 = 273.15; // J
-    double var_tmp = B_het*(t_3 - temperature) - 1.0;
+    double T_celsius = temperature - 273.15;
+
+    double var_tmp;
+    if (T_celsius < 0.0 && T_celsius > -30){
+        var_tmp = B_het*T_celsius - 1.0;
+    }
+    else{
+        var_tmp = 0.0;
+    }
     return A_het * exp(var_tmp);
 }
 

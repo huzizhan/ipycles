@@ -638,6 +638,58 @@ void sb_ice_nucleation_hdcp(
     return;
 }
 
+void sb_freezing(double (*droplet_nu)(double,double), 
+        double density, 
+        double temperature, 
+        double liquid_mass, 
+        double rain_mass, 
+        double ql, 
+        double nl, 
+        double qr, 
+        double nr, 
+        double* ql_tendency, 
+        double* nl_tendency,
+        double* qr_tendency, 
+        double* nr_tendency, 
+        double* qi_tendency, 
+        double* ni_tendency
+    ){
+    // homogeneous freezing of cloud droplets under -30 C 
+    // heterogeneous freezing of rain droplets between -30 ~ 0 C
+
+    if(qr < SB_EPS || nr < SB_EPS || ql < SB_EPS){
+        // if liquid specific humidity is negligibly small, set source terms to zero
+        *ql_tendency = 0.0;
+        *qr_tendency = 0.0;
+        *nr_tendency = 0.0;
+        *qi_tendency = 0.0;
+        *ni_tendency = 0.0;
+    }
+    else{
+        double ql_hom, nl_hom, qr_het, nr_het;
+        double nu    = droplet_nu(density, ql);
+        // J_hom of cloud droplets under -30 C 
+        // follows Equ 12 in Cotton&Field2002
+        // Same as the code in ICON
+        double J_hom = microphysics_homogenous_freezing_rate(temperature);
+        ql_hom = ((nu + 2.0)/(nu + 1.0)) * ql * liquid_mass * J_hom;
+        nl_hom = nl * liquid_mass * J_hom;
+
+        // J_het of rain droplets follows Equ 44 in SB06
+        double J_het = microphysics_heterogenous_freezing_rate(temperature);
+        qr_het = 20.0 * qr * rain_mass * J_het;
+        nr_het = nr * rain_mass * J_het;
+        
+        *ql_tendency = -ql_hom;
+        *nl_tendency = -nl_hom;
+        *qr_tendency = -qr_het;
+        *nr_tendency = -nr_het;
+        *qi_tendency = ql_hom + qr_het;
+        *ni_tendency = nl_hom + nr_het;
+    }
+    return;
+}
+
 void sb_ice_deposition(
         // thermodynamic settings
         struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
