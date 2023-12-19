@@ -952,6 +952,37 @@ void sb_iso_melt_snow(
     return;
 }
 
+void sb_iso_frz_ice(
+    const double ql,
+    const double ql_iso,
+    const double qr,
+    const double qr_iso,
+    const double ql_tend_frz, // negative
+    const double qr_tend_frz, // negative
+    double* qi_iso_tendency
+    ){
+    
+    double ql_iso_tend, qr_iso_tend;
+
+    if(ql > SB_EPS && ql_iso > SB_EPS){
+        ql_iso_tend = ql_tend_frz * (ql_iso/ql);
+    }
+    else{
+        ql_iso_tend = 0.0;
+    }
+    
+    if(qr > SB_EPS && qr_iso > SB_EPS){
+        qr_iso_tend = qr_tend_frz * (qr_iso/qr);
+    }
+    else{
+        qr_iso_tend = 0.0;
+    }
+    
+    *qi_iso_tendency = qr_iso_tend + ql_iso_tend;
+
+    return;
+}
+
 // void iso_sb_2m_snow_depostion(){
 //     return;
 // };

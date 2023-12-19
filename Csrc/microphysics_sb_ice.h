@@ -650,9 +650,7 @@ void sb_freezing(double (*droplet_nu)(double,double),
         double* ql_tendency, 
         double* nl_tendency,
         double* qr_tendency, 
-        double* nr_tendency, 
-        double* qi_tendency, 
-        double* ni_tendency
+        double* nr_tendency
     ){
     // homogeneous freezing of cloud droplets under -30 C 
     // heterogeneous freezing of rain droplets between -30 ~ 0 C
@@ -660,10 +658,9 @@ void sb_freezing(double (*droplet_nu)(double,double),
     if(qr < SB_EPS || nr < SB_EPS || ql < SB_EPS){
         // if liquid specific humidity is negligibly small, set source terms to zero
         *ql_tendency = 0.0;
+        *nl_tendency = 0.0;
         *qr_tendency = 0.0;
         *nr_tendency = 0.0;
-        *qi_tendency = 0.0;
-        *ni_tendency = 0.0;
     }
     else{
         double ql_hom, nl_hom, qr_het, nr_het;
@@ -680,12 +677,10 @@ void sb_freezing(double (*droplet_nu)(double,double),
         qr_het = 20.0 * qr * rain_mass * J_het;
         nr_het = nr * rain_mass * J_het;
         
-        *ql_tendency = -ql_hom;
-        *nl_tendency = -nl_hom;
-        *qr_tendency = -qr_het;
-        *nr_tendency = -nr_het;
-        *qi_tendency = ql_hom + qr_het;
-        *ni_tendency = nl_hom + nr_het;
+        *ql_tendency = ql_hom;
+        *nl_tendency = nl_hom;
+        *qr_tendency = qr_het;
+        *nr_tendency = nr_het;
     }
     return;
 }
@@ -1463,7 +1458,7 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
         //OUTPUT ARRAYS: q and n tendency
         double* restrict nl_tendency, double* restrict ql_tendency,
         double* restrict ni_tendency, double* restrict qi_tendency,
-        double* restrict nr_tendency_micro, double* restrict qr_tendency_micro, 
+        double* restrict nr_tendency_micro, double* restrict qr_tendency_micro,
         double* restrict nr_tendency, double* restrict qr_tendency, 
         double* restrict ns_tendency_micro, double* restrict qs_tendency_micro, 
         double* restrict ns_tendency, double* restrict qs_tendency,

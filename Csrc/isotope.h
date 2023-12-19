@@ -910,6 +910,10 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
     double ns_tendency_snow_selcol;
     // - snow ice collection: s+i -> s
     double qs_tendency_si_col, ni_tendency_si_col, qi_tendency_si_col; 
+    // - cloud droplet homogeneous freezing
+    double ql_tendency_frz, nl_tendency_frz;
+    // - rain droplet heterogeneous freezing
+    double qr_tendency_frz, nr_tendency_frz;
 
     // riming tendency 
     // - cloud droplet and rain rimied to snow tendency
@@ -934,6 +938,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
     double ql_O18_tendency_au, ql_O18_tendency_ac, ql_O18_tendency_rime;
     // ice cloud O18 tendency
     double qi_O18_tendency_dep, qi_O18_tendency_col, qi_O18_tendency_sub;
+    double qi_O18_tendency_frz;
     // rain O18 tendency
     double qr_O18_tendency_au, qr_O18_tendency_ac, qr_O18_tendency_rime, 
            qr_O18_tendency_evap, qr_O18_tendency_melt;
@@ -947,6 +952,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
     double ql_HDO_tendency_au, ql_HDO_tendency_ac, ql_HDO_tendency_rime;
     // ice cloud HDO tendency
     double qi_HDO_tendency_dep, qi_HDO_tendency_col, qi_HDO_tendency_sub;
+    double qi_HDO_tendency_frz;
     // rain HDO tendency
     double qr_HDO_tendency_au, qr_HDO_tendency_ac, qr_HDO_tendency_rime, 
            qr_HDO_tendency_evap, qr_HDO_tendency_melt;
@@ -1099,6 +1105,10 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qs_tendency_melt = 0.0;
                     nr_tendency_melt = 0.0; 
                     qr_tendency_melt = 0.0;
+                    ql_tendency_frz = 0.0;
+                    nl_tendency_frz = 0.0;
+                    qr_tendency_frz = 0.0;
+                    nr_tendency_frz = 0.0;
 
                     dep_tend_ice = 0.0;
                     sub_tend_ice = 0.0;
@@ -1152,6 +1162,11 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             &qv_tendency_dep);
 
                     // TODO: freezing process still need to include
+                    //
+                    sb_freezing(droplet_nu, density[k], temperature[ijk], liquid_mass, 
+                            rain_mass, ql_tmp, nl_tmp, qr_tmp, nr_tmp,
+                            &ql_tendency_frz, &nl_tendency_frz,
+                            &qr_tendency_frz, &nr_tendency_frz);
 
                     // compute the source terms of ice phase process: snow 
 
@@ -1190,9 +1205,9 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qv_tendency_tmp = qv_tendency_evp + qv_tendency_dep;
                     // rain tendency sum
                     nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evp + 
-                                      nr_tendency_snow_rime + nr_tendency_melt;
+                                      nr_tendency_snow_rime + nr_tendency_melt - nr_tendency_frz;
                     qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evp + 
-                                      qr_tendency_snow_rime + qr_tendency_melt;
+                                      qr_tendency_snow_rime + qr_tendency_melt - qr_tendency_frz;
                     
                     // snow tendency sum
                     ns_tendency_tmp = ns_tendency_ice_selcol + ns_tendency_snow_selcol + 
@@ -1201,14 +1216,14 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                                       qs_tendency_rime + qs_tendency_dep + qs_tendency_melt;
                     
                     // cloud droplet tendency sum
-                    ql_tendency_tmp = ql_tendency_au + ql_tendency_ac + ql_tendency_snow_rime;
-                    nl_tendency_tmp = nl_tendency_au + nl_tendency_ac + nl_tendency_snow_rime;
+                    ql_tendency_tmp = ql_tendency_au + ql_tendency_ac + ql_tendency_snow_rime - ql_tendency_frz;
+                    nl_tendency_tmp = nl_tendency_au + nl_tendency_ac + nl_tendency_snow_rime - nl_tendency_frz;
 
                     // ice particle tendency sum
-                    qi_tendency_tmp = qi_tendency_dep + qi_tendency_ice_selcol + 
-                                      qi_tendency_si_col + qi_tendency_snow_mult;
-                    ni_tendency_tmp = ni_tendency_dep + ni_tendency_ice_selcol + 
-                                      ni_tendency_si_col + ni_tendency_snow_mult;
+                    qi_tendency_tmp = qi_tendency_dep + qi_tendency_ice_selcol + qi_tendency_si_col + 
+                                      qi_tendency_snow_mult + ql_tendency_frz + qr_tendency_frz;
+                    ni_tendency_tmp = ni_tendency_dep + ni_tendency_ice_selcol + ni_tendency_si_col + 
+                                      ni_tendency_snow_mult + nl_tendency_frz + nr_tendency_frz;
 
                     // ================ Isotope Tracer Section ======================
                     //
@@ -1224,6 +1239,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qi_O18_tendency_dep  = 0.0;
                     qi_O18_tendency_col  = 0.0;
                     qi_O18_tendency_sub = 0.0;
+                    qi_O18_tendency_frz = 0.0;
                     qr_O18_tendency_au   = 0.0;
                     qr_O18_tendency_ac   = 0.0;
                     qr_O18_tendency_rime = 0.0;
@@ -1264,6 +1280,10 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             qs_tendency_ice_selcol, qs_tendency_si_col,
                             &qs_O18_tendency_col, &qi_O18_tendency_col);
 
+                    sb_iso_frz_ice(ql_tmp, ql_O18_tmp, qr_tmp, qr_O18_tmp,
+                            ql_tendency_frz, qr_tendency_frz, 
+                            &qi_O18_tendency_frz);
+
                     sb_iso_riming_snow(ql_tmp, qr_tmp, ql_O18_tmp, qr_O18_tmp, 
                             ql_tendency_snow_rime, qr_tendency_snow_rime,
                             &ql_O18_tendency_rime, &qr_O18_tendency_rime,
@@ -1281,7 +1301,8 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             &qv_O18_tendency_tmp, &qs_O18_tendency_sub);
 
                     ql_O18_tendency_tmp = ql_O18_tendency_au + ql_O18_tendency_ac + ql_O18_tendency_rime;
-                    qi_O18_tendency_tmp = qi_O18_tendency_dep + qi_O18_tendency_col + qi_O18_tendency_sub;
+                    qi_O18_tendency_tmp = qi_O18_tendency_dep + qi_O18_tendency_col + qi_O18_tendency_sub +
+                                          qi_O18_tendency_frz;
                     qr_O18_tendency_tmp = qr_O18_tendency_au + qr_O18_tendency_ac + 
                                           qr_O18_tendency_rime + qr_O18_tendency_melt + qr_O18_tendency_evap;
                     qs_O18_tendency_tmp = qs_O18_tendency_col + qs_O18_tendency_rime + qs_O18_tendency_melt +
@@ -1301,6 +1322,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qi_HDO_tendency_dep  = 0.0;
                     qi_HDO_tendency_col  = 0.0;
                     qi_HDO_tendency_sub = 0.0;
+                    qi_HDO_tendency_frz = 0.0;
                     qr_HDO_tendency_au   = 0.0;
                     qr_HDO_tendency_ac   = 0.0;
                     qr_HDO_tendency_rime = 0.0;
@@ -1341,6 +1363,10 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                     sb_iso_ice_collection_snow(qi_tmp, qi_HDO_tmp, 
                             qs_tendency_ice_selcol, qs_tendency_si_col,
                             &qs_HDO_tendency_col, &qi_HDO_tendency_col);
+                    
+                    sb_iso_frz_ice(ql_tmp, ql_HDO_tmp, qr_tmp, qr_HDO_tmp,
+                            ql_tendency_frz, qr_tendency_frz, 
+                            &qi_HDO_tendency_frz);
 
                     sb_iso_riming_snow(ql_tmp, qr_tmp, ql_HDO_tmp, qr_HDO_tmp, 
                             ql_tendency_snow_rime, qr_tendency_snow_rime,
@@ -1359,7 +1385,8 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             &qv_HDO_tendency_tmp, &qs_HDO_tendency_sub);
                     
                     ql_HDO_tendency_tmp = ql_HDO_tendency_au + ql_HDO_tendency_ac + ql_HDO_tendency_rime;
-                    qi_HDO_tendency_tmp = qi_HDO_tendency_dep + qi_HDO_tendency_col + qi_HDO_tendency_sub;
+                    qi_HDO_tendency_tmp = qi_HDO_tendency_dep + qi_HDO_tendency_col + qi_HDO_tendency_sub +
+                                          qi_HDO_tendency_frz;
                     qr_HDO_tendency_tmp = qr_HDO_tendency_au + qr_HDO_tendency_ac + qr_HDO_tendency_rime +
                                           qr_HDO_tendency_melt + qr_HDO_tendency_evap;
                     qs_HDO_tendency_tmp = qs_HDO_tendency_col + qs_HDO_tendency_rime + qs_HDO_tendency_melt +

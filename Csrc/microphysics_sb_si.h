@@ -188,177 +188,177 @@ void sb_si_microphysics_sources(const struct DimStruct *dims,
             for(ssize_t k=kmin; k<kmax; k++){
                 const ssize_t ijk = ishift + jshift + k;
                 
-                qr[ijk] = fmax(qr[ijk],0.0);
-                nr[ijk] = fmax(fmin(nr[ijk], qr[ijk]/RAIN_MIN_MASS),qr[ijk]/RAIN_MAX_MASS);
-                qi[ijk] = fmax(qi[ijk],0.0);
-                ni[ijk] = fmax(fmin(ni[ijk], qi[ijk]/ICE_MIN_MASS),qi[ijk]/ICE_MAX_MASS);
-
-                double qv_tmp = qt[ijk] - fmax(ql[ijk],0.0);
-                double qt_tmp = qt[ijk];
-                double nl     = ccn/density[k];
-                double ql_tmp = fmax(ql[ijk],0.0);
-                // holding nl fixed since it doesn't change between timesteps
-
-                // double nr_org = fmax(fmin(nr[ijk], qr_org/RAIN_MIN_MASS),qr_org/RAIN_MAX_MASS);
-                double qr_tmp = fmax(qr[ijk],0.0);
-                double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
-                
-                double qi_tmp = fmax(qi[ijk],0.0);
-                double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
-
-                // define single ice parameters
-                double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, si_av, si_bv, sb_beta_ice, ice_mass;
-
-                precip_rate[ijk] = 0.0;
-                evap_rate[ijk] = 0.0;
-                melt_rate[ijk] = 0.0;
-
-                double time_added = 0.0, dt_, rate;
-                ssize_t iter_count = 0;
-                do{
-                    qi_tendency_tmp   = 0.0;
-                    ni_tendency_tmp   = 0.0;
-                    qr_tendency_tmp   = 0.0;
-                    nr_tendency_tmp   = 0.0;
-                    ql_tendency_tmp   = 0.0;
-
-                    iter_count       += 1;
-                    sat_ratio_liq     = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt_tmp);
-                    sat_ratio_ice     = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt_tmp);
-                    ql_tendency_frez  = 0.0;
-
-                    nr_tendency_au    = 0.0;
-                    nr_tendency_scbk  = 0.0;
-                    nr_tendency_evap  = 0.0;
-                    nr_tendency_frez  = 0.0;
-                    qr_tendency_au    = 0.0;
-                    qr_tendency_ac    = 0.0;
-                    qr_tendency_evap  = 0.0;
-                    qr_tendency_frez  = 0.0;
-
-                    qi_tendency_nuc   = 0.0;
-                    qi_tendency_acc_liq  = 0.0;
-                    qi_tendency_acc_rain = 0.0;
-                    qi_tendency_dep   = 0.0;
-                    qi_tendency_frez  = 0.0;
-                    qi_tendency_melt  = 0.0;
-                    qi_tendency_berg  = 0.0;
-                    qi_tendency_sub   = 0.0;
-                    ni_tendency_nuc   = 0.0;
-                    ni_tendency_frez  = 0.0;
-                    ni_tendency_melt  = 0.0;
-                    ni_tendency_berg  = 0.0;
-
-                    //obtain some parameters of cloud droplets
-                    liquid_mass = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
-                    Dm_l =  cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
-                    velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[k]);
-
-                    //obtain some parameters of rain droplets
-                    rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS); //average mass of rain droplet
-                    Dm_r      = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi); // mass weighted diameter of rain droplets
-                    Dp        = sb_Dp(Dm_r, mu);
-                    mu        = rain_mu(density[k], qr_tmp, Dm_r);
-                    // simplified rain velocity based on equation 28 in SB06
-                    velocity_rain = 159.0 * pow(rain_mass, 0.266) * sqrt(DENSITY_SB/density[k]);
-
-                    double Ri = riming_intensity(ql_tmp, qi_tmp, density[k]);
-                    ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
-                    sb_si_get_ice_parameters_SI(Ri, temperature[ijk], &sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
-                    Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
-                    velocity_ice  = si_av * pow(Dm_i, si_bv);
-
-                    double g_therm_liq = microphysics_g_liq_SBSI(temperature[ijk], DVAPOR, KT);
-                    double g_therm_ice = microphysics_g_ice_SBSI(temperature[ijk], DVAPOR, KT);
-
-                    //compute the source terms
-                    sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
-                    sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
-                    sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
-                    sb_evaporation_rain(g_therm_liq, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
-                    
-                    sb_nucleation_ice(temperature[ijk], sat_ratio_ice, dt_, ni_tmp, density[k], &qi_tendency_nuc, &ni_tendency_nuc);
-                    sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
-                            &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &qi_tendency_frez, &ni_tendency_frez);
-
-                    sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
-                            sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_liq);
-                    // sb_accretion_rain_ice(rain_mass, Dm_r, velocity_rain, ice_mass, Dm_i, velocity_ice, nr_tmp, qr_tmp, ni_tmp, qi_tmp, 
-                    //         sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_rain);
-
-                    sb_deposition_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
-                            qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
-                    sb_sublimation_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
-                            qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
-                    // sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
-
-                    //find the maximum substep time
-                    dt_ = dt - time_added;
-
-                    // check the source term magnitudes
-                    // qi_tendency_sub is POSITIVE, qi_tendency_dep is POSITIVE;
-                    // qr_tendency_evap is NEGATIVE;
-                    // qi_tendency_melt and ni_tendency_melt are all POSITIVE
-                    ni_tendency_tmp = ni_tendency_nuc + ni_tendency_frez + ni_tendency_berg - ni_tendency_melt;
-                    qi_tendency_tmp = qi_tendency_nuc + qi_tendency_frez + qi_tendency_acc_liq + qi_tendency_acc_rain + qi_tendency_dep + qi_tendency_berg + qi_tendency_sub - qi_tendency_melt;
-
-                    nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evap + ni_tendency_melt - nr_tendency_frez;
-                    qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evap + qi_tendency_melt - qr_tendency_frez - qi_tendency_acc_rain;
-
-                    ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_acc_liq;
-
-                    //Factor of 1.05 is ad-hoc
-                    rate = 1.05 * ql_tendency_tmp * dt_ /(- fmax(ql_tmp,SB_EPS));
-                    rate = fmax(1.05 * nr_tendency_tmp * dt_ /(-fmax(nr_tmp,SB_EPS)), rate);
-                    rate = fmax(1.05 * qr_tendency_tmp * dt_ /(-fmax(qr_tmp,SB_EPS)), rate);
-                    rate = fmax(1.05 * ni_tendency_tmp * dt_ /(-fmax(ni_tmp,SB_EPS)), rate);
-                    rate = fmax(1.05 * qi_tendency_tmp * dt_ /(-fmax(qi_tmp,SB_EPS)), rate);
-                    if(rate > 1.0 && iter_count < MAX_ITER){
-                        //Limit the timestep, but don't allow it to become vanishingly small
-                        //Don't adjust if we have reached the maximum iteration number
-                        dt_ = fmax(dt_/rate, 1.0e-3);
-                    }
-                    
-                    // precip_rate, evap_rate and melting_rate are calculated for entropy balance formula equations;
-                    // precip_tmp is NEGATIVE if rain/snow forms (+precip_tmp is to remove qt via precip formation);
-                    // evap_tmp is NEGATIVE if rain/snow evaporate/sublimate (-evap_tmp is to add qt via evap/subl);
-                    double precip_tmp = - qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_nuc - qi_tendency_acc_liq - qi_tendency_dep;
-                    double evap_tmp   = qr_tendency_evap - qi_tendency_sub;
-                    
-                    precip_rate[ijk] += precip_tmp * dt_;
-                    evap_rate[ijk]   += evap_tmp * dt_;
-                    melt_rate[ijk]   += qi_tendency_melt * dt_; // NEGATIVE if snow melts to rain
-                    
-                    //Integrate forward in time
-                    ql_tmp += ql_tendency_tmp * dt_;
-                    nr_tmp += nr_tendency_tmp * dt_;
-                    qr_tmp += qr_tendency_tmp * dt_;
-                    ni_tmp += ni_tendency_tmp * dt_;
-                    qi_tmp += qi_tendency_tmp * dt_;
-
-                    qv_tmp += -(qr_tendency_evap+qi_tendency_dep) * dt_;
-                    qr_tmp = fmax(qr_tmp,0.0);
-                    nr_tmp = fmax(fmin(nr_tmp, qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
-                    qi_tmp = fmax(qi_tmp,0.0);
-                    ni_tmp = fmax(fmin(ni_tmp, qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
-                    ni_tmp = fmax(ni_tmp,0.0);
-                    ql_tmp = fmax(ql_tmp,0.0);
-                    qt_tmp = ql_tmp + qv_tmp;
-                    time_added += dt_ ;
-                }while(time_added < dt);
-
-                nr_tendency_micro[ijk] = (nr_tmp - nr[ijk])/dt;
-                qr_tendency_micro[ijk] = (qr_tmp - qr[ijk])/dt;
-                ni_tendency_micro[ijk] = (ni_tmp - ni[ijk])/dt;
-                qi_tendency_micro[ijk] = (qi_tmp - qi[ijk])/dt;
-                nr_tendency[ijk] += nr_tendency_micro[ijk];
-                qr_tendency[ijk] += qr_tendency_micro[ijk];
-                ni_tendency[ijk] += ni_tendency_micro[ijk];
-                qi_tendency[ijk] += qi_tendency_micro[ijk];
-                
-                precip_rate[ijk] = precip_rate[ijk]/dt;
-                evap_rate[ijk] = evap_rate[ijk]/dt;
-                melt_rate[ijk] = melt_rate[ijk]/dt;
+                // qr[ijk] = fmax(qr[ijk],0.0);
+                // nr[ijk] = fmax(fmin(nr[ijk], qr[ijk]/RAIN_MIN_MASS),qr[ijk]/RAIN_MAX_MASS);
+                // qi[ijk] = fmax(qi[ijk],0.0);
+                // ni[ijk] = fmax(fmin(ni[ijk], qi[ijk]/ICE_MIN_MASS),qi[ijk]/ICE_MAX_MASS);
+                //
+                // double qv_tmp = qt[ijk] - fmax(ql[ijk],0.0);
+                // double qt_tmp = qt[ijk];
+                // double nl     = ccn/density[k];
+                // double ql_tmp = fmax(ql[ijk],0.0);
+                // // holding nl fixed since it doesn't change between timesteps
+                //
+                // // double nr_org = fmax(fmin(nr[ijk], qr_org/RAIN_MIN_MASS),qr_org/RAIN_MAX_MASS);
+                // double qr_tmp = fmax(qr[ijk],0.0);
+                // double nr_tmp = fmax(fmin(nr[ijk], qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                // 
+                // double qi_tmp = fmax(qi[ijk],0.0);
+                // double ni_tmp = fmax(fmin(ni[ijk], qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+                //
+                // // define single ice parameters
+                // double Dm_i, velocity_ice, sb_a_ice, sb_b_ice, si_av, si_bv, sb_beta_ice, ice_mass;
+                //
+                // precip_rate[ijk] = 0.0;
+                // evap_rate[ijk] = 0.0;
+                // melt_rate[ijk] = 0.0;
+                //
+                // double time_added = 0.0, dt_, rate;
+                // ssize_t iter_count = 0;
+                // do{
+                //     qi_tendency_tmp   = 0.0;
+                //     ni_tendency_tmp   = 0.0;
+                //     qr_tendency_tmp   = 0.0;
+                //     nr_tendency_tmp   = 0.0;
+                //     ql_tendency_tmp   = 0.0;
+                //
+                //     iter_count       += 1;
+                //     sat_ratio_liq     = microphysics_saturation_ratio_liq(temperature[ijk], p0[k], qt_tmp);
+                //     sat_ratio_ice     = microphysics_saturation_ratio_ice(temperature[ijk], p0[k], qt_tmp);
+                //     ql_tendency_frez  = 0.0;
+                //
+                //     nr_tendency_au    = 0.0;
+                //     nr_tendency_scbk  = 0.0;
+                //     nr_tendency_evap  = 0.0;
+                //     nr_tendency_frez  = 0.0;
+                //     qr_tendency_au    = 0.0;
+                //     qr_tendency_ac    = 0.0;
+                //     qr_tendency_evap  = 0.0;
+                //     qr_tendency_frez  = 0.0;
+                //
+                //     qi_tendency_nuc   = 0.0;
+                //     qi_tendency_acc_liq  = 0.0;
+                //     qi_tendency_acc_rain = 0.0;
+                //     qi_tendency_dep   = 0.0;
+                //     qi_tendency_frez  = 0.0;
+                //     qi_tendency_melt  = 0.0;
+                //     qi_tendency_berg  = 0.0;
+                //     qi_tendency_sub   = 0.0;
+                //     ni_tendency_nuc   = 0.0;
+                //     ni_tendency_frez  = 0.0;
+                //     ni_tendency_melt  = 0.0;
+                //     ni_tendency_berg  = 0.0;
+                //
+                //     //obtain some parameters of cloud droplets
+                //     liquid_mass = microphysics_mean_mass(nl, ql_tmp, LIQUID_MIN_MASS, LIQUID_MAX_MASS);// average mass of cloud droplets
+                //     Dm_l =  cbrt(liquid_mass * 6.0/DENSITY_LIQUID/pi);
+                //     velocity_liquid = 3.75e5 * cbrt(liquid_mass)*cbrt(liquid_mass) *(DENSITY_SB/density[k]);
+                //
+                //     //obtain some parameters of rain droplets
+                //     rain_mass = microphysics_mean_mass(nr_tmp, qr_tmp, RAIN_MIN_MASS, RAIN_MAX_MASS); //average mass of rain droplet
+                //     Dm_r      = cbrt(rain_mass * 6.0/DENSITY_LIQUID/pi); // mass weighted diameter of rain droplets
+                //     Dp        = sb_Dp(Dm_r, mu);
+                //     mu        = rain_mu(density[k], qr_tmp, Dm_r);
+                //     // simplified rain velocity based on equation 28 in SB06
+                //     velocity_rain = 159.0 * pow(rain_mass, 0.266) * sqrt(DENSITY_SB/density[k]);
+                //
+                //     double Ri = riming_intensity(ql_tmp, qi_tmp, density[k]);
+                //     ice_mass = microphysics_mean_mass(ni_tmp, qi_tmp, ICE_MIN_MASS, ICE_MAX_MASS);
+                //     sb_si_get_ice_parameters_SI(Ri, temperature[ijk], &sb_a_ice, &sb_b_ice, &si_av, &si_bv, &sb_beta_ice);
+                //     Dm_i     = sb_a_ice * pow(ice_mass, sb_b_ice);
+                //     velocity_ice  = si_av * pow(Dm_i, si_bv);
+                //
+                //     double g_therm_liq = microphysics_g_liq_SBSI(temperature[ijk], DVAPOR, KT);
+                //     double g_therm_ice = microphysics_g_ice_SBSI(temperature[ijk], DVAPOR, KT);
+                //
+                //     //compute the source terms
+                //     sb_autoconversion_rain(droplet_nu, density[k], nl, ql_tmp, qr_tmp, &nr_tendency_au, &qr_tendency_au);
+                //     sb_accretion_rain(density[k], ql_tmp, qr_tmp, &qr_tendency_ac); 
+                //     sb_selfcollection_breakup_rain(density[k], nr_tmp, qr_tmp, mu, rain_mass, Dm_r, &nr_tendency_scbk);
+                //     sb_evaporation_rain(g_therm_liq, sat_ratio_liq, nr_tmp, qr_tmp, mu, rain_mass, Dp, Dm_r, &nr_tendency_evap, &qr_tendency_evap);
+                //     
+                //     sb_nucleation_ice(temperature[ijk], sat_ratio_ice, dt_, ni_tmp, density[k], &qi_tendency_nuc, &ni_tendency_nuc);
+                //     sb_freezing_ice(droplet_nu, density[k], temperature[ijk], liquid_mass, rain_mass, ql_tmp, nl, qr_tmp, nr_tmp,  
+                //             &ql_tendency_frez, &qr_tendency_frez, &nr_tendency_frez, &qi_tendency_frez, &ni_tendency_frez);
+                //
+                //     sb_accretion_cloud_ice(liquid_mass, Dm_l, velocity_liquid, ice_mass, Dm_i, velocity_ice, nl, ql_tmp, ni_tmp, qi_tmp, 
+                //             sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_liq);
+                //     // sb_accretion_rain_ice(rain_mass, Dm_r, velocity_rain, ice_mass, Dm_i, velocity_ice, nr_tmp, qr_tmp, ni_tmp, qi_tmp, 
+                //     //         sb_a_ice, sb_b_ice, sb_beta_ice, &qi_tendency_acc_rain);
+                //
+                //     sb_deposition_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
+                //             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_dep);   
+                //     sb_sublimation_ice(g_therm_ice, temperature[ijk], Dm_i, sat_ratio_ice, ice_mass, velocity_ice,
+                //             qi_tmp, ni_tmp, sb_b_ice, sb_beta_ice, &qi_tendency_sub);  
+                //     // sb_melting_ice(LT, lam_fp, L_fp, temperature[ijk], ice_mass, Dm_i, qv_tmp, ni_tmp, qi_tmp, &ni_tendency_melt, &qi_tendency_melt);
+                //
+                //     //find the maximum substep time
+                //     dt_ = dt - time_added;
+                //
+                //     // check the source term magnitudes
+                //     // qi_tendency_sub is POSITIVE, qi_tendency_dep is POSITIVE;
+                //     // qr_tendency_evap is NEGATIVE;
+                //     // qi_tendency_melt and ni_tendency_melt are all POSITIVE
+                //     ni_tendency_tmp = ni_tendency_nuc + ni_tendency_frez + ni_tendency_berg - ni_tendency_melt;
+                //     qi_tendency_tmp = qi_tendency_nuc + qi_tendency_frez + qi_tendency_acc_liq + qi_tendency_acc_rain + qi_tendency_dep + qi_tendency_berg + qi_tendency_sub - qi_tendency_melt;
+                //
+                //     nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evap + ni_tendency_melt - nr_tendency_frez;
+                //     qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evap + qi_tendency_melt - qr_tendency_frez - qi_tendency_acc_rain;
+                //
+                //     ql_tendency_tmp = -qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_acc_liq;
+                //
+                //     //Factor of 1.05 is ad-hoc
+                //     rate = 1.05 * ql_tendency_tmp * dt_ /(- fmax(ql_tmp,SB_EPS));
+                //     rate = fmax(1.05 * nr_tendency_tmp * dt_ /(-fmax(nr_tmp,SB_EPS)), rate);
+                //     rate = fmax(1.05 * qr_tendency_tmp * dt_ /(-fmax(qr_tmp,SB_EPS)), rate);
+                //     rate = fmax(1.05 * ni_tendency_tmp * dt_ /(-fmax(ni_tmp,SB_EPS)), rate);
+                //     rate = fmax(1.05 * qi_tendency_tmp * dt_ /(-fmax(qi_tmp,SB_EPS)), rate);
+                //     if(rate > 1.0 && iter_count < MAX_ITER){
+                //         //Limit the timestep, but don't allow it to become vanishingly small
+                //         //Don't adjust if we have reached the maximum iteration number
+                //         dt_ = fmax(dt_/rate, 1.0e-3);
+                //     }
+                //     
+                //     // precip_rate, evap_rate and melting_rate are calculated for entropy balance formula equations;
+                //     // precip_tmp is NEGATIVE if rain/snow forms (+precip_tmp is to remove qt via precip formation);
+                //     // evap_tmp is NEGATIVE if rain/snow evaporate/sublimate (-evap_tmp is to add qt via evap/subl);
+                //     double precip_tmp = - qr_tendency_au - qr_tendency_ac - ql_tendency_frez - qi_tendency_nuc - qi_tendency_acc_liq - qi_tendency_dep;
+                //     double evap_tmp   = qr_tendency_evap - qi_tendency_sub;
+                //     
+                //     precip_rate[ijk] += precip_tmp * dt_;
+                //     evap_rate[ijk]   += evap_tmp * dt_;
+                //     melt_rate[ijk]   += qi_tendency_melt * dt_; // NEGATIVE if snow melts to rain
+                //     
+                //     //Integrate forward in time
+                //     ql_tmp += ql_tendency_tmp * dt_;
+                //     nr_tmp += nr_tendency_tmp * dt_;
+                //     qr_tmp += qr_tendency_tmp * dt_;
+                //     ni_tmp += ni_tendency_tmp * dt_;
+                //     qi_tmp += qi_tendency_tmp * dt_;
+                //
+                //     qv_tmp += -(qr_tendency_evap+qi_tendency_dep) * dt_;
+                //     qr_tmp = fmax(qr_tmp,0.0);
+                //     nr_tmp = fmax(fmin(nr_tmp, qr_tmp/RAIN_MIN_MASS),qr_tmp/RAIN_MAX_MASS);
+                //     qi_tmp = fmax(qi_tmp,0.0);
+                //     ni_tmp = fmax(fmin(ni_tmp, qi_tmp/ICE_MIN_MASS),qi_tmp/ICE_MAX_MASS);
+                //     ni_tmp = fmax(ni_tmp,0.0);
+                //     ql_tmp = fmax(ql_tmp,0.0);
+                //     qt_tmp = ql_tmp + qv_tmp;
+                //     time_added += dt_ ;
+                // }while(time_added < dt);
+                //
+                // nr_tendency_micro[ijk] = (nr_tmp - nr[ijk])/dt;
+                // qr_tendency_micro[ijk] = (qr_tmp - qr[ijk])/dt;
+                // ni_tendency_micro[ijk] = (ni_tmp - ni[ijk])/dt;
+                // qi_tendency_micro[ijk] = (qi_tmp - qi[ijk])/dt;
+                // nr_tendency[ijk] += nr_tendency_micro[ijk];
+                // qr_tendency[ijk] += qr_tendency_micro[ijk];
+                // ni_tendency[ijk] += ni_tendency_micro[ijk];
+                // qi_tendency[ijk] += qi_tendency_micro[ijk];
+                // 
+                // precip_rate[ijk] = precip_rate[ijk]/dt;
+                // evap_rate[ijk] = evap_rate[ijk]/dt;
+                // melt_rate[ijk] = melt_rate[ijk]/dt;
             }
         }
     }
