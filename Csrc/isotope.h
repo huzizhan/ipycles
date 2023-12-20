@@ -310,8 +310,8 @@ void iso_mix_phase_fractionation(const struct DimStruct *dims, struct LookupStru
                     ql_std_tmp  = ql_DV[ijk];
                     qi_std_tmp  = qi_DV[ijk];
 
-                    ql_O18_tmp  = qt_O18[ijk] - qv_O18_tmp - qi_O18_tmp;
-                    ql_HDO_tmp  = qt_HDO[ijk] - qv_HDO_tmp - qi_HDO_tmp;
+                    ql_O18_tmp  = qt_O18[ijk] - qv_O18_tmp;
+                    ql_HDO_tmp  = qt_HDO[ijk] - qv_HDO_tmp;
                     
                     qv_std[ijk] = qv_std_tmp;
                     ql_std[ijk] = ql_std_tmp;

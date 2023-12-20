@@ -546,18 +546,18 @@ cdef class IsotopeTracers_Arctic_1M:
             &PV.values[qt_HDO_shift], &PV.values[qv_HDO_shift], &PV.values[ql_HDO_shift], &PV.values[qi_HDO_shift], 
             &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift])
 
-        tracer_arctic1m_microphysics_sources(&Gr.dims, &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, 
-            Micro_Arctic_1M.L_fp, &Ref.rho0_half[0],&Ref.p0_half[0], Micro_Arctic_1M.ccn, Micro_Arctic_1M.n0_ice_input, TS.dt,
-            &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift], 
-            &PV.values[qrain_std_shift], &DV.values[nrain_shift], &PV.values[qsnow_std_shift], &DV.values[nsnow_shift], 
-            &PV.values[ql_std_shift], &PV.values[qi_std_shift], &qrain_std_tend_micro[0], &PV.tendencies[qrain_std_shift],
-            &qsnow_std_tend_micro[0], &PV.tendencies[qsnow_std_shift], &precip_rate_std[0], &evap_rate_std[0],&melt_rate_std[0],
-            &PV.values[qt_O18_shift], &PV.values[qv_O18_shift], &PV.values[ql_O18_shift], &PV.values[qi_O18_shift], 
-            &PV.values[qrain_O18_shift], &PV.values[qsnow_O18_shift], &PV.tendencies[qrain_O18_shift], &qrain_O18_tend_micro[0], 
-            &PV.tendencies[qsnow_O18_shift], &qsnow_O18_tend_micro[0], &precip_rate_O18[0], &evap_rate_O18[0],
-            &PV.values[qt_HDO_shift], &PV.values[qv_HDO_shift], &PV.values[ql_HDO_shift], &PV.values[qi_HDO_shift], 
-            &PV.values[qrain_HDO_shift], &PV.values[qsnow_HDO_shift], &PV.tendencies[qrain_HDO_shift], &qrain_HDO_tend_micro[0], 
-            &PV.tendencies[qsnow_HDO_shift], &qsnow_HDO_tend_micro[0], &precip_rate_HDO[0], &evap_rate_HDO[0])
+        # tracer_arctic1m_microphysics_sources(&Gr.dims, &Micro_Arctic_1M.CC.LT.LookupStructC, Micro_Arctic_1M.Lambda_fp, 
+        #     Micro_Arctic_1M.L_fp, &Ref.rho0_half[0],&Ref.p0_half[0], Micro_Arctic_1M.ccn, Micro_Arctic_1M.n0_ice_input, TS.dt,
+        #     &DV.values[t_shift], &PV.values[qt_shift], &DV.values[qv_shift], &DV.values[ql_shift], &DV.values[qi_shift], 
+        #     &PV.values[qrain_std_shift], &DV.values[nrain_shift], &PV.values[qsnow_std_shift], &DV.values[nsnow_shift], 
+        #     &PV.values[ql_std_shift], &PV.values[qi_std_shift], &qrain_std_tend_micro[0], &PV.tendencies[qrain_std_shift],
+        #     &qsnow_std_tend_micro[0], &PV.tendencies[qsnow_std_shift], &precip_rate_std[0], &evap_rate_std[0],&melt_rate_std[0],
+        #     &PV.values[qt_O18_shift], &PV.values[qv_O18_shift], &PV.values[ql_O18_shift], &PV.values[qi_O18_shift], 
+        #     &PV.values[qrain_O18_shift], &PV.values[qsnow_O18_shift], &PV.tendencies[qrain_O18_shift], &qrain_O18_tend_micro[0], 
+        #     &PV.tendencies[qsnow_O18_shift], &qsnow_O18_tend_micro[0], &precip_rate_O18[0], &evap_rate_O18[0],
+        #     &PV.values[qt_HDO_shift], &PV.values[qv_HDO_shift], &PV.values[ql_HDO_shift], &PV.values[qi_HDO_shift], 
+        #     &PV.values[qrain_HDO_shift], &PV.values[qsnow_HDO_shift], &PV.tendencies[qrain_HDO_shift], &qrain_HDO_tend_micro[0], 
+        #     &PV.tendencies[qsnow_HDO_shift], &qsnow_HDO_tend_micro[0], &precip_rate_HDO[0], &evap_rate_HDO[0])
 
         sedimentation_velocity_rain(&Gr.dims, &Ref.rho0_half[0], &DV.values[nrain_shift], &PV.values[qrain_shift],
             &DV.values[wqrain_std_shift])

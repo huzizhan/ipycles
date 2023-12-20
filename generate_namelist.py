@@ -875,18 +875,18 @@ def Isdac():
     namelist['time_stepping']['t_max'] = 3600.0 * 12
 
 
-    namelist['microphysics'] = {}
-    namelist['microphysics']['scheme'] = 'SB_2M'
-    namelist['microphysics']['ice_nuclei'] = 2.0e2
     # namelist['microphysics'] = {}
-    # namelist['microphysics']['scheme'] = 'Arctic_1M'
-    # namelist['microphysics']['phase_partitioning'] = 'Arctic'
-    # namelist['microphysics']['n0_ice'] = 1.0e7
+    # namelist['microphysics']['scheme'] = 'SB_2M'
+    # namelist['microphysics']['ice_nuclei'] = 2.0e2
+    namelist['microphysics'] = {}
+    namelist['microphysics']['scheme'] = 'Arctic_1M'
+    namelist['microphysics']['phase_partitioning'] = 'Arctic'
+    namelist['microphysics']['n0_ice'] = 1.0e7
 
     namelist['isotopetracers'] = {}
     namelist['isotopetracers']['use_tracers'] = True
-    namelist['isotopetracers']['scheme'] = 'SB_Ice'
-    # namelist['isotopetracers']['scheme'] = 'Arctic_1M'
+    # namelist['isotopetracers']['scheme'] = 'SB_Ice'
+    namelist['isotopetracers']['scheme'] = 'Arctic_1M'
     
     namelist["sgs"] = {}
     namelist["sgs"]['scheme'] = 'Smagorinsky'
@@ -939,7 +939,7 @@ def Isdac():
     namelist['meta'] = {}
     namelist['meta']['simname'] = 'Isdac'
     namelist['meta']['casename'] = 'Isdac'
-    namelist['meta']['describe'] = '1/16 domain of original Isdac with Iso under Arctic_1M scheme'
+    namelist['meta']['describe'] = 'Iso Arctic_1M debug'
 
     return namelist
 
