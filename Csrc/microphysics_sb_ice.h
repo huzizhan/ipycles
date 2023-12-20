@@ -1503,6 +1503,11 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
     double ns_tendency_snow_selcol;
     // - snow ice collection: s+i -> s
     double qs_tendency_si_col, ni_tendency_si_col, qi_tendency_si_col; 
+    
+    // - cloud droplet homogeneous freezing
+    double ql_tendency_frz, nl_tendency_frz;
+    // - rain droplet heterogeneous freezing
+    double qr_tendency_frz, nr_tendency_frz;
 
     // riming tendency 
     // - cloud droplet and rain rimied to snow tendency
@@ -1639,6 +1644,10 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qs_tendency_melt = 0.0;
                     nr_tendency_melt = 0.0; 
                     qr_tendency_melt = 0.0;
+                    ql_tendency_frz = 0.0;
+                    nl_tendency_frz = 0.0;
+                    qr_tendency_frz = 0.0;
+                    nr_tendency_frz = 0.0;
 
                     qi_dep_tend = 0.0;
                     qi_sub_tend = 0.0;
@@ -1696,7 +1705,10 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                             &qi_dep_tend, &qi_sub_tend,
                             &qv_tendency_dep);
 
-                    // TODO: freezing process still need to include
+                    sb_freezing(droplet_nu, density[k], temperature[ijk], liquid_mass, 
+                            rain_mass, ql_tmp, nl_tmp, qr_tmp, nr_tmp,
+                            &ql_tendency_frz, &nl_tendency_frz,
+                            &qr_tendency_frz, &nr_tendency_frz);
 
                     // compute the source terms of ice phase process: snow 
 
@@ -1735,9 +1747,9 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                     qv_tendency_tmp = qv_tendency_evp + qv_tendency_dep;
                     // rain tendency sum
                     nr_tendency_tmp = nr_tendency_au + nr_tendency_scbk + nr_tendency_evp + 
-                                      nr_tendency_snow_rime + nr_tendency_melt;
+                                      nr_tendency_snow_rime + nr_tendency_melt - nr_tendency_frz;
                     qr_tendency_tmp = qr_tendency_au + qr_tendency_ac + qr_tendency_evp + 
-                                      qr_tendency_snow_rime + qr_tendency_melt;
+                                      qr_tendency_snow_rime + qr_tendency_melt - qr_tendency_frz;
                     
                     // snow tendency sum
                     ns_tendency_tmp = ns_tendency_ice_selcol + ns_tendency_snow_selcol + ns_tendency_rime + 
@@ -1746,14 +1758,14 @@ void sb_ice_microphysics_sources(const struct DimStruct *dims,
                                       qs_tendency_dep + qs_tendency_melt;
                     
                     // cloud droplet tendency sum
-                    ql_tendency_tmp = ql_tendency_au + ql_tendency_ac + ql_tendency_snow_rime;
-                    nl_tendency_tmp = nl_tendency_au + nl_tendency_ac + nl_tendency_snow_rime;
+                    ql_tendency_tmp = ql_tendency_au + ql_tendency_ac + ql_tendency_snow_rime - ql_tendency_frz;
+                    nl_tendency_tmp = nl_tendency_au + nl_tendency_ac + nl_tendency_snow_rime - nl_tendency_frz;
 
                     // ice particle tendency sum
-                    qi_tendency_tmp = qi_tendency_dep + 
-                                      qi_tendency_ice_selcol + qi_tendency_si_col + qi_tendency_snow_mult;
-                    ni_tendency_tmp = ni_tendency_dep + 
-                                      ni_tendency_ice_selcol + ni_tendency_si_col + ni_tendency_snow_mult;
+                    qi_tendency_tmp = qi_tendency_dep + qi_tendency_ice_selcol + qi_tendency_si_col + 
+                                      qi_tendency_snow_mult + ql_tendency_frz + qr_tendency_frz;
+                    ni_tendency_tmp = ni_tendency_dep + ni_tendency_ice_selcol + ni_tendency_si_col + 
+                                      ni_tendency_snow_mult + nl_tendency_frz + nr_tendency_frz;
 
                     //Factor of 1.05 is ad-hoc
                     rate = 1.05 * ql_tendency_tmp * dt_ /(- fmax(ql_tmp,SB_EPS));
