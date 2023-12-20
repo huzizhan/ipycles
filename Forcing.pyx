@@ -55,8 +55,7 @@ cdef class Forcing:
         elif casename == 'Isdac':
             self.scheme = ForcingIsdac(namelist)
         elif casename == 'IsdacCC':
-            self.scheme = ForcingIsdacExp(namelist)
-            # self.scheme = ForcingIsdacCC(namelist)
+            self.scheme = ForcingIsdacCC(namelist)
         elif casename == 'Mpace':
             self.scheme = ForcingMpace(namelist)
         elif casename == 'Sheba':

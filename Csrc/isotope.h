@@ -1161,8 +1161,6 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             &dep_tend_ice, &sub_tend_ice,
                             &qv_tendency_dep);
 
-                    // TODO: freezing process still need to include
-                    //
                     sb_freezing(droplet_nu, density[k], temperature[ijk], liquid_mass, 
                             rain_mass, ql_tmp, nl_tmp, qr_tmp, nr_tmp,
                             &ql_tendency_frz, &nl_tendency_frz,
