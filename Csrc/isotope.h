@@ -299,8 +299,28 @@ void iso_mix_phase_fractionation(const struct DimStruct *dims, struct LookupStru
                     alpha_k_ice_O18 = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_O18, DVAPOR, diff_O18);
                     alpha_k_ice_HDO = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_HDO, DVAPOR, diff_HDO);
 
-                    qv_O18_tmp  = eq_frac_function(qt_O18[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_O18);
-                    qv_HDO_tmp  = eq_frac_function(qt_HDO[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_HDO);
+                    ql_O18[ijk] = fmax(ql_O18[ijk],0.0);
+                    qi_O18[ijk] = fmax(qi_O18[ijk],0.0);
+                    qv_O18[ijk] = qt_O18[ijk] - ql_O18[ijk] - qi_O18[ijk];
+                    double qvl_O18 = qt_O18[ijk] - qi_O18[ijk];
+
+                    double iso_type_O18 = 1.0;
+                    iso_sb_2m_cloud_liquid_fraction(iso_type_O18,
+                        temperature[ijk], qv_DV[ijk], ql_DV[ijk],
+                        qvl_O18, qv_O18[ijk], ql_O18[ijk],
+                        &qv_O18_tmp, &ql_O18_tmp);
+                    
+                    double iso_type_HDO = 2.0;
+
+                    ql_HDO[ijk] = fmax(ql_HDO[ijk],0.0);
+                    qi_HDO[ijk] = fmax(qi_HDO[ijk],0.0);
+                    qv_HDO[ijk] = qt_HDO[ijk] - ql_HDO[ijk] - qi_HDO[ijk];
+                    double qvl_HDO = qt_HDO[ijk] - qi_HDO[ijk];
+
+                    iso_sb_2m_cloud_liquid_fraction(iso_type_HDO,
+                        temperature[ijk], qv_DV[ijk], ql_DV[ijk],
+                        qvl_HDO, qv_HDO[ijk], ql_HDO[ijk],
+                        &qv_HDO_tmp, &ql_HDO_tmp);
 
                     qi_O18_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_O18[ijk], qi_DV[ijk], alpha_s_ice_O18, alpha_k_ice_O18);
                     qi_HDO_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_HDO[ijk], qi_DV[ijk], alpha_s_ice_HDO, alpha_k_ice_HDO);
@@ -309,19 +329,14 @@ void iso_mix_phase_fractionation(const struct DimStruct *dims, struct LookupStru
                     qv_std_tmp  = qv_DV[ijk];
                     ql_std_tmp  = ql_DV[ijk];
                     qi_std_tmp  = qi_DV[ijk];
-
-                    ql_O18_tmp  = qt_O18[ijk] - qv_O18_tmp;
-                    ql_HDO_tmp  = qt_HDO[ijk] - qv_HDO_tmp;
                     
                     qv_std[ijk] = qv_std_tmp;
                     ql_std[ijk] = ql_std_tmp;
                     qi_std[ijk] = qi_std_tmp;
 
-                    qv_O18[ijk] = qv_O18_tmp;
                     ql_O18[ijk] = ql_O18_tmp;
                     qi_O18[ijk] = qi_O18_tmp;
 
-                    qv_HDO[ijk] = qv_HDO_tmp;
                     ql_HDO[ijk] = ql_HDO_tmp;
                     qi_HDO[ijk] = qi_HDO_tmp;
                 } // End k loop
@@ -766,7 +781,7 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
                     double qvl_O18 = qt_O18[ijk] - qi_O18[ijk];
 
                     iso_sb_2m_cloud_liquid_fraction(iso_type_O18,
-                        t_tmp, qv[ijk], ql[ijk], dt,
+                        t_tmp, qv[ijk], ql[ijk],
                         qvl_O18, qv_O18[ijk], ql_O18[ijk],
                         &qv_O18_tmp, &ql_O18_tmp);
                     
@@ -787,7 +802,7 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
                     double qvl_HDO = qt_HDO[ijk] - qi_HDO[ijk];
 
                     iso_sb_2m_cloud_liquid_fraction(iso_type_HDO,
-                        t_tmp, qv[ijk], ql[ijk], dt,
+                        t_tmp, qv[ijk], ql[ijk],
                         qvl_HDO, qv_HDO[ijk], ql_HDO[ijk],
                         &qv_HDO_tmp, &ql_HDO_tmp);
                     
@@ -1918,7 +1933,7 @@ void cloud_liquid_wrapper(struct DimStruct *dims,
                     double qvl_O18 = qt_O18[ijk] - qi_O18[ijk];
 
                     iso_sb_2m_cloud_liquid_fraction(iso_type_O18,
-                        t_tmp, qv_tmp, ql_tmp, dt,
+                        t_tmp, qv_tmp, ql_tmp,
                         qvl_O18, qv_O18[ijk], ql_O18[ijk],
                         &qv_O18_tmp, &ql_O18_tmp);
                     
@@ -1943,7 +1958,7 @@ void cloud_liquid_wrapper(struct DimStruct *dims,
                     double qvl_HDO = qt_HDO[ijk] - qi_HDO[ijk];
 
                     iso_sb_2m_cloud_liquid_fraction(iso_type_HDO,
-                        t_tmp, qv_tmp, ql_tmp, dt,
+                        t_tmp, qv_tmp, ql_tmp, 
                         qvl_HDO, qv_HDO[ijk], ql_HDO[ijk],
                         &qv_HDO_tmp, &ql_HDO_tmp);
                     

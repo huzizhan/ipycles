@@ -766,7 +766,6 @@ void iso_sb_2m_cloud_liquid_fraction(
         const double T,
         const double qv,
         const double ql,
-        const double dt,
         const double qvl_iso,
         const double qv_iso,
         const double ql_iso,
