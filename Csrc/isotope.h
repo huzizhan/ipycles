@@ -45,16 +45,16 @@ void iso_equilibrium_fractionation_No_Microphysics(struct DimStruct *dims, doubl
                     double alpha_eq_lv_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
                     double alpha_eq_lv_HDO = equilibrium_fractionation_factor_HDO_liquid(temperature[ijk]);
 
-                    qv_std_tmp     = qv_DV[ijk];
+                    qv_std_tmp = qv_DV[ijk];
                     qv_O18_tmp = eq_frac_function(qt_O18[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_O18);
                     qv_HDO_tmp = eq_frac_function(qt_HDO[ijk], qv_DV[ijk], ql_DV[ijk], alpha_eq_lv_HDO);
 
-                    ql_std_tmp     = ql_DV[ijk];
+                    ql_std_tmp = ql_DV[ijk];
                     ql_O18_tmp = qt_O18[ijk] - qv_O18_tmp;
                     ql_HDO_tmp = qt_HDO[ijk] - qv_HDO_tmp;
                     
-                    qv_std[ijk]     = qv_std_tmp;
-                    ql_std[ijk]     = ql_std_tmp;
+                    qv_std[ijk] = qv_std_tmp;
+                    ql_std[ijk] = ql_std_tmp;
                     qv_O18[ijk] = qv_O18_tmp;
                     ql_O18[ijk] = ql_O18_tmp;
                     qv_HDO[ijk] = qv_HDO_tmp;

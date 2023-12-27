@@ -93,14 +93,26 @@ static inline double eq_frac_function(double const qt_tracer, double const qv_, 
     return qt_tracer / (1.0+(ql_/qv_)*alpha);
 }
 
+static inline double global_meteoric_water(double delta_O18){
+    return  8.0 * delta_O18 + 10.0;
+}
+
 static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
     double alpha_eq;
     double R_sur_evap;
     // in case the relative humidity at surface is large than 1.0
     double relative_humidity = fmin(RH, 1.0);
+    double R_O18_liquid = R_std_O18;
     alpha_eq = 1.0 / equilibrium_fractionation_factor_O18_liquid(temperature);
-    R_sur_evap = alpha_eq*alpha_k*R_std_O18/((1-relative_humidity)+alpha_k*relative_humidity);
+    R_sur_evap = (alpha_eq*alpha_k*R_O18_liquid)/((1-relative_humidity)+alpha_k*relative_humidity);
     return R_sur_evap;
+    // return 2.0052e-3;
+}
+
+static inline double C_G_model_HDO_test(double R_O18){
+    double delta_O18 = (R_O18/R_std_O18 - 1)*1000.0;
+    double delta_HDO = global_meteoric_water(delta_O18);
+    return (delta_HDO/1000.0 + 1) * R_std_HDO;
 }
 
 static inline double C_G_model_HDO(double RH,  double temperature, double alpha_k){
@@ -108,8 +120,11 @@ static inline double C_G_model_HDO(double RH,  double temperature, double alpha_
     double R_sur_evap;
     // in case the relative humidity at surface is large than 1.0
     double relative_humidity = fmin(RH, 1.0);
+    double delta_HDO_liquid = global_meteoric_water(0.0);
+    double R_HDO_liquid = (delta_HDO_liquid/1000 + 1) * R_std_HDO;
     alpha_eq = 1.0 / equilibrium_fractionation_factor_HDO_liquid(temperature);
-    R_sur_evap = alpha_eq*alpha_k*R_std_HDO/((1-relative_humidity)+alpha_k*relative_humidity);
+
+    R_sur_evap = (alpha_eq*alpha_k*R_HDO_liquid)/((1-relative_humidity)+alpha_k*relative_humidity);
     return R_sur_evap;
 }
 

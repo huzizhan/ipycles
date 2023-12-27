@@ -59,6 +59,10 @@ cdef class SurfaceBomex(SurfaceBase):
         double qt_surface
         double buoyancy_flux
         double gustiness
+        double [:] R_O18
+        double [:] R_HDO
+        double [:] alpha_k
+        double [:] surface_rh
 
         bint isotope_tracers 
         # 0 means flase, 1 means true 

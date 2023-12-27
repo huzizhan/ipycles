@@ -46,6 +46,7 @@ cdef extern from "entropies.h":
 cdef extern from "isotope_functions.h":
     double C_G_model_O18(double RH,  double temperature, double alpha_k_O18) nogil
     double C_G_model_HDO(double RH,  double temperature, double alpha_k_HDO) nogil
+    double C_G_model_HDO_test(double R_O18) nogil
     double C_G_model_O18_Mpace_ST(double RH,  double temperature, double alpha_k_O18) nogil
     double C_G_model_HDO_Mpace_ST(double RH,  double temperature, double alpha_k_HDO) nogil
     double equilibrium_fractionation_factor_H2O18_liquid(double temperature) nogil
@@ -352,6 +353,16 @@ cdef class SurfaceBomex(SurfaceBase):
                                                                    + self.qt_surface *self.theta_flux))
                               /(self.theta_surface*(1.0 + (eps_vi-1)*self.qt_surface)))
 
+        self.R_O18 = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
+        self.R_HDO = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
+        self.surface_rh = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
+        self.alpha_k = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
+
+        NS.add_ts('R_O18', Gr, Pa)
+        NS.add_ts('R_HDO', Gr, Pa)
+        NS.add_ts('surface_rh', Gr, Pa)
+        NS.add_ts('alpha_k', Gr, Pa)
+
         return
 
     cpdef update(self, Grid.Grid Gr, ReferenceState.ReferenceState Ref, PrognosticVariables.PrognosticVariables PV,
@@ -407,13 +418,26 @@ cdef class SurfaceBomex(SurfaceBase):
 
         # isotope surface flux calculation and added to qt_O18_tendency
         if self.isotope_tracers:
-            surface_iso_tracer(Gr, Ref, PV, DV, self.qt_flux)    
+            surface_iso_tracer_diagnose(Gr, Ref, PV, DV, self.qt_flux, self.R_O18, self.R_HDO, self.alpha_k, self.surface_rh)    
         return
 
 
     cpdef stats_io(self, Grid.Grid Gr, NetCDFIO_Stats NS, ParallelMPI.ParallelMPI Pa):
         SurfaceBase.stats_io(self, Gr, NS, Pa)
 
+        cdef double tmp
+
+        tmp = Pa.HorizontalMeanSurface(Gr,&self.R_O18[0])
+        NS.write_ts('R_O18', tmp, Pa)
+        
+        tmp = Pa.HorizontalMeanSurface(Gr,&self.R_HDO[0])
+        NS.write_ts('R_HDO', tmp, Pa)
+        
+        tmp = Pa.HorizontalMeanSurface(Gr,&self.alpha_k[0])
+        NS.write_ts('alpha_k', tmp, Pa)
+        
+        tmp = Pa.HorizontalMeanSurface(Gr,&self.surface_rh[0])
+        NS.write_ts('surface_rh', tmp, Pa)
 
         return
 
@@ -1582,9 +1606,10 @@ cpdef surface_iso_tracer(Grid.Grid Gr, ReferenceState.ReferenceState Ref,
                 PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
                 PV.tendencies[qt_HDO_shift + ijk] += qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO
 
-cpdef surface_iso_tracer_change_R(Grid.Grid Gr, ReferenceState.ReferenceState Ref, 
+cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Ref, 
         PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
-        double[:] qt_flux):
+        double[:] qt_flux, double[:] R_O18, double[:] R_HDO, 
+        double[:] alpha_k, double[:] surface_rh):
     
     cdef:
         Py_ssize_t i,j, ijk, ij
@@ -1610,8 +1635,14 @@ cpdef surface_iso_tracer_change_R(Grid.Grid Gr, ReferenceState.ReferenceState Re
                 ijk = i * istride + j * jstride + gw
                 ij = i * istride_2d + j
                 RH = PV.values[qt_shift + ijk]/Ref.qtg
-                R_evap_O18 = C_G_model_O18_Mpace_ST(RH, DV.values[t_shift + ijk], 1.0)
-                R_evap_HDO = C_G_model_HDO_Mpace_ST(RH, DV.values[t_shift + ijk], 1.0)
+                surface_rh[ij] = RH
+
+                R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)
+                R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], 1.0)
+
                 PV.tendencies[qt_std_shift + ijk] += qt_flux[ij] * tendency_factor
                 PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
                 PV.tendencies[qt_HDO_shift + ijk] += qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO
+
+                R_O18[ij] = R_evap_O18
+                R_HDO[ij] = R_evap_HDO
