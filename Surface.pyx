@@ -58,7 +58,7 @@ def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         if casename == 'SullivanPatton':
            return SurfaceSullivanPatton(LH)
         elif casename == 'Bomex':
-            return SurfaceBomex(namelist, LH)
+            return SurfaceBomex(namelist, LH, Par)
         elif casename == 'Gabls':
             return SurfaceGabls(namelist, LH)
         elif casename == 'DYCOMS_RF01':
@@ -325,9 +325,11 @@ cdef class SurfaceSullivanPatton(SurfaceBase):
         return
 
 cdef class SurfaceBomex(SurfaceBase):
-    def __init__(self,  namelist, LatentHeat LH):
+    def __init__(self,  namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
         self.L_fp = LH.L_fp
         self.Lambda_fp = LH.Lambda_fp
+        self.CC = ClausiusClapeyron()
+        self.CC.initialize(namelist, LH, Par)
         self.dry_case = False
         
         # isotope tracer type
@@ -418,7 +420,8 @@ cdef class SurfaceBomex(SurfaceBase):
 
         # isotope surface flux calculation and added to qt_O18_tendency
         if self.isotope_tracers:
-            surface_iso_tracer_diagnose(Gr, Ref, PV, DV, self.qt_flux, self.R_O18, self.R_HDO, self.alpha_k, self.surface_rh)    
+            surface_iso_tracer_diagnose(Gr, Ref, PV, DV, self.CC,
+                self.qt_flux, self.R_O18, self.R_HDO, self.alpha_k, self.surface_rh)    
         return
 
 
@@ -1608,7 +1611,7 @@ cpdef surface_iso_tracer(Grid.Grid Gr, ReferenceState.ReferenceState Ref,
 
 cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Ref, 
         PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
-        double[:] qt_flux, double[:] R_O18, double[:] R_HDO, 
+        ClausiusClapeyron CC, double[:] qt_flux, double[:] R_O18, double[:] R_HDO, 
         double[:] alpha_k, double[:] surface_rh):
     
     cdef:
@@ -1620,11 +1623,12 @@ cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Re
         Py_ssize_t jstride = Gr.dims.nlg[2]
         Py_ssize_t istride_2d = Gr.dims.nlg[1]
         double dzi = 1.0/Gr.dims.dx[2]
-        double RH
         double R_evap_O18, R_evap_HDO
         double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
+        double pv, pv_star
         Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
         Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
+        Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv')
         Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
         Py_ssize_t qt_O18_shift = PV.get_varshift(Gr, 'qt_O18')
         Py_ssize_t qt_HDO_shift = PV.get_varshift(Gr, 'qt_HDO')
@@ -1634,7 +1638,9 @@ cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Re
             for j in xrange(gw,jmax-gw):
                 ijk = i * istride + j * jstride + gw
                 ij = i * istride_2d + j
-                RH = PV.values[qt_shift + ijk]/Ref.qtg
+                pv_star = CC.LT.fast_lookup(DV.values[t_shift + ijk])
+                pv = pv_c(Ref.Pg, PV.values[qt_shift+ijk], DV.values[qv_shift+ijk])
+                RH = pv/pv_star  
                 surface_rh[ij] = RH
 
                 R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)

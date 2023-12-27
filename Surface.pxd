@@ -63,6 +63,7 @@ cdef class SurfaceBomex(SurfaceBase):
         double [:] R_HDO
         double [:] alpha_k
         double [:] surface_rh
+        ClausiusClapeyron CC
 
         bint isotope_tracers 
         # 0 means flase, 1 means true 
