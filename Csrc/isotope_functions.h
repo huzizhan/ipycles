@@ -44,8 +44,9 @@ static inline double kinetic_fractionation_factor_C_G_model(
     // double rho_t_rho_M = ((1/chi)*log((ustar*zlevel)/(30*KIN_VISC_AIR)))/pow(13.6*(KIN_VISC_AIR/dvap), n);
     
     // large Reynolds number, assume rough ocean surface
-    double n = 1.0/4.0;
-    double rho_t_rho_M = ((1/chi)*log(zlevel/z0) - 5.0)/(7.3*pow(Re, 0.25)*pow(KIN_VISC_AIR/dvap, n));
+    double n = 1.0/2.0;
+    double rho_t_rho_M = (1/chi)*log(10.0/z0) - 5.0/(7.3*pow(Re, 0.25)*pow(KIN_VISC_AIR/dvap, n));
+    // double rho_t_rho_M = 0.0;
     
     double alpha_k = (pow(eD,n) - 1.0)/(pow(eD,n) + rho_t_rho_M);
     return alpha_k;
@@ -145,6 +146,36 @@ static inline double C_G_model_Dar_2020(double R_Liquid,
     return R_sur_evap;
 }
 
+// This section is adopted from Dar, 2020, equation 18
+static inline double C_G_model_Dar_2020_O18(
+        double RH, 
+        double temperature, 
+        double Diffusivity_Iso
+        ){
+    // TODO: need to double check the Diffusivity_Iso
+    double R_sur_evap;
+    double x = 0.6; // the turbulence index of atmosphere, 1.0 means no turbulence, 0.0 means no fractionation
+    double relative_humidity = fmin(RH, 1.0);
+    double alpha_eq = equilibrium_fractionation_factor_O18_liquid(temperature);
+    R_sur_evap = (R_std_O18*1.0)/(alpha_eq*(Diffusivity_Iso*(1.0 - RH) + RH));
+    return R_sur_evap;
+}
+
+static inline double C_G_model_Dar_2020_HDO(
+        double RH, 
+        double temperature, 
+        double Diffusivity_Iso
+        ){
+    // TODO: need to double check the Diffusivity_Iso
+    double R_sur_evap;
+    double x = 0.6; // the turbulence index of atmosphere, 1.0 means no turbulence, 0.0 means no fractionation
+    double relative_humidity = fmin(RH, 1.0);
+    double delta_HDO_liquid = global_meteoric_water(0.0);
+    double R_HDO_liquid = (delta_HDO_liquid/1000 + 1) * R_std_HDO;
+    double alpha_eq = equilibrium_fractionation_factor_HDO_liquid(temperature);
+    R_sur_evap = (R_HDO_liquid*1.0)/(alpha_eq*(Diffusivity_Iso*(1.0 - RH) + RH));
+    return R_sur_evap;
+}
 // reference of fresh water fresh water isotope ratio in Lake Tai Hu, see
 // Estimating evaporation over a large and shallow lake using stable isotopic method: 
 // A case study of Lake Taihu, Xiao's 2017

@@ -18,7 +18,7 @@ import cython
 from thermodynamic_functions import exner, cpm
 from thermodynamic_functions cimport cpm_c, pv_c, pd_c, exner_c
 from entropies cimport sv_c, sd_c
-from libc.math cimport sqrt, log, fabs,atan, exp, fmax
+from libc.math cimport pow, sqrt, log, fabs,atan, exp, fmax
 cimport numpy as np
 import numpy as np
 include "parameters.pxi"
@@ -49,6 +49,9 @@ cdef extern from "isotope_functions.h":
     double C_G_model_HDO_test(double R_O18) nogil
     double C_G_model_O18_Mpace_ST(double RH,  double temperature, double alpha_k_O18) nogil
     double C_G_model_HDO_Mpace_ST(double RH,  double temperature, double alpha_k_HDO) nogil
+    double kinetic_fractionation_factor_C_G_model(double eD, double ustar, double zlevel) nogil
+    double C_G_model_Dar_2020_O18(double RH, double temperature, double diffusivity_ratio) nogil
+    double C_G_model_Dar_2020_HDO(double RH, double temperature, double diffusivity_ratio) nogil
     double equilibrium_fractionation_factor_H2O18_liquid(double temperature) nogil
     double equilibrium_fractionation_factor_HDO_liquid(double temperature) nogil
 
@@ -421,7 +424,7 @@ cdef class SurfaceBomex(SurfaceBase):
         # isotope surface flux calculation and added to qt_O18_tendency
         if self.isotope_tracers:
             surface_iso_tracer_diagnose(Gr, Ref, PV, DV, self.CC,
-                self.qt_flux, self.R_O18, self.R_HDO, self.alpha_k, self.surface_rh)    
+                self.qt_flux, self.R_O18, self.R_HDO, self.friction_velocity, self.alpha_k, self.surface_rh)    
         return
 
 
@@ -1612,6 +1615,7 @@ cpdef surface_iso_tracer(Grid.Grid Gr, ReferenceState.ReferenceState Ref,
 cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Ref, 
         PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
         ClausiusClapeyron CC, double[:] qt_flux, double[:] R_O18, double[:] R_HDO, 
+        double[:] friction_velocity,
         double[:] alpha_k, double[:] surface_rh):
     
     cdef:
@@ -1626,6 +1630,11 @@ cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Re
         double R_evap_O18, R_evap_HDO
         double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
         double pv, pv_star
+        double eD_O18 = 1.0/0.9691 # Copper observation 
+        double eD_HDO = 1.0/0.9839 # Copper observation
+        double eD_O18_Merlivat = 1.0285
+        double eD_HDO_Merlivat = 1.0251
+        double alpha_k_O18, alpha_k_HDO
         Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
         Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
         Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv')
@@ -1642,9 +1651,18 @@ cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Re
                 pv = pv_c(Ref.Pg, PV.values[qt_shift+ijk], DV.values[qv_shift+ijk])
                 RH = pv/pv_star  
                 surface_rh[ij] = RH
+                
+                # alpha_k_O18 = kinetic_fractionation_factor_C_G_model(friction_velocity[ij], eD_O18_Merlivat, 10.0)
+                # alpha_k_HDO = kinetic_fractionation_factor_C_G_model(friction_velocity[ij], eD_HDO_Merlivat, 10.0)
+                 
+                # n = 2.0/3.0 means smooth ocean surface
+                # alpha_k_O18 = pow(1.0/eD_O18_Merlivat, 2.0/3.0)
+                # alpha_k_HDO = pow(1.0/eD_HDO_Merlivat, 2.0/3.0)
+                # R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], alpha_k_O18)
+                # R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], alpha_k_HDO)
 
-                R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], 1.0)
-                R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], 1.0)
+                R_evap_O18 = C_G_model_Dar_2020_O18(RH, DV.values[t_shift + ijk], eD_O18_Merlivat)
+                R_evap_HDO = C_G_model_Dar_2020_HDO(RH, DV.values[t_shift + ijk], eD_HDO_Merlivat)
 
                 PV.tendencies[qt_std_shift + ijk] += qt_flux[ij] * tendency_factor
                 PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
