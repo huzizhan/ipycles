@@ -98,6 +98,59 @@ static inline double global_meteoric_water(double delta_O18){
     return  8.0 * delta_O18 + 10.0;
 }
 
+static inline double C_G_model(
+        double RH, 
+        double alpha_eq, 
+        double alpha_k,
+        double R_Liquid,
+        double R_air
+    ){
+    double R_sur_evap;
+    double relative_humidity = fmin(RH, 1.0);
+    R_sur_evap = alpha_k*(R_Liquid*alpha_eq - relative_humidity*R_air)/(1.0 - relative_humidity);
+    return R_sur_evap;
+}
+
+static inline double epsilon_k(
+        double theta,
+        double RH,
+        double n,
+        double D_ratio // heavier over lighter
+    ){
+    double relative_humidity = fmin(RH, 1.0);
+    double c_k = n*(1.0 - D_ratio)*1e3;
+    double epsilon_k = theta*(1-relative_humidity)*c_k;
+    return epsilon_k;
+}
+
+static inline double C_G_model_delta(
+        double RH, 
+        double alpha_eq, 
+        double epsilon_k,
+        double delta_Liquid,
+        double delta_air
+    ){
+    double relative_humidity = fmin(RH, 1.0);
+    double epsilon_star = (1-alpha_eq)*1e3;
+    double delta_evap = (alpha_eq*delta_Liquid - relative_humidity*delta_air - (epsilon_star + epsilon_k)) / 
+            ((1.0 - relative_humidity) + 1.0e-3*epsilon_k);
+    return delta_evap;
+}
+
+// This section is adopted from Dar, 2020, equation 7
+// Which is adopted from the method in Merlivat 1978
+static inline double C_G_model_Merlivat(
+        double RH, 
+        double alpha_eq, 
+        double alpha_k,
+        double R_Liquid 
+    ){
+    double R_sur_evap;
+    double relative_humidity = fmin(RH, 1.0);
+    R_sur_evap = (alpha_eq*alpha_k*R_Liquid)/((1-relative_humidity)+alpha_k*relative_humidity);
+    return R_sur_evap;
+}
+
 static inline double C_G_model_O18(double RH,  double temperature, double alpha_k){
     double alpha_eq;
     double R_sur_evap;
@@ -131,18 +184,20 @@ static inline double C_G_model_HDO(double RH,  double temperature, double alpha_
 
 // ======== C_G_model_Dar_2020 ======= 
 // This section is adopted from Dar, 2020, equation 18
-static inline double C_G_model_Dar_2020(double R_Liquid, 
+static inline double C_G_model_Dar(
         double RH, 
-        double temperature, 
         double alpha_eq,
-        double alpha_k,
-        double Diffusivity_Iso
+        double Diffusivity_Iso,
+        double R_Liquid,
+        double x,
+        double gamma
         ){
     // TODO: need to double check the Diffusivity_Iso
     double R_sur_evap;
-    double x = 0.6; // the turbulence index of atmosphere, 1.0 means no turbulence, 0.0 means no fractionation
+    // the turbulence index of atmosphere, 1.0 means no turbulence, 0.0 means no fractionation
+    // double x = 0.6; 
     double relative_humidity = fmin(RH, 1.0);
-    R_sur_evap = (R_Liquid/1.0)/alpha_eq*(Diffusivity_Iso*(1.0 - RH) + RH);
+    R_sur_evap = (R_Liquid*gamma) / (alpha_eq*(Diffusivity_Iso*(gamma - relative_humidity) + relative_humidity));
     return R_sur_evap;
 }
 

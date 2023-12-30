@@ -61,7 +61,8 @@ cdef class SurfaceBomex(SurfaceBase):
         double gustiness
         double [:] R_O18
         double [:] R_HDO
-        double [:] alpha_k
+        double [:] delta_air_O18
+        double [:] delta_air_HDO
         double [:] surface_rh
         ClausiusClapeyron CC
 

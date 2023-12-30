@@ -49,11 +49,20 @@ cdef extern from "isotope_functions.h":
     double C_G_model_HDO_test(double R_O18) nogil
     double C_G_model_O18_Mpace_ST(double RH,  double temperature, double alpha_k_O18) nogil
     double C_G_model_HDO_Mpace_ST(double RH,  double temperature, double alpha_k_HDO) nogil
+
     double kinetic_fractionation_factor_C_G_model(double eD, double ustar, double zlevel) nogil
+
     double C_G_model_Dar_2020_O18(double RH, double temperature, double diffusivity_ratio) nogil
     double C_G_model_Dar_2020_HDO(double RH, double temperature, double diffusivity_ratio) nogil
-    double equilibrium_fractionation_factor_H2O18_liquid(double temperature) nogil
+
+    double equilibrium_fractionation_factor_O18_liquid(double temperature) nogil
     double equilibrium_fractionation_factor_HDO_liquid(double temperature) nogil
+
+    double C_G_model(double RH, double alpha_eq, double alpha_k, double R_liquid, double R_air) nogil
+    double C_G_model_Merlivat(double RH, double alpha_eq, double alpha_k, double R_liquid) nogil
+    double C_G_model_Dar(double RH, double alpha_eq, double D_ratio, double R_liquid, double x, double gamma) nogil
+    double C_G_model_delta(double RH, double alpha_eq, double epsilon_k, double delta_Liquid, double delta_air) nogil
+    double epsilon_k(double theta, double RH, double n, double D_ratio) nogil
 
 def SurfaceFactory(namelist, LatentHeat LH, ParallelMPI.ParallelMPI Par):
 
@@ -361,12 +370,14 @@ cdef class SurfaceBomex(SurfaceBase):
         self.R_O18 = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
         self.R_HDO = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
         self.surface_rh = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
-        self.alpha_k = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
+        self.delta_air_O18 = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
+        self.delta_air_HDO = np.zeros(Gr.dims.nlg[0]*Gr.dims.nlg[1], dtype=np.double, order='c')
 
         NS.add_ts('R_O18', Gr, Pa)
         NS.add_ts('R_HDO', Gr, Pa)
         NS.add_ts('surface_rh', Gr, Pa)
-        NS.add_ts('alpha_k', Gr, Pa)
+        NS.add_ts('delta_air_O18', Gr, Pa)
+        NS.add_ts('delta_air_HDO', Gr, Pa)
 
         return
 
@@ -424,7 +435,7 @@ cdef class SurfaceBomex(SurfaceBase):
         # isotope surface flux calculation and added to qt_O18_tendency
         if self.isotope_tracers:
             surface_iso_tracer_diagnose(Gr, Ref, PV, DV, self.CC,
-                self.qt_flux, self.R_O18, self.R_HDO, self.friction_velocity, self.alpha_k, self.surface_rh)    
+                self.qt_flux, self.R_O18, self.R_HDO, self.delta_air_O18, self.delta_air_HDO, self.surface_rh)    
         return
 
 
@@ -439,11 +450,14 @@ cdef class SurfaceBomex(SurfaceBase):
         tmp = Pa.HorizontalMeanSurface(Gr,&self.R_HDO[0])
         NS.write_ts('R_HDO', tmp, Pa)
         
-        tmp = Pa.HorizontalMeanSurface(Gr,&self.alpha_k[0])
-        NS.write_ts('alpha_k', tmp, Pa)
-        
         tmp = Pa.HorizontalMeanSurface(Gr,&self.surface_rh[0])
         NS.write_ts('surface_rh', tmp, Pa)
+
+        tmp = Pa.HorizontalMeanSurface(Gr,&self.delta_air_O18[0])
+        NS.write_ts('delta_air_O18', tmp, Pa)
+        
+        tmp = Pa.HorizontalMeanSurface(Gr,&self.delta_air_HDO[0])
+        NS.write_ts('delta_air_HDO', tmp, Pa)
 
         return
 
@@ -1612,11 +1626,15 @@ cpdef surface_iso_tracer(Grid.Grid Gr, ReferenceState.ReferenceState Ref,
                 PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
                 PV.tendencies[qt_HDO_shift + ijk] += qt_flux[ij] * R_evap_HDO * tendency_factor / R_std_HDO
 
+cdef double global_meteric_water_HDO(double R_O18) nogil:
+    cdef double delta_O18 = (R_O18/R_std_O18 - 1) * 1000.0;
+    cdef double delta_HDO = 8.0*delta_O18 + 10.0
+    return delta_HDO
+
 cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Ref, 
         PrognosticVariables.PrognosticVariables PV, DiagnosticVariables.DiagnosticVariables DV, 
         ClausiusClapeyron CC, double[:] qt_flux, double[:] R_O18, double[:] R_HDO, 
-        double[:] friction_velocity,
-        double[:] alpha_k, double[:] surface_rh):
+        double[:] delta_A_O18, double[:] delta_A_HDO, double[:] surface_rh):
     
     cdef:
         Py_ssize_t i,j, ijk, ij
@@ -1627,20 +1645,29 @@ cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Re
         Py_ssize_t jstride = Gr.dims.nlg[2]
         Py_ssize_t istride_2d = Gr.dims.nlg[1]
         double dzi = 1.0/Gr.dims.dx[2]
-        double R_evap_O18, R_evap_HDO
         double tendency_factor = Ref.alpha0_half[gw]/Ref.alpha0[gw-1]*dzi
-        double pv, pv_star
-        double eD_O18 = 1.0/0.9691 # Copper observation 
-        double eD_HDO = 1.0/0.9839 # Copper observation
-        double eD_O18_Merlivat = 1.0285
-        double eD_HDO_Merlivat = 1.0251
-        double alpha_k_O18, alpha_k_HDO
         Py_ssize_t qt_shift = PV.get_varshift(Gr, 'qt')
         Py_ssize_t t_shift = DV.get_varshift(Gr,'temperature')
         Py_ssize_t qv_shift = DV.get_varshift(Gr, 'qv')
         Py_ssize_t qt_std_shift = PV.get_varshift(Gr, 'qt_std')
         Py_ssize_t qt_O18_shift = PV.get_varshift(Gr, 'qt_O18')
         Py_ssize_t qt_HDO_shift = PV.get_varshift(Gr, 'qt_HDO')
+        # use for RH calculation
+        double pv, pv_star
+        double R_evap_O18, R_evap_HDO
+        double delta_evap_O18, delta_evap_HDO
+        double eD_O18 = 1.0/0.9691 # Copper observation 
+        double eD_HDO = 1.0/0.9839 # Copper observation
+        double eD_O18_Merlivat = 1.0285
+        double eD_HDO_Merlivat = 1.0251
+        # kinetic fractiona
+        double alpha_k_O18, alpha_k_HDO
+        double R_liquid_O18, R_liquid_HDO
+        double delta_HDO_GMW, R_HDO_GMW
+        double R_air_O18, R_air_HDO
+        double epsilon_k_O18, epsilon_k_HDO
+        double delta_Liquid_O18, delta_Liquid_HDO
+        double delta_air_O18, delta_air_HDO
 
     with nogil:
         for i in xrange(gw, imax-gw):
@@ -1652,17 +1679,48 @@ cpdef surface_iso_tracer_diagnose(Grid.Grid Gr, ReferenceState.ReferenceState Re
                 RH = pv/pv_star  
                 surface_rh[ij] = RH
                 
+                # alpha referes to v/l, so alpha will be < 1.0
+                alpha_eq_O18 = 1.0/equilibrium_fractionation_factor_O18_liquid(DV.values[t_shift + ijk])
+                alpha_eq_HDO = 1.0/equilibrium_fractionation_factor_HDO_liquid(DV.values[t_shift + ijk])
                 # alpha_k_O18 = kinetic_fractionation_factor_C_G_model(friction_velocity[ij], eD_O18_Merlivat, 10.0)
                 # alpha_k_HDO = kinetic_fractionation_factor_C_G_model(friction_velocity[ij], eD_HDO_Merlivat, 10.0)
                  
                 # n = 2.0/3.0 means smooth ocean surface
                 # alpha_k_O18 = pow(1.0/eD_O18_Merlivat, 2.0/3.0)
                 # alpha_k_HDO = pow(1.0/eD_HDO_Merlivat, 2.0/3.0)
-                # R_evap_O18 = C_G_model_O18(RH, DV.values[t_shift + ijk], alpha_k_O18)
-                # R_evap_HDO = C_G_model_HDO(RH, DV.values[t_shift + ijk], alpha_k_HDO)
 
-                R_evap_O18 = C_G_model_Dar_2020_O18(RH, DV.values[t_shift + ijk], eD_O18_Merlivat)
-                R_evap_HDO = C_G_model_Dar_2020_HDO(RH, DV.values[t_shift + ijk], eD_HDO_Merlivat)
+                
+                delta_Liquid_O18 = 0.0;
+                R_liquid_O18 = R_std_O18
+                delta_Liquid_HDO = 10.0;
+                R_liquid_HDO = (delta_Liquid_HDO/1000.0 + 1)*R_std_HDO
+
+                R_air_O18 = PV.values[qt_O18_shift + ijk]*R_std_O18/PV.values[qt_std_shift + ijk]
+                R_air_HDO = PV.values[qt_HDO_shift + ijk]*R_std_HDO/PV.values[qt_std_shift + ijk]
+                delta_air_O18 = (R_air_O18/R_std_O18 - 1.0)*1.0e3
+                delta_air_HDO = (R_air_HDO/R_std_HDO - 1.0)*1.0e3
+                delta_A_O18[ij] = delta_air_O18
+                delta_A_HDO[ij] = delta_air_HDO
+
+                epsilon_k_O18 = epsilon_k(1.0, RH, 2.0/3.0, 1.0/eD_O18_Merlivat)
+                epsilon_k_HDO = epsilon_k(1.0, RH, 2.0/3.0, 1.0/eD_HDO_Merlivat)
+                alpha_k_O18 = (1.0 - epsilon_k_O18*1.0e-3)
+                alpha_k_HDO = (1.0 - epsilon_k_HDO*1.0e-3)
+
+                delta_evap_O18 = C_G_model_delta(RH, alpha_eq_O18, epsilon_k_O18, delta_Liquid_O18, delta_air_O18)
+                delta_evap_HDO = C_G_model_delta(RH, alpha_eq_HDO, epsilon_k_HDO, delta_Liquid_HDO, delta_air_HDO)
+
+                R_evap_O18 = (delta_evap_O18*1.0e-3 + 1.0)*R_std_O18
+                R_evap_HDO = (delta_evap_HDO*1.0e-3 + 1.0)*R_std_HDO
+
+                # R_evap_O18 = C_G_model(RH, alpha_eq_O18, alpha_k_O18, R_liquid_O18, R_air_O18)
+                # R_evap_HDO = C_G_model(RH, alpha_eq_HDO, alpha_k_HDO, R_liquid_HDO, R_air_HDO)
+
+                # R_evap_O18 = C_G_model_Merlivat(RH, alpha_eq_O18, alpha_k_O18, R_liquid_O18)
+                # R_evap_HDO = C_G_model_Merlivat(RH, alpha_eq_HDO, alpha_k_HDO, R_liquid_HDO)
+
+                # R_evap_O18 = C_G_model_Dar(RH, alpha_eq_O18, eD_O18_Merlivat, R_liquid_O18, 0.6, 1.0)
+                # R_evap_HDO = C_G_model_Dar(RH, alpha_eq_HDO, eD_HDO_Merlivat, R_liquid_HDO, 0.6, 1.0)
 
                 PV.tendencies[qt_std_shift + ijk] += qt_flux[ij] * tendency_factor
                 PV.tendencies[qt_O18_shift + ijk] += qt_flux[ij] * R_evap_O18 * tendency_factor / R_std_O18
