@@ -215,6 +215,59 @@ void sb_selfcollection_breakup_rain(double density, double nr, double qr, double
     return;
 }
 
+void sb_evaporation_rain_debug(
+        struct LookupStruct *LT, double (*lam_fp)(double), 
+        double (*L_fp)(double, double), 
+        double temperature,
+        double sat_ratio, 
+        double nr, 
+        double qr, 
+        double mu, 
+        double rain_mass, 
+        double Dp,
+        double Dm, 
+        double* nr_tendency, 
+        double* qr_tendency
+    ){
+    double gamma, dpfv, phi_v;
+    const double bova      = B_RAIN_SED/A_RAIN_SED;
+    const double cdp       = C_RAIN_SED * Dp;
+    const double mupow     = mu + 2.5;
+    const double mup2      = mu + 2.0;
+    // double qr_tendency_tmp = 0.0;
+
+    if(qr < SB_EPS || nr < SB_EPS){
+        *nr_tendency = 0.0;
+        *qr_tendency = 0.0;
+    }
+    else if(sat_ratio >= 0.0){
+        *nr_tendency = 0.0;
+        *qr_tendency = 0.0;
+    }
+    else{
+        gamma           = 0.7; // gamma = 0.7 is used by DALES ; 
+                               // alternative expression gamma= d_eq/Dm * exp(-0.2*mu) is used by AS08, Equa23
+    
+        // AS08: Equ A7
+        phi_v           = 1.0 - (0.5  * bova * pow(1.0 +  cdp, -mupow) + 0.125 * bova * bova * pow(1.0 + 2.0*cdp, -mupow)
+                          + 0.0625 * bova * bova * bova * pow(1.0 +3.0*cdp, -mupow) + 0.0390625 * bova * bova * bova * bova * pow(1.0 + 4.0*cdp, -mupow));
+        dpfv            = A_VENT_RAIN * tgamma(mup2) * pow(Dp, mup2) + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, mupow) * phi_v;
+        // following expression comes from cmkaul <cmkaul@gmail.com>, the default PyCLES expression.
+        // dpfv = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
+        // g_therm = 1.0; 
+        // double tmp = 2.0 * pi * g_therm * sat_ratio* nr * dpfv * 100.0;
+        // double g_therm = microphysics_g(LT, lam_fp, L_fp, temperature);
+        double g_therm = 1.0e-1;
+        double tmp = 2.0 * pi * g_therm * sat_ratio* nr * dpfv * 100.0;
+        *qr_tendency = tmp;
+        // *qr_tendency    = 1e-10;
+
+        // Defined in AS08, Equ(22): ∂Nᵣ/∂t = γ*Nᵣ/Lᵣ*∂Lᵣ/∂t
+        *nr_tendency    = gamma /rain_mass * tmp; 
+    }
+    return;
+}
+
 void sb_evaporation_rain( double g_therm, double sat_ratio, double nr, double qr, double mu, double rain_mass, double Dp,
     double Dm, double* nr_tendency, double* qr_tendency){
     double gamma, dpfv, phi_v;
