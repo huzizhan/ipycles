@@ -233,8 +233,9 @@ cdef extern from "isotope.h":
         double (*rain_mu)(double,double,double), double (*droplet_nu)(double,double),
         double* density, double* p0, double* temperature, double* qt, 
         double* qv, double* qr, double* nr, double* qv_O18, double* qr_O18,
-        double* qv_HDO, double* qr_HDO, double* qr_tend, double* nr_tend,
-        double* qr_O18_tend, double* qr_HD0_tend)nogil
+        double* qv_HDO, double* qr_HDO, 
+        double* dpfv, double* Dp, double* g_thermo,
+        double* qr_tend, double* nr_tend, double* qr_O18_tend, double* qr_HD0_tend)nogil
 
 cdef class IsotopeTracers_SB_Liquid:
     def __init__(self, namelist):
@@ -286,6 +287,9 @@ cdef class IsotopeTracers_SB_Liquid:
         NS.add_profile('nr_tend_evap', Gr, Pa, '','','')
         NS.add_profile('qr_O18_tend_evap', Gr, Pa, '','','')
         NS.add_profile('qr_HDO_tend_evap', Gr, Pa, '','','')
+        NS.add_profile('dpfv', Gr, Pa, '','','')
+        NS.add_profile('Dp', Gr, Pa, '','','')
+        NS.add_profile('g_thermo', Gr, Pa, '','','')
 
         initialize_NS_base(NS, Gr, Pa)
         return
@@ -408,6 +412,9 @@ cdef class IsotopeTracers_SB_Liquid:
             double[:] qr_O18_tend_evap = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] qr_HDO_tend_evap = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
             double[:] tmp
+            double[:] dpfv = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] Dp = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
+            double[:] g_thermo = np.zeros((Gr.dims.npg,), dtype=np.double, order='c')
 
         sb_iso_rain_evaporation_wrapper(&Gr.dims, &Micro_SB_Liquid.CC.LT.LookupStructC, 
             Micro_SB_Liquid.Lambda_fp, Micro_SB_Liquid.L_fp, 
@@ -416,6 +423,7 @@ cdef class IsotopeTracers_SB_Liquid:
             &PV.values[qv_std_shift], &PV.values[qr_std_shift], &PV.values[nr_std_shift], 
             &PV.values[qv_O18_shift], &PV.values[qr_O18_shift], 
             &PV.values[qv_HDO_shift], &PV.values[qr_HDO_shift],
+            &dpfv[0], &Dp[0], &g_thermo[0],
             &qr_tend_evap[0], &nr_tend_evap[0], &qr_O18_tend_evap[0], &qr_HDO_tend_evap[0])
         
         tmp = Pa.HorizontalMean(Gr, &qr_tend_evap[0])
@@ -426,6 +434,13 @@ cdef class IsotopeTracers_SB_Liquid:
         NS.write_profile('qr_O18_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
         tmp = Pa.HorizontalMean(Gr, &qr_HDO_tend_evap[0])
         NS.write_profile('qr_HDO_tend_evap', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &g_thermo[0])
+        NS.write_profile('g_thermo', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &dpfv[0])
+        NS.write_profile('dpfv', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+        tmp = Pa.HorizontalMean(Gr, &Dp[0])
+        NS.write_profile('Dp', tmp[Gr.dims.gw: -Gr.dims.gw], Pa)
+
 
         iso_stats_io_Base(Gr, PV, DV, Ref, NS, Pa)
         return

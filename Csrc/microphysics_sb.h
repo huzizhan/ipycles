@@ -225,7 +225,8 @@ void sb_evaporation_rain_debug(
         double mu, 
         double rain_mass, 
         double Dp,
-        double Dm, 
+        double Dm,
+        double* dpfv_stats,
         double* nr_tendency, 
         double* qr_tendency
     ){
@@ -264,6 +265,7 @@ void sb_evaporation_rain_debug(
 
         // Defined in AS08, Equ(22): ∂Nᵣ/∂t = γ*Nᵣ/Lᵣ*∂Lᵣ/∂t
         *nr_tendency    = gamma /rain_mass * tmp; 
+        *dpfv_stats = dpfv;
     }
     return;
 }
