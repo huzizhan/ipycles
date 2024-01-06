@@ -292,29 +292,22 @@ double microphysics_g_iso_SB_Liquid(struct LookupStruct *LT,
     double L            = L_fp(temperature,lam);
     double pv_sat       = lookup(LT, temperature);
     double rho_sat      = pv_sat/Rv/temperature;
-    // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); // blossey's scheme for isotopic fractionation
-    double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+
+    // blossey's scheme for isotopic fractionation
+    // double b_l       = (DVAPOR*L*L*rho_sat)/KT/Rv/(temperature*temperature); 
+
+    // own scheme for isotopic fractionation, based on SB_Liquid evaporation scheme
+    double b_l          = (dvap*rho_sat)*(L/kt/temperature)*(L/Rv/temperature - 1.0); 
+
     double S_l          = sat_ratio + 1.0;
     double R_qv_ambient = qv_iso / qv;
    
-    double R_qr;
+    double R_qr = qr_iso/qr;
     double alpha_eq;
     if (iso_type == 1.0){
-        if(qr_iso > 1e-10 && qr > 1e-10){
-            R_qr = qr_iso/qr;
-        }
-        else{
-            R_qr = R_std_O18;
-        }
         alpha_eq = equilibrium_fractionation_factor_O18_liquid(temperature);
     }
     else if(iso_type == 2.0){
-        if(qr_iso > 1e-10 && qr > 1e-10){
-            R_qr = qr_iso/qr;
-        }
-        else{
-            R_qr = R_std_HDO;
-        }
         alpha_eq = equilibrium_fractionation_factor_HDO_liquid(temperature);
     }
     double R_qr_surface = R_qr / alpha_eq;
@@ -499,7 +492,7 @@ void sb_iso_evaporation_rain(double g_therm_iso,
         // vapor__diff, vapor_HDO16_diff;) is used by S08;
         phi_v = 1.0 - (0.5  * bova * pow(1.0 +  cdp, -mupow) + 0.125 * bova * bova * pow(1.0 + 2.0*cdp, -mupow)
                       + 0.0625 * bova * bova * bova * pow(1.0 +3.0*cdp, -mupow) + 0.0390625 * bova * bova * bova * bova * pow(1.0 + 4.0*cdp, -mupow));
-        dpfv  = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
+        dpfv = (A_VENT_RAIN * tgamma(mu + 2.0) * Dp + B_VENT_RAIN * NSC_3 * A_NU_SQ * tgamma(mupow) * pow(Dp, 1.5) * phi_v)/tgamma(mu + 1.0);
 
         qr_tendency_tmp  = 2.0 * pi * g_therm_iso * nr * dpfv;
         *qr_iso_tendency = -qr_tendency_tmp;
