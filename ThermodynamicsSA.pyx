@@ -130,6 +130,9 @@ cdef class ThermodynamicsSA:
         NS.add_ts('cloud_base', Gr, Pa)
         NS.add_ts('lwp', Gr, Pa)
 
+        # if 'qr' in PV.name_index:
+        NS.add_ts('rwp', Gr, Pa)
+
         NS.add_profile('pv_star_lookup', Gr, Pa, '', '')
         NS.add_profile('pv_star_water', Gr, Pa, '', '')
         NS.add_profile('pv_star_ice', Gr, Pa, '', '')
@@ -474,6 +477,10 @@ cdef class ThermodynamicsSA:
             double dz = Gr.dims.dx[2]
             double[:] lwp
             double lwp_weighted_sum = 0.0
+            Py_ssize_t qr_shift
+            double[:] rwp
+            double rwp_weighted_sum = 0.0
+            double[:, :] qr_pencils
 
             double[:] cf_profile = np.zeros((Gr.dims.n[2]), dtype=np.double, order='c')
 
@@ -538,5 +545,25 @@ cdef class ThermodynamicsSA:
 
         lwp_weighted_sum = Pa.domain_scalar_sum(lwp_weighted_sum)
         NS.write_ts('lwp', lwp_weighted_sum, Pa)
+        
+        # compute rain water path
+        if 'qr' in PV.name_index:
+            qr_shift = PV.get_varshift(Gr, 'qr')
+            ql_pencils = z_pencil.forward_double( &Gr.dims, Pa, &PV.values[qr_shift])
+            rwp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
+            with nogil:
+                for pi in xrange(z_pencil.n_local_pencils):
+                    rwp[pi] = 0.0
+                    for k in xrange(kmin, kmax):
+                        rwp[pi] += RS.rho0_half[k] * ql_pencils[pi, k] * dz
+
+                for pi in xrange(z_pencil.n_local_pencils):
+                    rwp_weighted_sum += rwp[pi]
+
+                rwp_weighted_sum /= mean_divisor
+
+            rwp_weighted_sum = Pa.domain_scalar_sum(rwp_weighted_sum)
+            NS.write_ts('rwp', rwp_weighted_sum, Pa)
+
 
         return

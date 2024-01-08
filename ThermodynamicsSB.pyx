@@ -553,6 +553,8 @@ cdef class ThermodynamicsSB:
             double dz = Gr.dims.dx[2]
             double[:] lwp
             double lwp_weighted_sum = 0.0
+            double[:] rwp
+            double rwp_weighted_sum = 0.0
 
             double[:] cf_profile = np.zeros((Gr.dims.n[2]), dtype=np.double, order='c')
 
