@@ -181,7 +181,7 @@ cdef class Microphysics_Arctic_1M:
         NS.add_profile('thetav_flux_z', Gr, Pa)
 
         NS.add_ts('iwp', Gr, Pa)
-        NS.add_ts('rwp', Gr, Pa)
+        # NS.add_ts('rwp', Gr, Pa)
         NS.add_ts('swp', Gr, Pa)
 
         NS.add_profile('cloud_fraction_ice', Gr, Pa)
@@ -417,10 +417,10 @@ cdef class Microphysics_Arctic_1M:
 
             double dz = Gr.dims.dx[2]
             double[:] iwp
-            double[:] rwp
+            # double[:] rwp
             double[:] swp
             double iwp_weighted_sum = 0.0
-            double rwp_weighted_sum = 0.0
+            # double rwp_weighted_sum = 0.0
             double swp_weighted_sum = 0.0
 
             double[:] cf_profile = np.zeros((Gr.dims.n[2]), dtype=np.double, order='c')
@@ -435,32 +435,32 @@ cdef class Microphysics_Arctic_1M:
 
         # Compute liquid, ice, rain, and snow water paths
         iwp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
-        rwp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
+        # rwp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
         swp = np.empty((z_pencil.n_local_pencils), dtype=np.double, order='c')
         with nogil:
             for pi in xrange(z_pencil.n_local_pencils):
                 iwp[pi] = 0.0
-                rwp[pi] = 0.0
+                # rwp[pi] = 0.0
                 swp[pi] = 0.0
                 for k in xrange(kmin, kmax):
                     iwp[pi] += Ref.rho0_half[k] * qi_pencils[pi, k] * dz
-                    rwp[pi] += Ref.rho0_half[k] * qrain_pencils[pi, k] * dz
+                    # rwp[pi] += Ref.rho0_half[k] * qrain_pencils[pi, k] * dz
                     swp[pi] += Ref.rho0_half[k] * qsnow_pencils[pi, k] * dz
 
             for pi in xrange(z_pencil.n_local_pencils):
                 iwp_weighted_sum += iwp[pi]
-                rwp_weighted_sum += rwp[pi]
+                # rwp_weighted_sum += rwp[pi]
                 swp_weighted_sum += swp[pi]
 
             iwp_weighted_sum /= mean_divisor
-            rwp_weighted_sum /= mean_divisor
+            # rwp_weighted_sum /= mean_divisor
             swp_weighted_sum /= mean_divisor
 
         iwp_weighted_sum = Pa.domain_scalar_sum(iwp_weighted_sum)
         NS.write_ts('iwp', iwp_weighted_sum, Pa)
 
-        rwp_weighted_sum = Pa.domain_scalar_sum(rwp_weighted_sum)
-        NS.write_ts('rwp', rwp_weighted_sum, Pa)
+        # rwp_weighted_sum = Pa.domain_scalar_sum(rwp_weighted_sum)
+        # NS.write_ts('rwp', rwp_weighted_sum, Pa)
 
         swp_weighted_sum = Pa.domain_scalar_sum(swp_weighted_sum)
         NS.write_ts('swp', swp_weighted_sum, Pa)

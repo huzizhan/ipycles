@@ -832,6 +832,25 @@ void arc1m_iso_evap_rain(struct LookupStruct *LT, double (*lam_fp)(double), doub
     return;
 }
 
+void arc1m_iso_evap_snow_kinetic(double qsnow_tendency_evap, 
+        double qsnow, 
+        double qsnow_iso,
+        double qv,
+        double qv_iso,
+        double alpha_s,
+        double alpha_k,
+        double* qsnow_iso_tendency_evap
+        ){
+    // depostion happened with kinetic fractionation
+    if (qsnow_tendency_evap >= 0.0){
+        *qsnow_iso_tendency_evap = qsnow_tendency_evap * alpha_s * alpha_k * (qv_iso/qv);
+    }
+    // sublimation happened without kinetic fractionation
+    else{
+        *qsnow_iso_tendency_evap = qsnow_tendency_evap * (qsnow_iso/qsnow);
+    }
+    return;
+}
 void arc1m_iso_evap_snow(struct LookupStruct *LT, double (*lam_fp)(double), double (*L_fp)(double, double),
         double density, const double p0, double temperature,
         double qt, double qv, double qsnow, double nsnow, double gtherm_iso,

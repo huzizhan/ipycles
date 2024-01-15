@@ -254,23 +254,50 @@ void tracer_sb_liquid_microphysics_sources(const struct DimStruct *dims, struct 
 
 // ===========<<< iso 1_m ice scheme for wbf >>> ============
 
-double ice_kinetic_frac_function(double qi_std, double qi_iso, double qi, double alpha_s_ice, double alpha_k_ice){
-    double tendency_std = qi - qi_std;
-    double tendency_iso = alpha_s_ice * alpha_k_ice * tendency_std;
-    double qi_iso_tmp   = qi_iso + tendency_iso;
-    return qi_iso_tmp;
+double ice_kinetic_frac_function(
+        double qi_before, 
+        double qi_iso, 
+        double qi_after, 
+        double R_v,
+        double alpha_s_ice, 
+        double alpha_k_ice
+    ){
+    double tendency_ice = qi_after - qi_before;
+    double tendency_iso;
+
+    // deposition grouth happened, kinetic fractionation
+    if (tendency_ice >= 0.0){
+        tendency_iso = alpha_s_ice * alpha_k_ice * tendency_ice * R_v;
+    }
+    // sublimation happened, no fractionation
+    else{
+        tendency_iso = tendency_ice*(qi_iso/qi_before);
+    }
+    return qi_iso + tendency_iso;
 }
 
-void iso_mix_phase_fractionation(const struct DimStruct *dims, struct LookupStruct *LT, 
-    double (*lam_fp)(double), double (*L_fp)(double, double),double* restrict temperature, double* restrict p0,
-    double* restrict qt_std, double* restrict qv_std, double* restrict ql_std, double* restrict qi_std, 
-    double* restrict qt_O18, double* restrict qv_O18, double* restrict ql_O18, double* restrict qi_O18, 
-    double* restrict qt_HDO, double* restrict qv_HDO, double* restrict ql_HDO, double* restrict qi_HDO, 
-    double* restrict qv_DV, double* restrict ql_DV, double* restrict qi_DV){ 
+void iso_mix_phase_fractionation(
+        const struct DimStruct *dims, struct LookupStruct *LT, 
+        double (*lam_fp)(double), 
+        double (*L_fp)(double, double), 
+        double* restrict temperature, 
+        double* restrict s,
+        double* restrict p0,
+        double* restrict qt_std,
+        double* restrict qv_std,
+        double* restrict ql_std,
+        double* restrict qi_std,
+        double* restrict qt_O18,
+        double* restrict qv_O18,
+        double* restrict ql_O18,
+        double* restrict qi_O18,
+        double* restrict qt_HDO,
+        double* restrict qv_HDO,
+        double* restrict ql_HDO,
+        double* restrict qi_HDO
+        ){ 
 
     ssize_t i,j,k;
-    double alpha_s_ice_O18, alpha_k_ice_O18, alpha_eq_lv_O18;
-    double alpha_s_ice_HDO, alpha_k_ice_HDO, alpha_eq_lv_HDO;
     const ssize_t istride = dims->nlg[1] * dims->nlg[2];
     const ssize_t jstride = dims->nlg[2];
     const ssize_t imin = 0;
@@ -289,58 +316,60 @@ void iso_mix_phase_fractionation(const struct DimStruct *dims, struct LookupStru
                     double qv_std_tmp, ql_std_tmp, qi_std_tmp;
                     double qv_O18_tmp, ql_O18_tmp, qi_O18_tmp;
                     double qv_HDO_tmp, ql_HDO_tmp, qi_HDO_tmp;
+                    double t_tmp = temperature[ijk];
                     
                     double diff_O18 = DVAPOR*DIFF_O18_RATIO;
                     double diff_HDO = DVAPOR*DIFF_HDO_RATIO;
+                    
+                    eos_c(LT, lam_fp, L_fp, p0[k], s[ijk], qt_std[ijk], 
+                        &t_tmp, &qv_std_tmp, &ql_std_tmp, &qi_std_tmp);
 
-                    alpha_eq_lv_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
-                    alpha_eq_lv_HDO = equilibrium_fractionation_factor_HDO_liquid(temperature[ijk]);
+                    // isotope fractionation process
+                    double alpha_eq_lv_O18 = equilibrium_fractionation_factor_O18_liquid(temperature[ijk]);
+                    double alpha_eq_lv_HDO = equilibrium_fractionation_factor_HDO_liquid(temperature[ijk]);
 
-                    alpha_s_ice_O18 = 1.0 / equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
-                    alpha_s_ice_HDO = 1.0 / equilibrium_fractionation_factor_HDO_ice(temperature[ijk]);
+                    double alpha_s_ice_O18 = equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
+                    double alpha_s_ice_HDO = equilibrium_fractionation_factor_HDO_ice(temperature[ijk]);
 
-                    alpha_k_ice_O18 = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_O18, DVAPOR, diff_O18);
-                    alpha_k_ice_HDO = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], p0[k], qt_std[ijk], alpha_s_ice_HDO, DVAPOR, diff_HDO);
+                    double alpha_k_ice_O18 = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], 
+                            p0[k], qt_std[ijk], alpha_s_ice_O18, DVAPOR, diff_O18);
+                    double alpha_k_ice_HDO = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], 
+                            p0[k], qt_std[ijk], alpha_s_ice_HDO, DVAPOR, diff_HDO);
 
                     ql_O18[ijk] = fmax(ql_O18[ijk],0.0);
                     qi_O18[ijk] = fmax(qi_O18[ijk],0.0);
-                    qv_O18[ijk] = qt_O18[ijk] - ql_O18[ijk] - qi_O18[ijk];
                     double qvl_O18 = qt_O18[ijk] - qi_O18[ijk];
 
-                    double iso_type_O18 = 1.0;
-                    iso_sb_2m_cloud_liquid_fraction(iso_type_O18,
-                        temperature[ijk], qv_DV[ijk], ql_DV[ijk],
-                        qvl_O18, qv_O18[ijk], ql_O18[ijk],
-                        &qv_O18_tmp, &ql_O18_tmp);
-                    
-                    double iso_type_HDO = 2.0;
+                    qv_O18_tmp = eq_frac_function(qvl_O18, qv_std_tmp, ql_std_tmp, alpha_eq_lv_O18);
+                    ql_O18_tmp = qvl_O18 - qv_O18_tmp;
+
+                    double R_v_O18 = qv_O18_tmp/qv_std_tmp;
+                    qi_O18_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_O18[ijk], qi_std_tmp, 
+                            R_v_O18, alpha_s_ice_O18, alpha_k_ice_O18);
+
 
                     ql_HDO[ijk] = fmax(ql_HDO[ijk],0.0);
                     qi_HDO[ijk] = fmax(qi_HDO[ijk],0.0);
-                    qv_HDO[ijk] = qt_HDO[ijk] - ql_HDO[ijk] - qi_HDO[ijk];
                     double qvl_HDO = qt_HDO[ijk] - qi_HDO[ijk];
 
-                    iso_sb_2m_cloud_liquid_fraction(iso_type_HDO,
-                        temperature[ijk], qv_DV[ijk], ql_DV[ijk],
-                        qvl_HDO, qv_HDO[ijk], ql_HDO[ijk],
-                        &qv_HDO_tmp, &ql_HDO_tmp);
+                    qv_HDO_tmp = eq_frac_function(qvl_HDO, qv_std_tmp, ql_std_tmp, alpha_eq_lv_HDO);
+                    ql_HDO_tmp = qvl_HDO - qv_HDO_tmp;
 
-                    qi_O18_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_O18[ijk], qi_DV[ijk], alpha_s_ice_O18, alpha_k_ice_O18);
-                    qi_HDO_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_HDO[ijk], qi_DV[ijk], alpha_s_ice_HDO, alpha_k_ice_HDO);
-
-
-                    qv_std_tmp  = qv_DV[ijk];
-                    ql_std_tmp  = ql_DV[ijk];
-                    qi_std_tmp  = qi_DV[ijk];
-                    
+                    double R_v_HDO = qv_HDO_tmp/qv_std_tmp;
+                    qi_HDO_tmp  = ice_kinetic_frac_function(qi_std[ijk], qi_HDO[ijk], qi_std_tmp, 
+                            R_v_HDO, alpha_s_ice_HDO, alpha_k_ice_HDO);
+    
                     qv_std[ijk] = qv_std_tmp;
                     ql_std[ijk] = ql_std_tmp;
                     qi_std[ijk] = qi_std_tmp;
 
-                    ql_O18[ijk] = ql_O18_tmp;
-                    qi_O18[ijk] = qi_O18_tmp;
+                    qv_O18[ijk] = qv_O18_tmp;
+                    qv_HDO[ijk] = qv_HDO_tmp;
 
+                    ql_O18[ijk] = ql_O18_tmp;
                     ql_HDO[ijk] = ql_HDO_tmp;
+
+                    qi_O18[ijk] = qi_O18_tmp;
                     qi_HDO[ijk] = qi_HDO_tmp;
                 } // End k loop
             } // End j loop
@@ -552,19 +581,19 @@ void tracer_arctic1m_microphysics_sources(const struct DimStruct *dims, struct L
                         nrain[ijk], gtherm_HDO_liq, qv_HDO_tmp, qrain_HDO_tmp, &qrain_HDO_tendency_evp);
                     
                     // ===========<<< ice phase kinetic fractionation >>> ============
-                    
-                    double alpha_s_ice_O18 = 1.0 / equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
-                    double alpha_s_ice_HDO = 1.0 / equilibrium_fractionation_factor_HDO_ice(temperature[ijk]);
 
-                    gtherm_O18_ice = microphysics_g_iso_Arc1M(LT, lam_fp, L_fp, temperature[ijk], p0[k], qsnow_tmp, qsnow_O18_tmp, 
-                        qv_tmp, qv_O18_tmp, sat_ratio, alpha_s_ice_O18, diff_O18, therm_cond);
-                    arc1m_iso_evap_snow(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qv_tmp, qsnow_tmp, nsnow[ijk], 
-                        gtherm_O18_ice, qv_O18_tmp, qsnow_O18_tmp, &qsnow_O18_tendency_evp);
+                    double alpha_s_ice_O18 = equilibrium_fractionation_factor_O18_ice(temperature[ijk]);
+                    double alpha_s_ice_HDO = equilibrium_fractionation_factor_HDO_ice(temperature[ijk]);
 
-                    gtherm_HDO_ice = microphysics_g_iso_Arc1M(LT, lam_fp, L_fp, temperature[ijk], p0[k], qsnow_tmp, qsnow_HDO_tmp, 
-                        qv_tmp, qv_HDO_tmp, sat_ratio, alpha_s_ice_HDO, diff_HDO, therm_cond);
-                    arc1m_iso_evap_snow(LT, lam_fp, L_fp, density[k], p0[k], temperature[ijk], qt_tmp, qv_tmp, qsnow_tmp, nsnow[ijk], 
-                        gtherm_HDO_ice, qv_HDO_tmp, qsnow_HDO_tmp, &qsnow_HDO_tendency_evp);
+                    double alpha_k_ice_O18 = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], 
+                            p0[k], qt_tmp, alpha_s_ice_O18, DVAPOR, diff_O18);
+                    double alpha_k_ice_HDO = alpha_k_ice_equation_Blossey_Arc1M(LT, lam_fp, L_fp, temperature[ijk], 
+                            p0[k], qt_tmp, alpha_s_ice_HDO, DVAPOR, diff_HDO);
+
+                    arc1m_iso_evap_snow_kinetic(qsnow_tendency_evp, qsnow_tmp, qsnow_O18_tmp, 
+                            qv_tmp, qv_O18_tmp, alpha_s_ice_O18, alpha_k_ice_O18, &qsnow_O18_tendency_evp);
+                    arc1m_iso_evap_snow_kinetic(qsnow_tendency_evp, qsnow_tmp, qsnow_HDO_tmp, 
+                            qv_tmp, qv_HDO_tmp, alpha_s_ice_HDO, alpha_k_ice_HDO, &qsnow_HDO_tendency_evp);
 
                     arc1m_iso_melt_snow(qsnow_tendency_melt, qsnow_tmp, qsnow_O18_tmp, &qsnow_O18_tendency_melt);
                     arc1m_iso_melt_snow(qsnow_tendency_melt, qsnow_tmp, qsnow_HDO_tmp, &qsnow_HDO_tendency_melt);
@@ -757,7 +786,8 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
                     // sb_cloud_activation_hdcp(p0[k], qv[ijk], 
                     //         ql[ijk], nl[ijk], w[ijk], dt, saturation_ratio[ijk],
                     //         &ql_tendency[ijk], &nl_tendency[ijk]);
-
+                    
+                    //TODO: what if change qt[ijk] into qvl = qt-qi;
                     eos_c(LT, lam_fp, L_fp, p0[k], s[ijk],qt[ijk], 
                         &t_tmp, &qv_tmp, &ql_tmp, &qi_tmp);
 
@@ -1313,7 +1343,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             temperature[ijk], p0[k], qt_tmp, qv_tmp, qv_O18_tmp,
                             DVAPOR, diff_O18, dep_tend_snow, 
                             &qv_O18_tendency_tmp, &qs_O18_tendency_dep);
-                    iso_sb_2m_sublimation(qs_tmp, qs_O18_tmp, sub_tend_ice, 
+                    iso_sb_2m_sublimation(qs_tmp, qs_O18_tmp, sub_tend_snow, 
                             &qv_O18_tendency_tmp, &qs_O18_tendency_sub);
 
                     ql_O18_tendency_tmp = ql_O18_tendency_au + ql_O18_tendency_ac + ql_O18_tendency_rime;
@@ -1397,7 +1427,7 @@ void tracer_sb_ice_microphysics_sources(const struct DimStruct *dims,
                             temperature[ijk], p0[k], qt_tmp, qv_tmp, qv_HDO_tmp,
                             DVAPOR, diff_HDO, dep_tend_snow, 
                             &qv_HDO_tendency_tmp, &qs_HDO_tendency_dep);
-                    iso_sb_2m_sublimation(qs_tmp, qs_HDO_tmp, sub_tend_ice, 
+                    iso_sb_2m_sublimation(qs_tmp, qs_HDO_tmp, sub_tend_snow, 
                             &qv_HDO_tendency_tmp, &qs_HDO_tendency_sub);
                     
                     ql_HDO_tendency_tmp = ql_HDO_tendency_au + ql_HDO_tendency_ac + ql_HDO_tendency_rime;
