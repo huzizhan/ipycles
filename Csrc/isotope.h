@@ -788,7 +788,8 @@ void tracer_sb_cloud_fractionation(struct DimStruct *dims,
                     //         &ql_tendency[ijk], &nl_tendency[ijk]);
                     
                     //TODO: what if change qt[ijk] into qvl = qt-qi;
-                    eos_c(LT, lam_fp, L_fp, p0[k], s[ijk],qt[ijk], 
+                    double qvl = qt[ijk] - qi[ijk];
+                    eos_c(LT, lam_fp, L_fp, p0[k], s[ijk], qvl, 
                         &t_tmp, &qv_tmp, &ql_tmp, &qi_tmp);
 
                     ql_tendency[ijk] += (ql_tmp - ql[ijk])/dt;
