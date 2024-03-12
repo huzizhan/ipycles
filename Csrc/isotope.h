@@ -1949,8 +1949,10 @@ void cloud_liquid_wrapper(struct DimStruct *dims,
                     qv[ijk] = qt[ijk] - ql[ijk] - qi[ijk];
 
                     // only update T[ijk] here
+                    
+                    double qvl = qt[ijk] - qi[ijk];
                      
-                    eos_c(LT, lam_fp, L_fp, p0[k], s[ijk],qt[ijk], 
+                    eos_c(LT, lam_fp, L_fp, p0[k], s[ijk], qvl, 
                         &t_tmp, &qv_tmp, &ql_tmp, &qi_tmp);
                     
                     ql_tend = (ql_tmp - ql[ijk])/dt;
