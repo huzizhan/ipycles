@@ -1,4 +1,7 @@
 iPyCLES project is a Large Eddy Simulation model (PyCLES) coupled with stable water isotope tracer components, developed by the [Jonathon S. Wright group](https://jonathonwright.github.io/group.html) in the Department of Earth System Science, Tsinghua University. Now the isotopic components adopted under the branch `isotopetracer` with the model version is iPyCLES v1.0.
+The structure of iPyCLES v1.0 is like the following schematic diagram:
+
+![](./docs/ipycles_structure.png)
 
 ## Installation of ipycles in Linux (tested with ubuntu, Debian and Centos):
 Important system environments needed to be installed:
